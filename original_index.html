@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Food Lab LIMS</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Food Quality Control</p>
+        <h1>Laboratory LIMS</h1>
+      </div>
+      <div class="role-switcher" aria-label="Role selector">
+        <button class="role-btn active" data-role="technician">Technician</button>
+        <button class="role-btn" data-role="manager">Lab Manager</button>
+      </div>
+    </header>
+
+    <main>
+      <nav class="tabs" aria-label="Main sections">
+        <button class="tab-btn active" data-view="dashboard">Dashboard</button>
+        <button class="tab-btn" data-view="intake">Shipment Intake</button>
+        <button class="tab-btn" data-view="testing">Testing</button>
+        <button class="tab-btn manager-only" data-view="templates">Products</button>
+        <button class="tab-btn manager-only" data-view="review">Review</button>
+        <button class="tab-btn manager-only" data-view="coa">COA</button>
+      </nav>
+
+      <section id="dashboard" class="view active"></section>
+      <section id="intake" class="view"></section>
+      <section id="testing" class="view"></section>
+      <section id="templates" class="view"></section>
+      <section id="review" class="view"></section>
+      <section id="coa" class="view"></section>
+    </main>
+
+    <template id="modal-template">
+      <div class="modal-backdrop">
+        <div class="modal" role="dialog" aria-modal="true">
+          <div class="modal-head">
+            <h2></h2>
+            <button class="icon-btn close-modal" aria-label="Close">x</button>
+          </div>
+          <div class="modal-body"></div>
+        </div>
+      </div>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
