@@ -184,56 +184,48 @@ create or replace function public.admin_create_user(
   user_role text
 )
 returns uuid security definer as $$
-declare
-  new_user_id uuid;
-begin
-  -- Access control check: Only allow manager to create accounts, unless database has no users yet (seeding)
-  if exists (select 1 from public.profiles) then
-    if not exists (
-      select 1 from public.profiles 
-      where id = auth.uid() and role = 'manager'
-    ) then
-      raise exception 'Only managers are authorized to create users.';
+  declare
+    new_user_id uuid;
+    query_cols text := 'id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token';
+    query_vals text := '$1, ''00000000-0000-0000-0000-000000000000'', ''authenticated'', ''authenticated'', $2, crypt($3, gen_salt(''bf'')), now(), $4, $5, now(), now(), '''', ''''';
+  begin
+    -- Access control check: Only allow manager to create accounts, unless database has no users yet (seeding)
+    if exists (select 1 from public.profiles) then
+      if not exists (
+        select 1 from public.profiles 
+        where id = auth.uid() and role = 'manager'
+      ) then
+        raise exception 'Only managers are authorized to create users.';
+      end if;
     end if;
-  end if;
-
-  if user_role not in ('manager', 'technician') then
-    raise exception 'Invalid role specified.';
-  end if;
-
-  -- Generate new UUID
-  new_user_id := gen_random_uuid();
-
-  -- Insert into auth.users (Supabase's default security schema)
-  insert into auth.users (
-    instance_id,
-    id,
-    aud,
-    role,
-    email,
-    encrypted_password,
-    email_confirmed_at,
-    raw_app_meta_data,
-    raw_user_meta_data,
-    created_at,
-    updated_at,
-    confirmation_token,
-    recovery_token
-  ) values (
-    '00000000-0000-0000-0000-000000000000',
-    new_user_id,
-    'authenticated',
-    'authenticated',
-    user_email,
-    crypt(user_password, gen_salt('bf')),
-    now(),
-    jsonb_build_object('provider', 'email', 'providers', array['email']),
-    jsonb_build_object('role', user_role),
-    now(),
-    now(),
-    '',
-    ''
-  );
+  
+    if user_role not in ('manager', 'technician') then
+      raise exception 'Invalid role specified.';
+    end if;
+  
+    -- Generate new UUID
+    new_user_id := gen_random_uuid();
+  
+    -- Add extra columns dynamically if they exist in auth.users
+    if exists (select 1 from information_schema.columns where table_schema = 'auth' and table_name = 'users' and column_name = 'email_change') then
+      query_cols := query_cols || ', email_change';
+      query_vals := query_vals || ', ''''';
+    end if;
+    if exists (select 1 from information_schema.columns where table_schema = 'auth' and table_name = 'users' and column_name = 'email_change_token_new') then
+      query_cols := query_cols || ', email_change_token_new';
+      query_vals := query_vals || ', ''''';
+    end if;
+    if exists (select 1 from information_schema.columns where table_schema = 'auth' and table_name = 'users' and column_name = 'email_change_token_current') then
+      query_cols := query_cols || ', email_change_token_current';
+      query_vals := query_vals || ', ''''';
+    end if;
+    if exists (select 1 from information_schema.columns where table_schema = 'auth' and table_name = 'users' and column_name = 'phone_change') then
+      query_cols := query_cols || ', phone_change';
+      query_vals := query_vals || ', ''''';
+    end if;
+  
+    execute format('insert into auth.users (%s) values (%s)', query_cols, query_vals)
+      using new_user_id, user_email, user_password, jsonb_build_object('provider', 'email', 'providers', array['email']), jsonb_build_object('role', user_role);
 
   -- Insert into auth.identities
   insert into auth.identities (
@@ -246,7 +238,7 @@ begin
     created_at,
     updated_at
   ) values (
-    gen_random_uuid(),
+    new_user_id,
     new_user_id,
     jsonb_build_object('sub', new_user_id::text, 'email', user_email),
     'email',
