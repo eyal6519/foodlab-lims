@@ -186,6 +186,7 @@ create or replace function public.admin_create_user(
 returns uuid security definer as $$
   declare
     new_user_id uuid;
+    clean_email text;
     query_cols text := 'id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token';
     query_vals text := '$1, ''00000000-0000-0000-0000-000000000000'', ''authenticated'', ''authenticated'', $2, crypt($3, gen_salt(''bf'')), now(), $4, $5, now(), now(), '''', ''''';
   begin
@@ -203,6 +204,7 @@ returns uuid security definer as $$
       raise exception 'Invalid role specified.';
     end if;
   
+    clean_email := lower(trim(user_email));
     -- Generate new UUID
     new_user_id := gen_random_uuid();
   
@@ -225,7 +227,7 @@ returns uuid security definer as $$
     end if;
   
     execute format('insert into auth.users (%s) values (%s)', query_cols, query_vals)
-      using new_user_id, user_email, user_password, jsonb_build_object('provider', 'email', 'providers', array['email']), jsonb_build_object('role', user_role);
+      using new_user_id, clean_email, user_password, jsonb_build_object('provider', 'email', 'providers', array['email']), jsonb_build_object('role', user_role);
 
   -- Insert into auth.identities
   insert into auth.identities (
@@ -238,9 +240,9 @@ returns uuid security definer as $$
     created_at,
     updated_at
   ) values (
+    gen_random_uuid(),
     new_user_id,
-    new_user_id,
-    jsonb_build_object('sub', new_user_id::text, 'email', user_email),
+    jsonb_build_object('sub', new_user_id::text, 'email', clean_email, 'email_verified', true, 'phone_verified', false),
     'email',
     new_user_id::text,
     now(),

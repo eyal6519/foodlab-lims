@@ -59,7 +59,7 @@ export function AuthProvider({ children }) {
     setError(null)
     setLoading(true)
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim().toLowerCase(),
       password,
     })
     if (error) {
@@ -83,7 +83,7 @@ export function AuthProvider({ children }) {
     setError(null)
     // Calls the secure SQL RPC function defined in schema.sql
     const { data, error } = await supabase.rpc('admin_create_user', {
-      user_email: email,
+      user_email: email.trim().toLowerCase(),
       user_password: password,
       user_role: 'technician'
     })
