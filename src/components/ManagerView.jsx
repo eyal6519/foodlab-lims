@@ -633,17 +633,19 @@ export default function ManagerView() {
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => toggleIncubationUnlock(s.id, s.is_manually_unlocked)}
-                          className={`flex items-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
-                            s.is_manually_unlocked
-                              ? 'bg-amber-950/20 border-amber-500/30 text-amber-400 hover:bg-amber-900/10'
-                              : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
-                          }`}
-                        >
-                          {s.is_manually_unlocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                          <span>{s.is_manually_unlocked ? 'Locked Lock' : 'Unlock Testing'}</span>
-                        </button>
+                        {incStatus.required && !incStatus.exited && (
+                          <button
+                            onClick={() => toggleIncubationUnlock(s.id, s.is_manually_unlocked)}
+                            className={`flex items-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                              s.is_manually_unlocked
+                                ? 'bg-amber-950/20 border-amber-500/30 text-amber-400 hover:bg-amber-900/10'
+                                : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                            }`}
+                          >
+                            {s.is_manually_unlocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                            <span>{s.is_manually_unlocked ? 'Re-lock' : 'Unlock Testing'}</span>
+                          </button>
+                        )}
 
                         <button
                           onClick={() => setShipmentModal(s)}

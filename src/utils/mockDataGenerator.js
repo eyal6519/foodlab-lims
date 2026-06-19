@@ -252,10 +252,38 @@ export async function seedMockData() {
   }
 }
 
-// 3. Create default QA users
+// 3. Create default QA users (deletes existing ones first if they are not the active user, to allow password reset)
 export async function seedQAUsers() {
   try {
     const results = []
+    
+    // Get currently logged-in user to avoid self-deletion attempts
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+    // Query existing QA profiles
+    const { data: existingProfiles } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .in('email', ['manager@foodlab.com', 'technician@foodlab.com'])
+
+    if (existingProfiles && existingProfiles.length > 0) {
+      for (const prof of existingProfiles) {
+        if (currentUser && prof.id === currentUser.id) {
+          console.warn(`Skipping deletion of currently logged-in profile: ${prof.email}`)
+          continue
+        }
+        
+        // Delete existing profile
+        const { error: deleteErr } = await supabase.rpc('admin_delete_user', {
+          target_user_id: prof.id
+        })
+        if (deleteErr) {
+          console.error(`Failed to delete profile ${prof.email}:`, deleteErr.message)
+        } else {
+          console.log(`Deleted old profile: ${prof.email}`)
+        }
+      }
+    }
     
     // Create Manager
     const { data: managerData, error: managerErr } = await supabase.rpc('admin_create_user', {
