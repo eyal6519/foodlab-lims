@@ -92,25 +92,19 @@ create policy "Authenticated users can read shipments"
     to authenticated
     using (true);
 
-create policy "Managers can manage shipments"
+drop policy if exists "Managers can manage shipments" on public.shipments;
+drop policy if exists "Technicians can update shipments (e.g. exit early if needed or set dates)" on public.shipments;
+
+create policy "Managers and technicians can manage shipments"
     on public.shipments for all
     to authenticated
     using (
         exists (
             select 1 from public.profiles
-            where public.profiles.id = auth.uid() and public.profiles.role = 'manager'
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
         )
     );
 
-create policy "Technicians can update shipments (e.g. exit early if needed or set dates)"
-    on public.shipments for update
-    to authenticated
-    using (
-        exists (
-            select 1 from public.profiles
-            where public.profiles.id = auth.uid() and public.profiles.role = 'technician'
-        )
-    );
 
 -- 4. BATCHES TABLE
 create table if not exists public.batches (
@@ -138,13 +132,15 @@ create policy "Authenticated users can read batches"
     to authenticated
     using (true);
 
-create policy "Managers can manage batches"
+drop policy if exists "Managers can manage batches" on public.batches;
+
+create policy "Managers and technicians can manage batches"
     on public.batches for all
     to authenticated
     using (
         exists (
             select 1 from public.profiles
-            where public.profiles.id = auth.uid() and public.profiles.role = 'manager'
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
         )
     );
 

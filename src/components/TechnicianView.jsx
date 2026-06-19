@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { TESTS, calculateTest, isTestEntered } from '../utils/calculations'
+import { parseBatchNumber } from '../utils/batchParser'
 import ReplicateModal from './ReplicateModal'
+import ShipmentModal from './ShipmentModal'
 import {
   LogOut,
   Clock,
@@ -14,7 +16,9 @@ import {
   HelpCircle,
   FileSpreadsheet,
   Settings,
-  XCircle
+  XCircle,
+  Plus,
+  Edit
 } from 'lucide-react'
 
 export default function TechnicianView() {
@@ -23,10 +27,11 @@ export default function TechnicianView() {
   const [templates, setTemplates] = useState([])
   const [results, setResults] = useState({}) // batchId:testId -> replicates list
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('pending') // 'pending' | 'due'
+  const [activeTab, setActiveTab] = useState('pending') // 'pending' | 'due' | 'intake'
 
   // Modal State
   const [activeTestModal, setActiveTestModal] = useState(null) // { batch, test }
+  const [shipmentModal, setShipmentModal] = useState(null) // { id, template_id, ... } or 'new'
   const [expandedShipmentId, setExpandedShipmentId] = useState(null)
   const [expandedBatchId, setExpandedBatchId] = useState(null)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
@@ -144,6 +149,124 @@ export default function TechnicianView() {
     }
   }
 
+  // Shipment Actions
+  const handleSaveShipment = async (e) => {
+    e.preventDefault()
+    const form = e.target
+    const data = Object.fromEntries(new FormData(form))
+    const isNew = shipmentModal === 'new'
+    
+    // Auto incubation exit date calculation
+    const template = templates.find(t => t.id === data.template_id)
+    const intakeDate = data.intake_date
+    const u36 = Number(data.units_36 || 0)
+    const u55 = Number(data.units_55 || 0)
+
+    const addDays = (dateStr, days) => {
+      const next = new Date(dateStr + 'T00:00:00')
+      next.setDate(next.getDate() + Number(days))
+      return next.toISOString().slice(0, 10)
+    }
+
+    const exit36 = u36 && template?.incubation_36 ? addDays(intakeDate, template.incubation_36) : null
+    const exit55 = u55 && template?.incubation_55 ? addDays(intakeDate, template.incubation_55) : null
+
+    try {
+      let shipmentId = isNew ? null : shipmentModal.id
+
+      // 1. Save shipment details
+      const payload = {
+        template_id: data.template_id,
+        supplier: data.supplier,
+        intake_date: intakeDate,
+        size: data.size || null,
+        units_36: u36,
+        units_55: u55,
+        exit_36: exit36,
+        exit_55: exit55,
+        is_manually_unlocked: isNew ? false : shipmentModal.is_manually_unlocked
+      }
+
+      if (isNew) {
+        const { data: createdShipment, error } = await supabase
+          .from('shipments')
+          .insert(payload)
+          .select()
+          .single()
+        if (error) throw error
+        shipmentId = createdShipment.id
+      } else {
+        const { error } = await supabase
+          .from('shipments')
+          .update(payload)
+          .eq('id', shipmentId)
+        if (error) throw error
+      }
+
+      // 2. Save batches
+      // Parse dynamic batch form rows
+      const batchRows = Array.from(form.querySelectorAll('.batch-form-row')).map(row => {
+        const numInput = row.querySelector('[name="batch_number"]').value
+        const parsed = parseBatchNumber(numInput)
+        const prodDate = row.querySelector('[name="production_date"]').value || (parsed.valid ? parsed.date : null)
+        const expDate = row.querySelector('[name="expiration_date"]').value || null
+
+        const uuidv4 = () => {
+          if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID()
+          }
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+        }
+
+        return {
+          id: row.dataset.id || uuidv4(),
+          shipment_id: shipmentId,
+          number: numInput ? numInput.trim() : null,
+          production_date: prodDate,
+          expiration_date: expDate
+        }
+      })
+
+      // Sync batches (delete removed ones, upsert active ones)
+      if (!isNew) {
+        const activeIds = batchRows.map(r => r.id).filter(Boolean)
+        await supabase
+          .from('batches')
+          .delete()
+          .eq('shipment_id', shipmentId)
+          .not('id', 'in', `(${activeIds.join(',')})`)
+      }
+
+      const { error: batchesError } = await supabase
+        .from('batches')
+        .upsert(batchRows)
+      if (batchesError) throw batchesError
+
+      setShipmentModal(null)
+      fetchData()
+      showToast(isNew ? 'Shipment logged successfully' : 'Shipment updated successfully')
+    } catch (err) {
+      alert(`Error saving shipment: ${err.message}`)
+    }
+  }
+
+  // Toggle incubation manually (Override Lock)
+  const toggleIncubationUnlock = async (shipmentId, currentStatus) => {
+    try {
+      const { error } = await supabase
+        .from('shipments')
+        .update({ is_manually_unlocked: !currentStatus })
+        .eq('id', shipmentId)
+      if (error) throw error
+      fetchData()
+    } catch (err) {
+      alert(`Error toggling override: ${err.message}`)
+    }
+  }
+
   // Helpers
   const getTemplate = (id) => templates.find(t => t.id === id)
 
@@ -245,7 +368,7 @@ export default function TechnicianView() {
 
       <main className="max-w-6xl mx-auto px-4 mt-8">
         {/* Navigation Tabs */}
-        <div className="flex gap-2 p-1 bg-slate-900 border border-slate-800 rounded-2xl max-w-md mb-8">
+        <div className="flex gap-2 p-1 bg-slate-900 border border-slate-800 rounded-2xl max-w-lg mb-8">
           <button
             onClick={() => setActiveTab('pending')}
             className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
@@ -262,10 +385,91 @@ export default function TechnicianView() {
           >
             Incubation Attention ({shipments.filter(s => getIncubationStatus(s).due).length})
           </button>
+          <button
+            onClick={() => setActiveTab('intake')}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+              activeTab === 'intake' ? 'bg-teal-500 text-slate-950' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Shipment Intake
+          </button>
         </div>
 
         {/* Shipments List */}
-        {filteredShipments.length === 0 ? (
+        {activeTab === 'intake' ? (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white">Intake Log</h2>
+              <button
+                onClick={() => setShipmentModal('new')}
+                className="flex items-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Log Shipment</span>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {shipments.map(s => {
+                const temp = getTemplate(s.template_id)
+                const incStatus = getIncubationStatus(s)
+                return (
+                  <div
+                    key={s.id}
+                    className="p-6 bg-slate-900 border border-slate-800 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-slate-750 transition-all"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-bold text-white">{temp?.name}</h3>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          incStatus.locked ? 'bg-red-950 text-red-400 border border-red-500/20' : 'bg-teal-950 text-teal-400 border border-teal-500/20'
+                        }`}>
+                          {incStatus.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Supplier: <span className="font-semibold text-slate-200">{s.supplier}</span> • 
+                        Arrived: <span className="font-semibold text-slate-200">{s.intake_date}</span>
+                        {s.size && ` • Size: ${s.size}`}
+                      </p>
+                      {/* Batches count info */}
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {s.batches.map(b => (
+                          <span key={b.id} className="px-2.5 py-0.5 bg-slate-950 text-slate-400 border border-slate-850 rounded text-[10px] font-semibold">
+                            {b.number || 'Unnamed Batch'} {b.approved_at && '✓'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {incStatus.required && !incStatus.exited && (
+                        <button
+                          onClick={() => toggleIncubationUnlock(s.id, s.is_manually_unlocked)}
+                          className={`flex items-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                            s.is_manually_unlocked
+                              ? 'bg-amber-950/20 border-amber-500/30 text-amber-400 hover:bg-amber-900/10'
+                              : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                          }`}
+                        >
+                          {s.is_manually_unlocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                          <span>{s.is_manually_unlocked ? 'Re-lock' : 'Unlock Testing'}</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => setShipmentModal(s)}
+                        className="p-2 bg-slate-850 border border-slate-800 hover:border-slate-750 text-slate-400 hover:text-white rounded-xl transition-all"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : filteredShipments.length === 0 ? (
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
             <FileSpreadsheet className="w-12 h-12 text-slate-600 mx-auto mb-4" />
             <h3 className="text-lg font-bold text-slate-300">No shipments found</h3>
@@ -487,6 +691,16 @@ export default function TechnicianView() {
           initialRows={results[`${activeTestModal.batch.id}:${activeTestModal.test.id}`]}
           onSave={handleSaveResult}
           onClose={() => setActiveTestModal(null)}
+        />
+      )}
+
+      {/* Shipment Intake Modal Portal */}
+      {shipmentModal && (
+        <ShipmentModal
+          templates={templates}
+          initialShipment={shipmentModal === 'new' ? null : shipmentModal}
+          onSave={handleSaveShipment}
+          onClose={() => setShipmentModal(null)}
         />
       )}
 
