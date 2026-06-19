@@ -189,7 +189,8 @@ export async function seedMockData() {
         shipment_id: shipFinishedId,
         number: '26-160', // June 9, 2026
         production_date: '2026-06-09',
-        expiration_date: '2029-06-09'
+        expiration_date: '2029-06-09',
+        approved_at: formatTimestamp(now)
       },
       {
         id: batchFinished2Id,
@@ -219,7 +220,7 @@ export async function seedMockData() {
     const { error: batchErr } = await supabase.from('batches').insert(batches)
     if (batchErr) throw batchErr
 
-    // --- Create Test Results (Failure for Retest Batch) ---
+    // --- Create Test Results (Failure for Retest Batch and Passing/Approved for Finished Batch) ---
     const testResults = [
       {
         id: generateUUID(),
@@ -237,6 +238,42 @@ export async function seedMockData() {
         test_id: 'ph',
         replicates: [
           { value: '3.5' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchFinished1Id,
+        test_id: 'weight',
+        replicates: [
+          { gross: '165.0', tare: '5.0', net: '160.0' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchFinished1Id,
+        test_id: 'ph',
+        replicates: [
+          { value: '6.0' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchFinished1Id,
+        test_id: 'vacuum',
+        replicates: [
+          { hg: '1.0' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchFinished1Id,
+        test_id: 'organoleptic',
+        replicates: [
+          { pass: 'pass', reason: 'Passes sensory' }
         ],
         updated_at: formatTimestamp(now)
       }
