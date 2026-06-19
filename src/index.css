@@ -39,3 +39,91 @@ body {
     border-radius: 0 !important;
   }
 }
+
+/* 
+  Global overrides for Certificate of Analysis report element to avoid 
+  html2canvas oklch parsing failure (Tailwind v4 color format incompatibility).
+*/
+#coa-report-view,
+#coa-report-view * {
+  box-shadow: none !important;
+}
+
+#coa-report-view {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+#coa-report-view .text-white {
+  color: #ffffff !important;
+}
+
+#coa-report-view .text-slate-950,
+#coa-report-view h1,
+#coa-report-view th {
+  color: #020617 !important;
+}
+
+#coa-report-view .text-slate-900,
+#coa-report-view td,
+#coa-report-view span {
+  color: #0f172a !important;
+}
+
+#coa-report-view .text-slate-800 {
+  color: #1e293b !important;
+}
+
+#coa-report-view .text-slate-700 {
+  color: #334155 !important;
+}
+
+#coa-report-view .text-slate-500 {
+  color: #64748b !important;
+}
+
+#coa-report-view .text-slate-450,
+#coa-report-view .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+#coa-report-view .bg-slate-900 {
+  background-color: #0f172a !important;
+}
+
+#coa-report-view .bg-slate-50 {
+  background-color: #f8fafc !important;
+}
+
+#coa-report-view .bg-slate-100 {
+  background-color: #f1f5f9 !important;
+}
+
+#coa-report-view .border-slate-200 {
+  border-color: #e2e8f0 !important;
+}
+
+#coa-report-view .border-slate-300 {
+  border-color: #cbd5e1 !important;
+}
+
+#coa-report-view .border-slate-400 {
+  border-color: #94a3b8 !important;
+}
+
+#coa-report-view .border-slate-900 {
+  border-color: #0f172a !important;
+}
+
+#coa-report-view .border-slate-150 {
+  border-color: #e2e8f0 !important;
+}
+
+#coa-report-view table,
+#coa-report-view tr,
+#coa-report-view td,
+#coa-report-view th {
+  border-color: #cbd5e1 !important;
+}
