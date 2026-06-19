@@ -1,22 +1,74 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { Beaker, Lock, Mail, AlertCircle } from 'lucide-react'
+import { Beaker, Lock, Mail, AlertCircle, AlertTriangle, Info } from 'lucide-react'
 
 export default function Login() {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState({ visible: false, message: '', title: '', type: 'error' })
+
+  useEffect(() => {
+    // Proactively check if Supabase is configured
+    const hasConfig = import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
+    if (!hasConfig) {
+      setToast({
+        visible: true,
+        type: 'warning',
+        title: 'Connection Offline',
+        message: 'The Supabase database credentials are not configured. The application cannot authenticate.'
+      })
+    }
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')
+    setToast(prev => ({ ...prev, visible: false }))
     setLoading(true)
+
+    const hasConfig = import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
+    if (!hasConfig) {
+      setToast({
+        visible: true,
+        type: 'warning',
+        title: 'Configuration Missing',
+        message: 'Supabase URL and Anon Key are missing. Please define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your Vercel project settings.'
+      })
+      setLoading(false)
+      return
+    }
+
     try {
       await login(email, password)
     } catch (err) {
-      setError(err.message || 'Invalid login credentials. Please try again.')
+      const errMsg = err.message || ''
+      const errStatus = err.status || 0
+      
+      let title = 'Authentication Failed'
+      let message = 'An unexpected error occurred. Please try again.'
+      let type = 'error'
+
+      if (errMsg.includes('Invalid login credentials') || errMsg.includes('invalid_grant')) {
+        title = 'Incorrect Credentials'
+        message = 'The email address or password you entered is incorrect. Please check your spelling and try again.'
+      } else if (errStatus === 500 || errMsg.includes('unexpected_failure') || errMsg.includes('database')) {
+        title = 'Database Error (500)'
+        message = 'Supabase returned an internal database error. This usually indicates a configuration issue, a failing trigger, or a database setup problem (e.g. missing columns). Please check the Supabase logs.'
+      } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('NetworkError')) {
+        title = 'Network Connection Issue'
+        message = 'Could not reach the database. Please check your internet connection or verify that the Supabase server is not blocked.'
+      } else {
+        title = 'Application Error'
+        message = errMsg || 'A script or connection error occurred during authorization.'
+      }
+
+      setToast({
+        visible: true,
+        title,
+        message,
+        type
+      })
     } finally {
       setLoading(false)
     }
@@ -24,6 +76,39 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 relative overflow-hidden">
+      {/* Toast Notification Container */}
+      {toast.visible && (
+        <div className="fixed top-6 right-6 z-50 max-w-sm w-full animate-in slide-in-from-top-4 duration-300">
+          <div className={`p-4 rounded-2xl border backdrop-blur-xl shadow-2xl flex gap-3 items-start ${
+            toast.type === 'error' 
+              ? 'bg-red-950/90 border-red-500/30 text-red-200' 
+              : toast.type === 'warning'
+              ? 'bg-amber-950/90 border-amber-500/30 text-amber-200'
+              : 'bg-teal-950/90 border-teal-500/30 text-teal-200'
+          }`}>
+            {toast.type === 'error' && <AlertCircle className="w-5.5 h-5.5 text-red-400 shrink-0 mt-0.5" />}
+            {toast.type === 'warning' && <AlertTriangle className="w-5.5 h-5.5 text-amber-400 shrink-0 mt-0.5" />}
+            {toast.type === 'info' && <Info className="w-5.5 h-5.5 text-teal-400 shrink-0 mt-0.5" />}
+            
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-bold uppercase tracking-wider mb-1">
+                {toast.title}
+              </h4>
+              <p className="text-xs opacity-90 leading-relaxed break-words">
+                {toast.message}
+              </p>
+            </div>
+            
+            <button 
+              type="button"
+              onClick={() => setToast(prev => ({ ...prev, visible: false }))}
+              className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
       {/* Background ambient light effects */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
@@ -46,12 +131,6 @@ export default function Login() {
 
         <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-4 bg-red-950/40 border border-red-500/30 rounded-2xl flex items-start gap-3 text-red-200 text-sm">
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                <span>{error}</span>
-              </div>
-            )}
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
