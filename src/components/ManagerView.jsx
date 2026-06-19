@@ -408,27 +408,38 @@ export default function ManagerView() {
   }
 
   // Generate PDF client-side
-  const downloadCoaPdf = async (batchNumber) => {
+  const downloadCoaPdf = (batchNumber) => {
     const element = document.getElementById('coa-report-view')
     if (!element) return
 
     const opt = {
-      margin: 0.5,
+      margin: 0.3,
       filename: `COA_Batch_${batchNumber || 'Unnamed'}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
     }
 
-    try {
-      // Dynamically import the minified, bundle-safe build of html2pdf
-      const html2pdfModule = await import('html2pdf.js/dist/html2pdf.min.js')
-      const html2pdf = html2pdfModule.default || html2pdfModule
+    const runHtml2Pdf = () => {
+      const html2pdf = window.html2pdf
+      if (!html2pdf) {
+        alert('PDF library not loaded yet. Please try again.')
+        return
+      }
       html2pdf().set(opt).from(element).save()
-    } catch (err) {
-      console.error('Failed to download PDF:', err)
-      alert(`Error generating PDF: ${err.message}`)
     }
+
+    if (window.html2pdf) {
+      runHtml2Pdf()
+      return
+    }
+
+    // Load html2pdf dynamically from jsDelivr CDN (fully bundled, single-script version 0.14.0)
+    const script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.14.0/dist/html2pdf.bundle.min.js'
+    script.onload = runHtml2Pdf
+    script.onerror = () => alert('Failed to load PDF generation library from CDN. Please check your internet connection.')
+    document.body.appendChild(script)
   }
 
   // --- RENDER HEPLERS ---
@@ -990,9 +1001,8 @@ export default function ManagerView() {
                 )}
               </div>
 
-              {/* Printable report page view */}
               {coaSelectedBatchId ? (
-                <div id="coa-report-view" className="p-8 bg-white text-slate-900 border border-slate-300 rounded-3xl max-w-3xl mx-auto shadow-xl flex flex-col justify-between min-h-[10.5in]">
+                <div id="coa-report-view" className="p-8 bg-white text-slate-900 border border-slate-300 rounded-3xl max-w-3xl mx-auto shadow-xl flex flex-col justify-between min-h-[9.2in]">
                   {/* COA Top Header */}
                   <div>
                     <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
