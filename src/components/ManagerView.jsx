@@ -22,7 +22,7 @@ import {
   Edit,
   UserPlus
 } from 'lucide-react'
-// html2pdf imported dynamically inside downloadCoaPdf to avoid bundler issues
+import html2pdf from 'html2pdf.js'
 
 function uuidv4() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -410,7 +410,10 @@ export default function ManagerView() {
   // Generate PDF client-side
   const downloadCoaPdf = (batchNumber) => {
     const element = document.getElementById('coa-report-view')
-    if (!element) return
+    if (!element) {
+      alert('Error: COA report element (#coa-report-view) not found.')
+      return
+    }
 
     const opt = {
       margin: 0.3,
@@ -420,26 +423,48 @@ export default function ManagerView() {
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
     }
 
-    const runHtml2Pdf = () => {
-      const html2pdf = window.html2pdf
-      if (!html2pdf) {
-        alert('PDF library not loaded yet. Please try again.')
+    const runCdnHtml2Pdf = () => {
+      const html2pdfLib = window.html2pdf
+      if (!html2pdfLib) {
+        alert('PDF library not loaded from CDN yet. Please click again in a moment.')
         return
       }
-      html2pdf().set(opt).from(element).save()
+      try {
+        html2pdfLib().set(opt).from(element).save()
+          .catch(err => alert('PDF Save Error (CDN): ' + err.message))
+      } catch (err) {
+        alert('PDF Execution Error (CDN): ' + err.message)
+      }
     }
 
-    if (window.html2pdf) {
-      runHtml2Pdf()
-      return
+    const loadCdnFallback = () => {
+      if (window.html2pdf) {
+        runCdnHtml2Pdf()
+        return
+      }
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.14.0/dist/html2pdf.bundle.min.js'
+      script.onload = runCdnHtml2Pdf
+      script.onerror = () => alert('Failed to load PDF generation library from CDN. Please check your internet connection.')
+      document.body.appendChild(script)
     }
 
-    // Load html2pdf dynamically from jsDelivr CDN (fully bundled, single-script version 0.14.0)
-    const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.14.0/dist/html2pdf.bundle.min.js'
-    script.onload = runHtml2Pdf
-    script.onerror = () => alert('Failed to load PDF generation library from CDN. Please check your internet connection.')
-    document.body.appendChild(script)
+    // Try local bundle first
+    try {
+      const html2pdfFn = html2pdf.default || html2pdf
+      if (typeof html2pdfFn === 'function') {
+        html2pdfFn().set(opt).from(element).save()
+          .catch(err => {
+            console.warn('Local html2pdf save failed, trying CDN fallback...', err)
+            loadCdnFallback()
+          })
+      } else {
+        throw new Error('Local html2pdf is not resolved as a function.')
+      }
+    } catch (err) {
+      console.warn('Local html2pdf execution failed, attempting CDN fallback. Error:', err.message)
+      loadCdnFallback()
+    }
   }
 
   // --- RENDER HEPLERS ---
@@ -989,8 +1014,16 @@ export default function ManagerView() {
                     </button>
                     <button
                       onClick={() => {
-                        const batchObj = shipments.flatMap(s => s.batches).find(b => b.id === coaSelectedBatchId)
-                        if (batchObj) downloadCoaPdf(batchObj.number)
+                        try {
+                          const batchObj = shipments.flatMap(s => s.batches).find(b => b.id === coaSelectedBatchId)
+                          if (batchObj) {
+                            downloadCoaPdf(batchObj.number)
+                          } else {
+                            alert(`Error: Selected batch not found (ID: ${coaSelectedBatchId})`)
+                          }
+                        } catch (err) {
+                          alert('Error during download click: ' + err.message)
+                        }
                       }}
                       className="flex items-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
                     >
