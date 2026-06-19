@@ -5,9 +5,13 @@ create extension if not exists pgcrypto;
 create table if not exists public.profiles (
     id uuid primary key references auth.users on delete cascade,
     email text not null,
+    name text,
     role text not null check (role in ('manager', 'technician')),
     created_at timestamp with time zone default now()
 );
+
+-- Ensure the column exists for existing tables
+alter table public.profiles add column if not exists name text;
 
 -- Enable RLS on profiles
 alter table public.profiles enable row level security;
@@ -161,11 +165,12 @@ create policy "Authenticated users can modify test results"
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, role)
+  insert into public.profiles (id, email, role, name)
   values (
     new.id,
     new.email,
-    coalesce(new.raw_user_meta_data->>'role', 'technician')
+    coalesce(new.raw_user_meta_data->>'role', 'technician'),
+    new.raw_user_meta_data->>'name'
   );
   return new;
 end;
@@ -181,7 +186,8 @@ create trigger on_auth_user_created
 create or replace function public.admin_create_user(
   user_email text, 
   user_password text, 
-  user_role text
+  user_role text,
+  user_name text default null
 )
 returns uuid security definer as $$
   declare
@@ -227,7 +233,7 @@ returns uuid security definer as $$
     end if;
   
     execute format('insert into auth.users (%s) values (%s)', query_cols, query_vals)
-      using new_user_id, clean_email, user_password, jsonb_build_object('provider', 'email', 'providers', array['email']), jsonb_build_object('role', user_role);
+      using new_user_id, clean_email, user_password, jsonb_build_object('provider', 'email', 'providers', array['email']), jsonb_build_object('role', user_role, 'name', user_name);
 
   -- Insert into auth.identities
   insert into auth.identities (

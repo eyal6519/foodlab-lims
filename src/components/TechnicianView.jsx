@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 
 export default function TechnicianView() {
-  const { user, logout } = useAuth()
+  const { user, profile, logout } = useAuth()
   const [shipments, setShipments] = useState([])
   const [templates, setTemplates] = useState([])
   const [results, setResults] = useState({}) // batchId:testId -> replicates list
@@ -187,7 +187,7 @@ export default function TechnicianView() {
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
             <p className="text-xs text-slate-400">Signed in as</p>
-            <p className="text-sm font-semibold text-slate-200">{user?.email}</p>
+            <p className="text-sm font-semibold text-slate-200">{profile?.name || user?.email}</p>
           </div>
           <button
             onClick={logout}

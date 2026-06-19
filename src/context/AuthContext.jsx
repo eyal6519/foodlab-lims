@@ -79,13 +79,14 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function createTechnician(email, password) {
+  async function createTechnician(name, email, password) {
     setError(null)
     // Calls the secure SQL RPC function defined in schema.sql
     const { data, error } = await supabase.rpc('admin_create_user', {
       user_email: email.trim().toLowerCase(),
       user_password: password,
-      user_role: 'technician'
+      user_role: 'technician',
+      user_name: name ? name.trim() : null
     })
     if (error) throw error
     return data;

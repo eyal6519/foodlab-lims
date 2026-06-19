@@ -34,7 +34,7 @@ function uuidv4() {
 }
 
 export default function ManagerView() {
-  const { user, logout, createTechnician } = useAuth()
+  const { user, profile, logout, createTechnician } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'intake' | 'templates' | 'review' | 'coa' | 'users'
 
   // Global State
@@ -47,6 +47,7 @@ export default function ManagerView() {
   // Forms & Modal State
   const [shipmentModal, setShipmentModal] = useState(null) // { id, template_id, ... } or 'new'
   const [templateModal, setTemplateModal] = useState(null) // { id, name, ... } or 'new'
+  const [newUserName, setNewUserName] = useState('')
   const [newUserEmail, setNewUserEmail] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
   const [userMsg, setUserMsg] = useState({ type: '', text: '' })
@@ -133,8 +134,9 @@ export default function ManagerView() {
     e.preventDefault()
     setUserMsg({ type: '', text: '' })
     try {
-      await createTechnician(newUserEmail, newUserPassword)
-      setUserMsg({ type: 'success', text: `Technician ${newUserEmail} registered successfully!` })
+      await createTechnician(newUserName, newUserEmail, newUserPassword)
+      setUserMsg({ type: 'success', text: `Technician ${newUserName || newUserEmail} registered successfully!` })
+      setNewUserName('')
       setNewUserEmail('')
       setNewUserPassword('')
       // Refresh list
@@ -434,7 +436,7 @@ export default function ManagerView() {
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
             <p className="text-xs text-slate-400">Signed in as</p>
-            <p className="text-sm font-semibold text-slate-200">{user?.email}</p>
+            <p className="text-sm font-semibold text-slate-200">{profile?.name || user?.email}</p>
           </div>
           <button
             onClick={logout}
@@ -996,7 +998,18 @@ export default function ManagerView() {
                   </div>
                 )}
 
-                <form onSubmit={handleRegisterUser} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                <form onSubmit={handleRegisterUser} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      placeholder="John Doe"
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+                    />
+                  </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
                     <input
@@ -1036,8 +1049,9 @@ export default function ManagerView() {
                   {usersList.map(u => (
                     <div key={u.id} className="py-3 flex justify-between items-center text-xs">
                       <div>
-                        <span className="font-bold text-slate-200">{u.email}</span>
-                        <span className="text-slate-500 ml-2">ID: {u.id}</span>
+                        <span className="font-bold text-slate-200">{u.name || 'No Name'}</span>
+                        <span className="text-slate-400 ml-2">({u.email})</span>
+                        <span className="text-slate-600 ml-2">ID: {u.id}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
