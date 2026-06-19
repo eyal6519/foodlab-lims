@@ -1,0 +1,294 @@
+import { supabase } from '../lib/supabase'
+
+// Helper to generate UUIDs in the browser
+function generateUUID() {
+  return crypto.randomUUID()
+}
+
+// Format date helper (YYYY-MM-DD)
+function formatDate(date) {
+  return date.toISOString().split('T')[0]
+}
+
+// Format timestamp helper
+function formatTimestamp(date) {
+  return date.toISOString()
+}
+
+// 1. Clear database function
+export async function clearAllData() {
+  try {
+    // Delete test results first due to foreign keys
+    const { error: testErr } = await supabase.from('test_results').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    if (testErr) throw testErr
+
+    // Delete batches
+    const { error: batchErr } = await supabase.from('batches').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    if (batchErr) throw batchErr
+
+    // Delete shipments
+    const { error: shipErr } = await supabase.from('shipments').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    if (shipErr) throw shipErr
+
+    // Delete product templates
+    const { error: tempErr } = await supabase.from('product_templates').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    if (tempErr) throw tempErr
+
+    return { success: true }
+  } catch (err) {
+    console.error('Error clearing data:', err)
+    return { success: false, error: err.message }
+  }
+}
+
+// 2. Main data seeder
+export async function seedMockData() {
+  try {
+    // First, clear everything
+    await clearAllData()
+
+    // --- Create Product Templates ---
+    const tunaTemplateId = generateUUID()
+    const jamTemplateId = generateUUID()
+
+    const templates = [
+      {
+        id: tunaTemplateId,
+        name: 'Canned Tuna 160g',
+        packaging: 'Metal Can',
+        requires_incubation: true,
+        incubation_36: 5,
+        incubation_55: 3,
+        tests: ['weight', 'ph', 'vacuum', 'organoleptic'],
+        standards: {
+          weight: { min: 155, max: 165 },
+          ph: { min: 5.5, max: 6.5 },
+          vacuum: { min: 10, max: 50 }
+        }
+      },
+      {
+        id: jamTemplateId,
+        name: 'Peach Jam 250g',
+        packaging: 'Glass Jar',
+        requires_incubation: false,
+        incubation_36: 0,
+        incubation_55: 0,
+        tests: ['brix', 'ph', 'organoleptic'],
+        standards: {
+          brix: { min: 60, max: 65 },
+          ph: { min: 3.2, max: 4.0 }
+        }
+      }
+    ]
+
+    const { error: tempErr } = await supabase.from('product_templates').insert(templates)
+    if (tempErr) throw tempErr
+
+    // --- Create Shipments ---
+    const now = new Date()
+
+    // 1. Shipment locked in incubation (Canned Tuna)
+    const intakeLocked = new Date()
+    intakeLocked.setDate(now.getDate() - 2) // 2 days ago
+    const exitLocked36 = new Date(intakeLocked)
+    exitLocked36.setDate(intakeLocked.getDate() + 5)
+    const exitLocked55 = new Date(intakeLocked)
+    exitLocked55.setDate(intakeLocked.getDate() + 3)
+
+    const shipLockedId = generateUUID()
+
+    // 2. Shipment finished incubation (Canned Tuna)
+    const intakeFinished = new Date()
+    intakeFinished.setDate(now.getDate() - 10) // 10 days ago
+    const exitFinished36 = new Date(intakeFinished)
+    exitFinished36.setDate(intakeFinished.getDate() + 5)
+    const exitFinished55 = new Date(intakeFinished)
+    exitFinished55.setDate(intakeFinished.getDate() + 3)
+
+    const shipFinishedId = generateUUID()
+
+    // 3. Shipment bypassing incubation (Peach Jam)
+    const intakeBypass = new Date() // Today
+    const shipBypassId = generateUUID()
+
+    // 4. Shipment for Retest scenario (Peach Jam)
+    const intakeRetest = new Date()
+    const shipRetestId = generateUUID()
+
+    const shipments = [
+      {
+        id: shipLockedId,
+        template_id: tunaTemplateId,
+        supplier: 'Pacific Fish Co.',
+        intake_date: formatDate(intakeLocked),
+        size: '10,000 units',
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitLocked36),
+        exit_55: formatDate(exitLocked55),
+        is_manually_unlocked: false
+      },
+      {
+        id: shipFinishedId,
+        template_id: tunaTemplateId,
+        supplier: 'Atlantic Catch Ltd.',
+        intake_date: formatDate(intakeFinished),
+        size: '5,000 units',
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitFinished36),
+        exit_55: formatDate(exitFinished55),
+        is_manually_unlocked: false
+      },
+      {
+        id: shipBypassId,
+        template_id: jamTemplateId,
+        supplier: 'Sweet Orchards Inc.',
+        intake_date: formatDate(intakeBypass),
+        size: '2,500 units',
+        units_36: 0,
+        units_55: 0,
+        exit_36: null,
+        exit_55: null,
+        is_manually_unlocked: false
+      },
+      {
+        id: shipRetestId,
+        template_id: jamTemplateId,
+        supplier: 'Fruit Growers Coop',
+        intake_date: formatDate(intakeRetest),
+        size: '1,200 units',
+        units_36: 0,
+        units_55: 0,
+        exit_36: null,
+        exit_55: null,
+        is_manually_unlocked: false
+      }
+    ]
+
+    const { error: shipErr } = await supabase.from('shipments').insert(shipments)
+    if (shipErr) throw shipErr
+
+    // --- Create Batches ---
+    const batchLockedId = generateUUID()
+    const batchFinished1Id = generateUUID()
+    const batchFinished2Id = generateUUID()
+    const batchBypassId = generateUUID()
+    const batchRetestId = generateUUID()
+
+    const batches = [
+      {
+        id: batchLockedId,
+        shipment_id: shipLockedId,
+        number: '26-170', // Julian date batch number example (June 19, 2026 is day 170)
+        production_date: '2026-06-19',
+        expiration_date: '2029-06-19'
+      },
+      {
+        id: batchFinished1Id,
+        shipment_id: shipFinishedId,
+        number: '26-160', // June 9, 2026
+        production_date: '2026-06-09',
+        expiration_date: '2029-06-09'
+      },
+      {
+        id: batchFinished2Id,
+        shipment_id: shipFinishedId,
+        number: '26-161', // June 10, 2026
+        production_date: '2026-06-10',
+        expiration_date: '2029-06-10'
+      },
+      {
+        id: batchBypassId,
+        shipment_id: shipBypassId,
+        number: '26-170', // Today
+        production_date: '2026-06-19',
+        expiration_date: '2028-06-19'
+      },
+      {
+        id: batchRetestId,
+        shipment_id: shipRetestId,
+        number: '26-169', // Yesterday
+        production_date: '2026-06-18',
+        expiration_date: '2028-06-18',
+        retest_requested_at: formatTimestamp(now),
+        retest_reason: 'Brix average failed specifications. Value was 55.4 (min is 60.0)'
+      }
+    ]
+
+    const { error: batchErr } = await supabase.from('batches').insert(batches)
+    if (batchErr) throw batchErr
+
+    // --- Create Test Results (Failure for Retest Batch) ---
+    const testResults = [
+      {
+        id: generateUUID(),
+        batch_id: batchRetestId,
+        test_id: 'brix',
+        replicates: [
+          { value: '55.2' },
+          { value: '55.6' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchRetestId,
+        test_id: 'ph',
+        replicates: [
+          { value: '3.5' }
+        ],
+        updated_at: formatTimestamp(now)
+      }
+    ]
+
+    const { error: testResultErr } = await supabase.from('test_results').insert(testResults)
+    if (testResultErr) throw testResultErr
+
+    return { success: true }
+  } catch (err) {
+    console.error('Error seeding data:', err)
+    return { success: false, error: err.message }
+  }
+}
+
+// 3. Create default QA users
+export async function seedQAUsers() {
+  try {
+    const results = []
+    
+    // Create Manager
+    const { data: managerData, error: managerErr } = await supabase.rpc('admin_create_user', {
+      user_email: 'manager@foodlab.com',
+      user_password: 'password123',
+      user_role: 'manager',
+      user_name: 'QA Manager'
+    })
+    if (managerErr) {
+      console.warn('Could not create QA Manager (might already exist):', managerErr.message)
+      results.push({ user: 'manager', status: 'skipped', detail: managerErr.message })
+    } else {
+      results.push({ user: 'manager', status: 'created', id: managerData })
+    }
+
+    // Create Technician
+    const { data: techData, error: techErr } = await supabase.rpc('admin_create_user', {
+      user_email: 'technician@foodlab.com',
+      user_password: 'password123',
+      user_role: 'technician',
+      user_name: 'QA Technician'
+    })
+    if (techErr) {
+      console.warn('Could not create QA Technician (might already exist):', techErr.message)
+      results.push({ user: 'technician', status: 'skipped', detail: techErr.message })
+    } else {
+      results.push({ user: 'technician', status: 'created', id: techData })
+    }
+
+    return { success: true, results }
+  } catch (err) {
+    console.error('Error seeding QA users:', err)
+    return { success: false, error: err.message }
+  }
+}
+

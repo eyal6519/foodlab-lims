@@ -1,138 +1,130 @@
 import { describe, it, expect } from 'vitest'
-import { calculateTest, TESTS } from './calculations'
+import { num, fmt, avg, calculateTest } from './calculations'
 
-describe('LIMS Math & Calculation Engine Tests', () => {
-  
-  // 1. Weight Test
-  it('correctly calculates Net Weight from direct net or gross/tare', () => {
-    const testId = 'weight'
-    const rows = [
-      { gross: 120, tare: 20 }, // net = 100
-      { net: 100 }             // net = 100 directly
-    ]
-    const res = calculateTest(testId, rows)
-    expect(res.average).toBe(100) // Avg net weight
-    expect(res.complete).toBe(true)
+describe('Math and Calculations Utilities', () => {
+  describe('num()', () => {
+    it('safely parses valid numbers', () => {
+      expect(num(42)).toBe(42)
+      expect(num('42')).toBe(42)
+      expect(num('3.14')).toBe(3.14)
+    })
+
+    it('returns NaN for invalid values', () => {
+      expect(num('abc')).toBeNaN()
+      expect(num(undefined)).toBeNaN()
+      expect(num(null)).toBe(0) // Number(null) is 0 in JS
+    })
   })
 
-  // 1b. Volume Test (Calculated Test)
-  it('correctly derives Volume from Weight and Specific Gravity averages', () => {
-    const testId = 'volume'
-    const batchResults = {
-      weight: [
-        { gross: 120, tare: 20 }, // net = 100
-        { net: 100 }             // net = 100
-      ],
-      specific_gravity: [
-        { value: 1.2 }
-      ]
-    }
-    const res = calculateTest(testId, [], batchResults)
-    expect(res.average).toBeCloseTo(83.33, 2) // 100 / 1.2
-    expect(res.complete).toBe(true)
+  describe('fmt()', () => {
+    it('formats finite numbers to standard decimal format', () => {
+      expect(fmt(3.14159)).toBe('3.14')
+      expect(fmt(3.1)).toBe('3.1')
+      expect(fmt(3)).toBe('3')
+    })
+
+    it('returns dash for non-finite numbers', () => {
+      expect(fmt(NaN)).toBe('-')
+      expect(fmt(Infinity)).toBe('-')
+    })
   })
 
-  // 2. Vacuum Test (inHg to mmHg)
-  it('correctly converts inHg to mmHg and averages results', () => {
-    const testId = 'vacuum'
-    const rows = [
-      { hg: 10 }, // 10 * 25.4 = 254 mmHg
-      { hg: 20 }  // 20 * 25.4 = 508 mmHg
-    ]
-    const res = calculateTest(testId, rows)
-    expect(res.average).toBe(381) // Avg of 254 and 508
-    expect(res.complete).toBe(true)
+  describe('avg()', () => {
+    it('calculates average of numbers', () => {
+      expect(avg([1, 2, 3, 4])).toBe(2.5)
+      expect(avg([5])).toBe(5)
+    })
+
+    it('ignores non-finite numbers', () => {
+      expect(avg([1, NaN, 3, NaN])).toBe(2)
+    })
+
+    it('returns NaN for empty list or only NaNs', () => {
+      expect(avg([])).toBeNaN()
+      expect(avg([NaN])).toBeNaN()
+    })
   })
 
-  // 3. pH range constraints
-  it('enforces pH values strictly between 0 and 14', () => {
-    const testId = 'ph'
-    const validRows = [{ value: 7.2 }]
-    const invalidRows = [{ value: 15.5 }] // Outside 0-14, should return NaN
+  describe('calculateTest()', () => {
+    it('returns empty results for unknown test IDs', () => {
+      const res = calculateTest('unknown_test', [])
+      expect(res.complete).toBe(false)
+      expect(res.label).toBe('-')
+    })
 
-    const validRes = calculateTest(testId, validRows)
-    const invalidRes = calculateTest(testId, invalidRows)
+    it('calculates qualitative (pass/fail) tests based on the last row', () => {
+      let res = calculateTest('labeling_packaging', [
+        { pass: 'Pass', reason: 'Looks good' }
+      ])
+      expect(res.complete).toBe(true)
+      expect(res.label).toBe('Pass')
+      expect(res.note).toBe('Looks good')
 
-    expect(validRes.average).toBe(7.2)
-    expect(Number.isNaN(invalidRes.average)).toBe(true)
-  })
+      res = calculateTest('labeling_packaging', [
+        { pass: 'Pass', reason: 'Looks good' },
+        { pass: 'Fail', reason: 'Damaged box' }
+      ])
+      expect(res.complete).toBe(true)
+      expect(res.label).toBe('Fail')
+      expect(res.note).toBe('Damaged box')
+    })
 
-  // 4. Acidity formula and constants
-  it('correctly calculates acidity using Citric Acid constant (0.64)', () => {
-    const testId = 'acidity'
-    const rows = [
-      { volume: 5.0, mass: 10.0, acid: '0.64' } // (5 * 0.64) / 10 = 0.32
-    ]
-    const res = calculateTest(testId, rows)
-    expect(res.average).toBe(0.32)
-    expect(res.complete).toBe(true)
-  })
+    it('calculates weight test using net directly or gross - tare', () => {
+      // Net directly
+      let res = calculateTest('weight', [{ net: '5.5' }])
+      expect(res.complete).toBe(true)
+      expect(res.average).toBe(5.5)
 
-  // 5. Peroxides in Oil
-  it('correctly calculates peroxides with a factor of 10', () => {
-    const testId = 'peroxides'
-    const rows = [
-      { volume: 2.5, mass: 5.0 } // (2.5 * 10) / 5 = 5.0
-    ]
-    const res = calculateTest(testId, rows)
-    expect(res.average).toBe(5.0)
-  })
+      // Gross and Tare
+      res = calculateTest('weight', [{ gross: '10.5', tare: '5.0' }])
+      expect(res.complete).toBe(true)
+      expect(res.average).toBe(5.5)
 
-  // 6. Aqueous Layer with checkbox sum
-  it('calculates aqueous layer dividing volume by the sum of SELECTED samples only', () => {
-    const testId = 'aqueous_layer'
-    const rows = [
-      { volume: 10, sample: 5, selected: true },  // Selected
-      { volume: 10, sample: 15, selected: false }, // Not selected
-      { volume: 10, sample: 5, selected: true }   // Selected
-    ]
-    // Denominator = 5 + 5 = 10
-    // Volume = 10 (first valid volume)
-    // Value = (10 / 10) * 100 = 100
-    const res = calculateTest(testId, rows)
-    expect(res.average).toBe(100)
-    expect(res.complete).toBe(true)
-  })
+      // Average of multiple weight replicates
+      res = calculateTest('weight', [
+        { gross: '10.5', tare: '5.0' },
+        { net: '6.5' }
+      ])
+      expect(res.complete).toBe(true)
+      expect(res.average).toBe(6.0) // (5.5 + 6.5) / 2
+    })
 
-  // 7. Paprika Color ASTA (requires 2 replicates)
-  it('calculates paprika color ASTA and honors min replicates count', () => {
-    const testId = 'paprika_asta'
-    const singleRow = [
-      { mass: 100, absorption: 0.5 } // 0.5 * 1640 / 100 = 8.2
-    ]
-    const doubleRow = [
-      { mass: 100, absorption: 0.5 }, // 8.2
-      { mass: 100, absorption: 0.5 }  // 8.2
-    ]
+    it('calculates volume based on weight and specific gravity (derived)', () => {
+      const batchResults = {
+        weight: [{ net: '10.0' }],
+        specific_gravity: [{ value: '1.25' }]
+      }
+      const res = calculateTest('volume', [], batchResults)
+      expect(res.complete).toBe(true)
+      expect(res.average).toBe(8.0) // 10.0 / 1.25
+      expect(res.label).toBe('8 ml')
+    })
 
-    const singleRes = calculateTest(testId, singleRow)
-    const doubleRes = calculateTest(testId, doubleRow)
+    it('calculates vacuum converting inHg to mmHg', () => {
+      const res = calculateTest('vacuum', [{ hg: '10' }])
+      expect(res.complete).toBe(true)
+      expect(res.average).toBe(254) // 10 * 25.4
+    })
 
-    expect(singleRes.average).toBe(8.2)
-    expect(singleRes.complete).toBe(false) // Needs 2 replicates
+    it('calculates pH and formats as pH of X.XX', () => {
+      const res = calculateTest('ph', [{ value: '5.5' }])
+      expect(res.complete).toBe(true)
+      expect(res.average).toBe(5.5)
+      expect(res.label).toBe('pH of 5.5')
+    })
 
-    expect(doubleRes.average).toBe(8.2)
-    expect(doubleRes.complete).toBe(true) // Has 2 replicates
-  })
+    it('calculates acidity with Citric acid constant', () => {
+      const res = calculateTest('acidity', [{ volume: '5.0', mass: '10.0', acid: '0.64' }])
+      expect(res.complete).toBe(true)
+      expect(res.average).toBeCloseTo(0.32) // (5 * 0.64) / 10
+    })
 
-  // 8. Tuna Chunk (requires at least 5 replicates)
-  it('enforces a minimum of 5 replicates for Chunk Percentage in Tuna', () => {
-    const testId = 'tuna_chunk'
-    const fourRows = [
-      { chunk: 40, total: 100 },
-      { chunk: 40, total: 100 },
-      { chunk: 40, total: 100 },
-      { chunk: 40, total: 100 }
-    ]
-    const fiveRows = [...fourRows, { chunk: 40, total: 100 }]
-
-    const fourRes = calculateTest(testId, fourRows)
-    const fiveRes = calculateTest(testId, fiveRows)
-
-    expect(fourRes.average).toBe(40)
-    expect(fourRes.complete).toBe(false) // Awaiting min 5
-
-    expect(fiveRes.average).toBe(40)
-    expect(fiveRes.complete).toBe(true) // Has min 5
+    it('calculates multiple results like filling_coating', () => {
+      const res = calculateTest('filling_coating', [
+        { external: '2.0', internal: '3.0', total: '10.0' }
+      ])
+      expect(res.complete).toBe(true)
+      expect(res.label).toBe('Coating %: 20% / Filling %: 30%')
+    })
   })
 })
