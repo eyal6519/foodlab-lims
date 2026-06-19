@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { TESTS, testMap, calculateTest, fmt, isTestEntered } from '../utils/calculations'
+import { parseBatchNumber } from '../utils/batchParser'
 import {
   LogOut,
   LayoutDashboard,
@@ -119,18 +120,7 @@ export default function ManagerView() {
     }
   }
 
-  // --- BATCH AUTO-PARSING YY-JJJ ---
-  function parseBatchNumber(number) {
-    const match = String(number || '').trim().match(/^(\d{2})-(\d{3})$/)
-    if (!match) return { valid: false, date: '' }
-    const year = 2000 + Number(match[1])
-    const dayOfYear = Number(match[2])
-    const maxDay = (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 366 : 365
-    if (dayOfYear < 1 || dayOfYear > maxDay) return { valid: false, date: '' }
-    
-    const date = new Date(Date.UTC(year, 0, dayOfYear))
-    return { valid: true, date: date.toISOString().slice(0, 10) }
-  }
+
 
   // --- MANAGER ACTIONS ---
 
