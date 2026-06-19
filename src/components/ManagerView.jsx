@@ -34,7 +34,7 @@ function uuidv4() {
 }
 
 export default function ManagerView() {
-  const { user, profile, logout, createTechnician } = useAuth()
+  const { user, profile, logout, createTechnician, updateAccount } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'intake' | 'templates' | 'review' | 'coa' | 'users'
 
   // Global State
@@ -54,6 +54,11 @@ export default function ManagerView() {
 
   // COA print select
   const [coaSelectedBatchId, setCoaSelectedBatchId] = useState('')
+
+  // Retest & Settings modal state
+  const [retestInputBatchId, setRetestInputBatchId] = useState(null)
+  const [retestReason, setRetestReason] = useState('')
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false)
 
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
 
@@ -251,7 +256,7 @@ export default function ManagerView() {
         return {
           id: row.dataset.id || uuidv4(),
           shipment_id: shipmentId,
-          number: numInput,
+          number: numInput ? numInput.trim() : null,
           production_date: prodDate,
           expiration_date: expDate
         }
@@ -303,12 +308,15 @@ export default function ManagerView() {
       }
     })
 
+    const requiresInc = form.querySelector('[name="requires_incubation"]').checked
+
     try {
       const payload = {
         name: data.name,
         packaging: data.packaging || null,
-        incubation_36: Number(data.incubation_36 || 0),
-        incubation_55: Number(data.incubation_55 || 0),
+        requires_incubation: requiresInc,
+        incubation_36: requiresInc ? Number(data.incubation_36 || 0) : 0,
+        incubation_55: requiresInc ? Number(data.incubation_55 || 0) : 0,
         tests: selectedTests,
         standards
       }
@@ -342,6 +350,11 @@ export default function ManagerView() {
 
   // Approve Batch Flow
   const approveBatch = async (batchId) => {
+    const batchObj = shipments.flatMap(s => s.batches).find(b => b.id === batchId)
+    if (!batchObj?.production_date) {
+      alert('Cannot approve COA: Production date is missing. Please edit the shipment and set the production date first.')
+      return
+    }
     try {
       const { error } = await supabase
         .from('batches')
@@ -354,12 +367,36 @@ export default function ManagerView() {
     }
   }
 
+  // Submit Retest Request
+  const submitRetestRequest = async (batchId) => {
+    if (!retestReason.trim()) {
+      alert('Please enter a reason for the retest request.')
+      return
+    }
+    try {
+      const { error } = await supabase
+        .from('batches')
+        .update({
+          retest_requested_at: new Date().toISOString(),
+          retest_reason: retestReason.trim()
+        })
+        .eq('id', batchId)
+      if (error) throw error
+      setRetestInputBatchId(null)
+      setRetestReason('')
+      fetchData()
+      showToast('Retest request submitted successfully.', 'success')
+    } catch (err) {
+      alert(`Error submitting retest request: ${err.message}`)
+    }
+  }
+
   // Generate PDF client-side
   const downloadCoaPdf = (batchNumber) => {
     const element = document.getElementById('coa-report-view')
     const opt = {
       margin: 0.5,
-      filename: `COA_Batch_${batchNumber}.pdf`,
+      filename: `COA_Batch_${batchNumber || 'Unnamed'}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
@@ -438,6 +475,13 @@ export default function ManagerView() {
             <p className="text-xs text-slate-400">Signed in as</p>
             <p className="text-sm font-semibold text-slate-200">{profile?.name || user?.email}</p>
           </div>
+          <button
+            onClick={() => setSettingsModalOpen(true)}
+            className="p-2.5 bg-slate-800 hover:bg-teal-950/40 border border-slate-700 hover:border-teal-500/30 text-slate-300 hover:text-teal-400 rounded-xl transition-all duration-200"
+            title="Account Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
           <button
             onClick={logout}
             className="p-2.5 bg-slate-800 hover:bg-red-950/40 border border-slate-700 hover:border-red-500/30 text-slate-300 hover:text-red-400 rounded-xl transition-all duration-200"
@@ -588,7 +632,7 @@ export default function ManagerView() {
                         <div className="flex flex-wrap gap-2 pt-1">
                           {s.batches.map(b => (
                             <span key={b.id} className="px-2.5 py-0.5 bg-slate-950 text-slate-400 border border-slate-850 rounded text-[10px] font-semibold">
-                              {b.number} {b.approved_at && '✓'}
+                              {b.number || 'Unnamed Batch'} {b.approved_at && '✓'}
                             </span>
                           ))}
                         </div>
@@ -718,10 +762,15 @@ export default function ManagerView() {
                               >
                                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                                   <div>
-                                    <span className="text-sm font-bold text-white">{batch.number}</span>
+                                    <span className="text-sm font-bold text-white">{batch.number || 'Unnamed Batch'}</span>
                                     <p className="text-[10px] text-slate-500 mt-0.5">
                                       Prod: {batch.production_date || '-'} • Exp: {batch.expiration_date || '-'}
                                     </p>
+                                    {batch.retest_requested_at && (
+                                      <div className="mt-1 text-[10px] text-amber-400 bg-amber-950/20 border border-amber-500/20 px-2 py-0.5 rounded-lg w-fit">
+                                        Pending Retest: {batch.retest_reason}
+                                      </div>
+                                    )}
                                   </div>
 
                                   <div className="flex items-center gap-3">
@@ -731,12 +780,23 @@ export default function ManagerView() {
                                         <span>Approved</span>
                                       </span>
                                     ) : isReady ? (
-                                      <button
-                                        onClick={() => approveBatch(batch.id)}
-                                        className="px-4 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
-                                      >
-                                        Approve Batch
-                                      </button>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => approveBatch(batch.id)}
+                                          className="px-4 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
+                                        >
+                                          Approve & Sign COA
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setRetestInputBatchId(retestInputBatchId === batch.id ? null : batch.id)
+                                            setRetestReason('')
+                                          }}
+                                          className="px-4 py-1.5 bg-red-900/60 hover:bg-red-900 border border-red-700/30 text-red-200 text-xs font-bold rounded-xl transition-all"
+                                        >
+                                          Decline & Request Retest
+                                        </button>
+                                      </div>
                                     ) : (
                                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-slate-900 border border-slate-800 text-slate-500 text-xs font-bold rounded-full">
                                         <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
@@ -745,6 +805,37 @@ export default function ManagerView() {
                                     )}
                                   </div>
                                 </div>
+
+                                {retestInputBatchId === batch.id && (
+                                  <div className="mt-3 p-3 bg-slate-950/80 border border-slate-850 rounded-xl space-y-2">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                      Reason for Retest Request
+                                    </label>
+                                    <textarea
+                                      value={retestReason}
+                                      onChange={(e) => setRetestReason(e.target.value)}
+                                      placeholder="Explain why a retest is requested..."
+                                      className="w-full h-20 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none resize-none"
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                      <button
+                                        onClick={() => {
+                                          setRetestInputBatchId(null)
+                                          setRetestReason('')
+                                        }}
+                                        className="px-3 py-1 border border-slate-850 text-[10px] font-bold text-slate-400 hover:text-white rounded-lg transition-all"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={() => submitRetestRequest(batch.id)}
+                                        className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold rounded-lg transition-all"
+                                      >
+                                        Submit Request
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
 
                                 {/* Results Grid */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -829,7 +920,7 @@ export default function ManagerView() {
                         const temp = getTemplate(b.shipment.template_id)
                         return (
                           <option key={b.id} value={b.id}>
-                            {b.number} - {temp?.name}
+                            {b.number || 'Unnamed Batch'} - {temp?.name}
                           </option>
                         )
                       })}
@@ -895,7 +986,7 @@ export default function ManagerView() {
                           </div>
                           <div>
                             <span className="text-[9px] font-bold text-slate-450 uppercase block">Batch Number</span>
-                            <span className="font-extrabold text-slate-900">{batch?.number}</span>
+                            <span className="font-extrabold text-slate-900">{batch?.number || 'Unnamed Batch'}</span>
                           </div>
                           <div>
                             <span className="text-[9px] font-bold text-slate-450 uppercase block">Supplier</span>
@@ -1105,6 +1196,16 @@ export default function ManagerView() {
         />
       )}
 
+      {/* ACCOUNT SETTINGS MODAL */}
+      {settingsModalOpen && (
+        <AccountSettingsModal
+          user={user}
+          onClose={() => setSettingsModalOpen(false)}
+          updateAccount={updateAccount}
+          showToast={showToast}
+        />
+      )}
+
       {/* Toast Notification */}
       {toast.visible && (
         <div className="fixed bottom-6 right-6 z-50 p-4 bg-teal-950 border border-teal-500/35 text-teal-200 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce">
@@ -1232,8 +1333,9 @@ function ShipmentModal({ templates, initialShipment, onSave, onClose, parseBatch
 
           {(() => {
             const selectedTemplate = templates.find(t => t.id === selectedTemplateId)
-            const hasInc36 = selectedTemplate && (selectedTemplate.incubation_36 || 0) > 0
-            const hasInc55 = selectedTemplate && (selectedTemplate.incubation_55 || 0) > 0
+            const requiresInc = selectedTemplate ? (selectedTemplate.requires_incubation !== false) : true
+            const hasInc36 = requiresInc && selectedTemplate && (selectedTemplate.incubation_36 || 0) > 0
+            const hasInc55 = requiresInc && selectedTemplate && (selectedTemplate.incubation_55 || 0) > 0
 
             if (!hasInc36 && !hasInc55) {
               return (
@@ -1313,7 +1415,6 @@ function ShipmentModal({ templates, initialShipment, onSave, onClose, parseBatch
                         <input
                           type="text"
                           name="batch_number"
-                          required
                           value={batch.number || ''}
                           onChange={(e) => handleBatchValChange(idx, 'number', e.target.value)}
                           placeholder="e.g. 26-168"
@@ -1382,10 +1483,14 @@ function ShipmentModal({ templates, initialShipment, onSave, onClose, parseBatch
 
 function TemplateModal({ initialTemplate, onSave, onClose }) {
   const [selectedTests, setSelectedTests] = useState([])
+  const [requiresIncubation, setRequiresIncubation] = useState(initialTemplate ? (initialTemplate.requires_incubation !== false) : true)
 
   useEffect(() => {
     if (initialTemplate && initialTemplate.tests) {
       setSelectedTests(initialTemplate.tests)
+    }
+    if (initialTemplate) {
+      setRequiresIncubation(initialTemplate.requires_incubation !== false)
     }
   }, [initialTemplate])
 
@@ -1437,26 +1542,44 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Incubation Days 36°C</label>
+            <div className="space-y-1 col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
               <input
-                type="number"
-                name="incubation_36"
-                min="0"
-                defaultValue={initialTemplate?.incubation_36 || 0}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+                type="checkbox"
+                name="requires_incubation"
+                id="requires_incubation"
+                checked={requiresIncubation}
+                onChange={(e) => setRequiresIncubation(e.target.checked)}
+                className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-teal-600 focus:ring-teal-500/50"
               />
+              <label htmlFor="requires_incubation" className="text-xs font-bold text-slate-400 cursor-pointer select-none">
+                Requires Incubation Workflow
+              </label>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Incubation Days 55°C</label>
-              <input
-                type="number"
-                name="incubation_55"
-                min="0"
-                defaultValue={initialTemplate?.incubation_55 || 0}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
-              />
-            </div>
+
+            {requiresIncubation && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Incubation Days 36°C</label>
+                  <input
+                    type="number"
+                    name="incubation_36"
+                    min="0"
+                    defaultValue={initialTemplate?.incubation_36 || 0}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Incubation Days 55°C</label>
+                  <input
+                    type="number"
+                    name="incubation_55"
+                    min="0"
+                    defaultValue={initialTemplate?.incubation_55 || 0}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="border-t border-slate-800 pt-6 space-y-4">
@@ -1553,6 +1676,86 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
             className="px-6 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
           >
             Save Template
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function AccountSettingsModal({ user, onClose, updateAccount, showToast }) {
+  const [email, setEmail] = useState(user?.email || '')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      await updateAccount(email, password || null)
+      showToast('Account updated successfully.', 'success')
+      onClose()
+    } catch (err) {
+      alert(`Error updating account: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4"
+      >
+        <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+          <h2 className="text-lg font-bold text-white">Account Settings</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all"
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">New Password (leave blank to keep current)</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2 border-t border-slate-800">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-5 py-2 bg-teal-500 hover:bg-teal-400 disabled:bg-teal-500/50 text-slate-950 text-xs font-bold rounded-xl transition-all"
+          >
+            {loading ? 'Saving...' : 'Save Settings'}
           </button>
         </div>
       </form>

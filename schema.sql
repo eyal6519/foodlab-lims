@@ -37,12 +37,16 @@ create table if not exists public.product_templates (
     id uuid primary key default gen_random_uuid(),
     name text not null,
     packaging text,
+    requires_incubation boolean default true,
     incubation_36 integer default 0,
     incubation_55 integer default 0,
     tests jsonb not null, -- Array of strings (test IDs)
     standards jsonb default '{}'::jsonb, -- Map of testId -> {min, max}
     created_at timestamp with time zone default now()
 );
+
+-- Ensure the column exists for existing tables
+alter table public.product_templates add column if not exists requires_incubation boolean default true;
 
 alter table public.product_templates enable row level security;
 
@@ -112,12 +116,19 @@ create policy "Technicians can update shipments (e.g. exit early if needed or se
 create table if not exists public.batches (
     id uuid primary key default gen_random_uuid(),
     shipment_id uuid references public.shipments on delete cascade not null,
-    number text not null,
+    number text, -- Nullable to allow optional batch numbers
     production_date date,
     expiration_date date,
     approved_at timestamp with time zone,
+    retest_requested_at timestamp with time zone,
+    retest_reason text,
     created_at timestamp with time zone default now()
 );
+
+-- Ensure columns exist and drop NOT NULL constraint on number for existing tables
+alter table public.batches alter column number drop not null;
+alter table public.batches add column if not exists retest_requested_at timestamp with time zone;
+alter table public.batches add column if not exists retest_reason text;
 
 alter table public.batches enable row level security;
 

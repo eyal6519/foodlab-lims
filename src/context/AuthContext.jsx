@@ -92,6 +92,22 @@ export function AuthProvider({ children }) {
     return data;
   }
 
+  async function updateAccount(email, password) {
+    setError(null)
+    setLoading(true)
+    const updates = {}
+    if (email) updates.email = email.trim().toLowerCase()
+    if (password) updates.password = password
+
+    const { data, error } = await supabase.auth.updateUser(updates)
+    if (error) {
+      setLoading(false)
+      throw error
+    }
+    setLoading(false)
+    return data
+  }
+
   const value = {
     user,
     profile,
@@ -100,6 +116,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     createTechnician,
+    updateAccount,
     refreshProfile: () => user && fetchProfile(user.id)
   }
 

@@ -12,11 +12,13 @@ import {
   CheckCircle,
   AlertCircle,
   HelpCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Settings,
+  XCircle
 } from 'lucide-react'
 
 export default function TechnicianView() {
-  const { user, profile, logout } = useAuth()
+  const { user, profile, logout, updateAccount } = useAuth()
   const [shipments, setShipments] = useState([])
   const [templates, setTemplates] = useState([])
   const [results, setResults] = useState({}) // batchId:testId -> replicates list
@@ -27,6 +29,15 @@ export default function TechnicianView() {
   const [activeTestModal, setActiveTestModal] = useState(null) // { batch, test }
   const [expandedShipmentId, setExpandedShipmentId] = useState(null)
   const [expandedBatchId, setExpandedBatchId] = useState(null)
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false)
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
+
+  const showToast = (message, type = 'success') => {
+    setToast({ visible: true, message, type })
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, visible: false }))
+    }, 3000)
+  }
 
   useEffect(() => {
     fetchData()
@@ -99,6 +110,28 @@ export default function TechnicianView() {
 
       if (error) throw error
 
+      // Clear retest request if there was an active retest
+      if (batch.retest_requested_at) {
+        const { error: clearRetestError } = await supabase
+          .from('batches')
+          .update({
+            retest_requested_at: null,
+            retest_reason: null
+          })
+          .eq('id', batch.id)
+        if (clearRetestError) throw clearRetestError
+
+        setShipments(prev => prev.map(s => {
+          if (s.id === batch.shipment_id) {
+            return {
+              ...s,
+              batches: s.batches.map(b => b.id === batch.id ? { ...b, retest_requested_at: null, retest_reason: null } : b)
+            }
+          }
+          return s
+        }))
+      }
+
       // Update local state
       setResults(prev => ({
         ...prev,
@@ -117,6 +150,10 @@ export default function TechnicianView() {
   const getIncubationStatus = (shipment) => {
     const template = getTemplate(shipment.template_id)
     if (!template) return { required: false, locked: false, label: 'Ready' }
+    
+    if (template.requires_incubation === false) {
+      return { required: false, locked: false, label: 'Ready' }
+    }
 
     const needs36 = (shipment.units_36 || 0) > 0 && (template.incubation_36 || 0) > 0
     const needs55 = (shipment.units_55 || 0) > 0 && (template.incubation_55 || 0) > 0
@@ -189,6 +226,13 @@ export default function TechnicianView() {
             <p className="text-xs text-slate-400">Signed in as</p>
             <p className="text-sm font-semibold text-slate-200">{profile?.name || user?.email}</p>
           </div>
+          <button
+            onClick={() => setSettingsModalOpen(true)}
+            className="p-2.5 bg-slate-800 hover:bg-teal-950/40 border border-slate-700 hover:border-teal-500/30 text-slate-300 hover:text-teal-400 rounded-xl transition-all duration-200"
+            title="Account Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
           <button
             onClick={logout}
             className="p-2.5 bg-slate-800 hover:bg-red-950/40 border border-slate-700 hover:border-red-500/30 text-slate-300 hover:text-red-400 rounded-xl transition-all duration-200"
@@ -317,23 +361,31 @@ export default function TechnicianView() {
                               const totalTestsCount = template?.tests.length || 0
 
                               return (
-                                <div
-                                  key={batch.id}
-                                  className="bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden"
-                                >
-                                  {/* Batch row header */}
                                   <div
-                                    onClick={() => !incStatus.locked && setExpandedBatchId(isBatchExpanded ? null : batch.id)}
-                                    className={`p-4 flex items-center justify-between gap-4 select-none ${
-                                      incStatus.locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800/20'
-                                    }`}
+                                    key={batch.id}
+                                    className="bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden"
                                   >
-                                    <div>
-                                      <span className="text-sm font-bold text-white">{batch.number}</span>
-                                      <p className="text-[10px] text-slate-400 mt-0.5">
-                                        Production: {batch.production_date || '-'} • Expiration: {batch.expiration_date || '-'}
-                                      </p>
-                                    </div>
+                                    {/* Retest request warning banner */}
+                                    {batch.retest_requested_at && (
+                                      <div className="bg-red-500/10 border-b border-red-500/25 px-4 py-2 flex items-center gap-2 text-xs font-bold text-red-400">
+                                        <AlertCircle className="w-4 h-4 text-red-500" />
+                                        <span>Retest Requested: {batch.retest_reason}</span>
+                                      </div>
+                                    )}
+
+                                    {/* Batch row header */}
+                                    <div
+                                      onClick={() => !incStatus.locked && setExpandedBatchId(isBatchExpanded ? null : batch.id)}
+                                      className={`p-4 flex items-center justify-between gap-4 select-none ${
+                                        incStatus.locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800/20'
+                                      }`}
+                                    >
+                                      <div>
+                                        <span className="text-sm font-bold text-white">{batch.number || 'Unnamed Batch'}</span>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">
+                                          Production: {batch.production_date || '-'} • Expiration: {batch.expiration_date || '-'}
+                                        </p>
+                                      </div>
 
                                     <div className="flex items-center gap-3">
                                       <span className="text-xs text-slate-400 font-medium">
@@ -416,12 +468,110 @@ export default function TechnicianView() {
       {activeTestModal && (
         <ReplicateModal
           test={activeTestModal.test}
-          batchNumber={activeTestModal.batch.number}
+          batchNumber={activeTestModal.batch.number || 'Unnamed Batch'}
           initialRows={results[`${activeTestModal.batch.id}:${activeTestModal.test.id}`]}
           onSave={handleSaveResult}
           onClose={() => setActiveTestModal(null)}
         />
       )}
+
+      {/* ACCOUNT SETTINGS MODAL */}
+      {settingsModalOpen && (
+        <AccountSettingsModal
+          user={user}
+          onClose={() => setSettingsModalOpen(false)}
+          updateAccount={updateAccount}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {toast.visible && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 bg-teal-950 border border-teal-500/35 text-teal-200 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce">
+          <CheckCircle className="w-5 h-5 shrink-0 text-teal-400" />
+          <span className="text-xs font-bold">{toast.message}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AccountSettingsModal({ user, onClose, updateAccount, showToast }) {
+  const [email, setEmail] = useState(user?.email || '')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      await updateAccount(email, password || null)
+      showToast('Account updated successfully.', 'success')
+      onClose()
+    } catch (err) {
+      alert(`Error updating account: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4"
+      >
+        <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+          <h2 className="text-lg font-bold text-white">Account Settings</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all"
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">New Password (leave blank to keep current)</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2 border-t border-slate-800">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-5 py-2 bg-teal-500 hover:bg-teal-400 disabled:bg-teal-500/50 text-slate-950 text-xs font-bold rounded-xl transition-all"
+          >
+            {loading ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
