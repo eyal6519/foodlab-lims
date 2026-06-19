@@ -422,6 +422,14 @@ export default function TechnicianView() {
                                         const repData = results[`${batch.id}:${testId}`] || []
                                         const isEntered = repData.length > 0
 
+                                        const batchResults = {}
+                                        if (template?.tests) {
+                                          template.tests.forEach(tid => {
+                                            batchResults[tid] = results[`${batch.id}:${tid}`] || []
+                                          })
+                                        }
+                                        const calc = calculateTest(testId, repData, batchResults)
+
                                         return (
                                           <div
                                             key={testId}
@@ -430,7 +438,14 @@ export default function TechnicianView() {
                                             <div>
                                               <p className="text-xs font-semibold text-white">{test.name}</p>
                                               <p className="text-[10px] text-slate-400 mt-0.5">
-                                                {isEntered ? `${repData.length} replicates` : 'No data logged'}
+                                                {isEntered ? (
+                                                  <>
+                                                    {repData.length} replicates
+                                                    <span className="text-teal-400 ml-1 font-semibold">
+                                                      ({calc.label})
+                                                    </span>
+                                                  </>
+                                                ) : 'No data logged'}
                                               </p>
                                             </div>
 
