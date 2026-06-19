@@ -10,14 +10,14 @@ export default function Login() {
   const [toast, setToast] = useState({ visible: false, message: '', title: '', type: 'error' })
 
   useEffect(() => {
-    // Proactively check if Supabase is configured
+    // Proactively check if LIMS is configured
     const hasConfig = import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
     if (!hasConfig) {
       setToast({
         visible: true,
         type: 'warning',
         title: 'Connection Offline',
-        message: 'The Supabase database credentials are not configured. The application cannot authenticate.'
+        message: 'The LIMS database connection is not configured. The application cannot authenticate with the system.'
       })
     }
   }, [])
@@ -33,7 +33,7 @@ export default function Login() {
         visible: true,
         type: 'warning',
         title: 'Configuration Missing',
-        message: 'Supabase URL and Anon Key are missing. Please define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your Vercel project settings.'
+        message: 'LIMS server configuration is incomplete. The application cannot establish a secure link to the database.'
       })
       setLoading(false)
       return
@@ -53,11 +53,11 @@ export default function Login() {
         title = 'Incorrect Credentials'
         message = 'The email address or password you entered is incorrect. Please check your spelling and try again.'
       } else if (errStatus === 500 || errMsg.includes('unexpected_failure') || errMsg.includes('database')) {
-        title = 'Database Error (500)'
-        message = 'Supabase returned an internal database error. This usually indicates a configuration issue, a failing trigger, or a database setup problem (e.g. missing columns). Please check the Supabase logs.'
+        title = 'LIMS Server Error (500)'
+        message = 'The LIMS server returned an internal database error. This usually indicates a system configuration issue or a temporary database failure. Please contact your Laboratory Administrator if this persists.'
       } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('NetworkError')) {
         title = 'Network Connection Issue'
-        message = 'Could not reach the database. Please check your internet connection or verify that the Supabase server is not blocked.'
+        message = 'Could not reach the database. Please check your internet connection or verify that the LIMS database server is online.'
       } else {
         title = 'Application Error'
         message = errMsg || 'A script or connection error occurred during authorization.'
