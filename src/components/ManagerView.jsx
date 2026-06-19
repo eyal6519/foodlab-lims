@@ -345,6 +345,19 @@ export default function ManagerView() {
       alert('Cannot approve COA: Production date is missing. Please edit the shipment and set the production date first.')
       return
     }
+
+    // Check if all template tests are entered
+    const shipmentObj = shipments.find(s => s.batches.some(b => b.id === batchId))
+    const template = shipmentObj ? templates.find(t => t.id === shipmentObj.template_id) : null
+    const totalTests = template?.tests || []
+    const enteredTests = totalTests.filter(tid => isTestEntered(tid, batchId, results))
+    const isReady = enteredTests.length === totalTests.length
+
+    if (!isReady) {
+      const confirmProceed = window.confirm('There are tests that have not been performed yet. Are you sure you want to approve this batch anyway?')
+      if (!confirmProceed) return
+    }
+
     try {
       const { error } = await supabase
         .from('batches')
@@ -363,6 +376,19 @@ export default function ManagerView() {
       alert('Please enter a reason for the retest request.')
       return
     }
+
+    // Check if all template tests are entered
+    const shipmentObj = shipments.find(s => s.batches.some(b => b.id === batchId))
+    const template = shipmentObj ? templates.find(t => t.id === shipmentObj.template_id) : null
+    const totalTests = template?.tests || []
+    const enteredTests = totalTests.filter(tid => isTestEntered(tid, batchId, results))
+    const isReady = enteredTests.length === totalTests.length
+
+    if (!isReady) {
+      const confirmProceed = window.confirm('There are tests that have not been performed yet. Are you sure you want to request a retest for this batch anyway?')
+      if (!confirmProceed) return
+    }
+
     try {
       const { error } = await supabase
         .from('batches')
@@ -781,8 +807,14 @@ export default function ManagerView() {
                                         <CheckCircle className="w-3.5 h-3.5" />
                                         <span>Approved</span>
                                       </span>
-                                    ) : isReady ? (
-                                      <div className="flex gap-2">
+                                    ) : (
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        {!isReady && (
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-900 border border-slate-800 text-amber-400 text-[10px] font-bold rounded-full">
+                                            <AlertTriangle className="w-3 h-3 text-amber-500" />
+                                            <span>Testing in progress</span>
+                                          </span>
+                                        )}
                                         <button
                                           onClick={() => approveBatch(batch.id)}
                                           className="px-4 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
@@ -799,11 +831,6 @@ export default function ManagerView() {
                                           Decline & Request Retest
                                         </button>
                                       </div>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-slate-900 border border-slate-800 text-slate-500 text-xs font-bold rounded-full">
-                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                                        <span>Testing in progress</span>
-                                      </span>
                                     )}
                                   </div>
                                 </div>
