@@ -5,3 +5,37 @@ body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+
+@media print {
+  /* Set light print-friendly background and text color */
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  /* Hide all elements on the page by default */
+  body * {
+    visibility: hidden !important;
+  }
+  
+  /* Render only the COA report container and its child elements */
+  #coa-report-view, #coa-report-view * {
+    visibility: visible !important;
+  }
+  
+  /* Position the report precisely at the top-left of the page, removing shadows, borders, and dark backgrounds */
+  #coa-report-view {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    background-color: white !important;
+    color: black !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+}

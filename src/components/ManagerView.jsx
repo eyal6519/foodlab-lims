@@ -22,7 +22,7 @@ import {
   Edit,
   UserPlus
 } from 'lucide-react'
-import html2pdf from 'html2pdf.js'
+// html2pdf imported dynamically inside downloadCoaPdf to avoid bundler issues
 
 function uuidv4() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -408,8 +408,10 @@ export default function ManagerView() {
   }
 
   // Generate PDF client-side
-  const downloadCoaPdf = (batchNumber) => {
+  const downloadCoaPdf = async (batchNumber) => {
     const element = document.getElementById('coa-report-view')
+    if (!element) return
+
     const opt = {
       margin: 0.5,
       filename: `COA_Batch_${batchNumber || 'Unnamed'}.pdf`,
@@ -417,7 +419,16 @@ export default function ManagerView() {
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
     }
-    html2pdf().set(opt).from(element).save()
+
+    try {
+      // Dynamically import the minified, bundle-safe build of html2pdf
+      const html2pdfModule = await import('html2pdf.js/dist/html2pdf.min.js')
+      const html2pdf = html2pdfModule.default || html2pdfModule
+      html2pdf().set(opt).from(element).save()
+    } catch (err) {
+      console.error('Failed to download PDF:', err)
+      alert(`Error generating PDF: ${err.message}`)
+    }
   }
 
   // --- RENDER HEPLERS ---
