@@ -3,23 +3,32 @@ import { Plus, Trash2, XCircle } from 'lucide-react'
 import { parseBatchNumber } from '../utils/batchParser'
 
 export default function ShipmentModal({ templates, initialShipment, onSave, onClose }) {
-  const [batches, setBatches] = useState([{ number: '', production_date: '', expiration_date: '' }])
+  const [batches, setBatches] = useState([{ number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
   const [selectedTemplateId, setSelectedTemplateId] = useState(initialShipment?.template_id || '')
 
   useEffect(() => {
     if (initialShipment) {
       if (initialShipment.batches) {
-        setBatches(initialShipment.batches)
+        setBatches(initialShipment.batches.map(b => ({
+          ...b,
+          units_36: b.units_36 || 0,
+          units_55: b.units_55 || 0
+        })))
       }
       setSelectedTemplateId(initialShipment.template_id || '')
     } else {
       setSelectedTemplateId('')
-      setBatches([{ number: '', production_date: '', expiration_date: '' }])
+      setBatches([{ number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
     }
   }, [initialShipment])
 
+  const selectedTemplate = templates.find(t => t.id === selectedTemplateId)
+  const requiresInc = selectedTemplate ? (selectedTemplate.requires_incubation !== false) : true
+  const hasInc36 = requiresInc && selectedTemplate && (selectedTemplate.incubation_36 || 0) > 0
+  const hasInc55 = requiresInc && selectedTemplate && (selectedTemplate.incubation_55 || 0) > 0
+
   const addBatchRow = () => {
-    setBatches([...batches, { number: '', production_date: '', expiration_date: '' }])
+    setBatches([...batches, { number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
   }
 
   const removeBatchRow = (idx) => {
@@ -114,58 +123,6 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
             </div>
           </div>
 
-          {(() => {
-            const selectedTemplate = templates.find(t => t.id === selectedTemplateId)
-            const requiresInc = selectedTemplate ? (selectedTemplate.requires_incubation !== false) : true
-            const hasInc36 = requiresInc && selectedTemplate && (selectedTemplate.incubation_36 || 0) > 0
-            const hasInc55 = requiresInc && selectedTemplate && (selectedTemplate.incubation_55 || 0) > 0
-
-            if (!hasInc36 && !hasInc55) {
-              return (
-                <>
-                  <input type="hidden" name="units_36" value="0" />
-                  <input type="hidden" name="units_55" value="0" />
-                </>
-              )
-            }
-
-            return (
-              <div className="border-t border-slate-800 pt-6 space-y-4">
-                <h3 className="text-xs font-bold text-slate-350 uppercase tracking-widest">Incubation Units Count</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {hasInc36 ? (
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Units incubated at 36°C</label>
-                      <input
-                        type="number"
-                        name="units_36"
-                        min="0"
-                        defaultValue={initialShipment?.units_36 || 0}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
-                      />
-                    </div>
-                  ) : (
-                    <input type="hidden" name="units_36" value="0" />
-                  )}
-                  {hasInc55 ? (
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Units incubated at 55°C</label>
-                      <input
-                        type="number"
-                        name="units_55"
-                        min="0"
-                        defaultValue={initialShipment?.units_55 || 0}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
-                      />
-                    </div>
-                  ) : (
-                    <input type="hidden" name="units_55" value="0" />
-                  )}
-                </div>
-              </div>
-            )
-          })()}
-
           <div className="border-t border-slate-800 pt-6 space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-xs font-bold text-slate-350 uppercase tracking-widest">Batches</h3>
@@ -185,53 +142,90 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                   <div
                     key={idx}
                     data-id={batch.id || ''}
-                    className="batch-form-row p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex items-end gap-4 relative pt-6"
+                    className="batch-form-row p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex items-center gap-4 relative pt-6"
                   >
                     <div className="absolute top-2 left-3 text-[9px] text-slate-600 font-bold uppercase">
                       Batch #{idx + 1}
                     </div>
 
-                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Batch Number (YY-JJJ)</label>
-                        <input
-                          type="text"
-                          name="batch_number"
-                          value={batch.number || ''}
-                          onChange={(e) => handleBatchValChange(idx, 'number', e.target.value)}
-                          placeholder="e.g. 26-168"
-                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
-                        />
+                    <div className="flex-1 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Batch Number (YY-JJJ)</label>
+                          <input
+                            type="text"
+                            name="batch_number"
+                            value={batch.number || ''}
+                            onChange={(e) => handleBatchValChange(idx, 'number', e.target.value)}
+                            placeholder="e.g. 26-168"
+                            className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Production Date</label>
+                          <input
+                            type="date"
+                            name="production_date"
+                            value={batch.production_date || ''}
+                            onChange={(e) => handleBatchValChange(idx, 'production_date', e.target.value)}
+                            className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Expiration Date</label>
+                          <input
+                            type="date"
+                            name="expiration_date"
+                            value={batch.expiration_date || ''}
+                            onChange={(e) => handleBatchValChange(idx, 'expiration_date', e.target.value)}
+                            className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
+                          />
+                        </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Production Date</label>
-                        <input
-                          type="date"
-                          name="production_date"
-                          value={batch.production_date || ''}
-                          onChange={(e) => handleBatchValChange(idx, 'production_date', e.target.value)}
-                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Expiration Date</label>
-                        <input
-                          type="date"
-                          name="expiration_date"
-                          value={batch.expiration_date || ''}
-                          onChange={(e) => handleBatchValChange(idx, 'expiration_date', e.target.value)}
-                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
-                        />
-                      </div>
+                      {(hasInc36 || hasInc55) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-900/60 pt-3">
+                          {hasInc36 ? (
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-slate-450 uppercase tracking-wider">Units incubated at 36°C</label>
+                              <input
+                                type="number"
+                                name="units_36"
+                                min="0"
+                                value={batch.units_36 || 0}
+                                onChange={(e) => handleBatchValChange(idx, 'units_36', Number(e.target.value))}
+                                className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
+                              />
+                            </div>
+                          ) : (
+                            <input type="hidden" name="units_36" value="0" />
+                          )}
+                          {hasInc55 ? (
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-slate-450 uppercase tracking-wider">Units incubated at 55°C</label>
+                              <input
+                                type="number"
+                                name="units_55"
+                                min="0"
+                                value={batch.units_55 || 0}
+                                onChange={(e) => handleBatchValChange(idx, 'units_55', Number(e.target.value))}
+                                className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
+                              />
+                            </div>
+                          ) : (
+                            <input type="hidden" name="units_55" value="0" />
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {batches.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeBatchRow(idx)}
-                        className="p-2 bg-slate-800 border border-slate-850 hover:border-red-500/20 text-slate-400 hover:text-red-400 rounded-xl transition-all"
+                        className="p-2 bg-slate-800 border border-slate-850 hover:border-red-500/20 text-slate-400 hover:text-red-400 rounded-xl transition-all self-center"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

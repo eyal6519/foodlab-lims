@@ -122,10 +122,10 @@ export async function seedMockData() {
         supplier: 'Pacific Fish Co.',
         intake_date: formatDate(intakeLocked),
         size: '10,000 units',
-        units_36: 12,
-        units_55: 12,
-        exit_36: formatDate(exitLocked36),
-        exit_55: formatDate(exitLocked55),
+        units_36: 0,
+        units_55: 0,
+        exit_36: null,
+        exit_55: null,
         is_manually_unlocked: false
       },
       {
@@ -134,10 +134,10 @@ export async function seedMockData() {
         supplier: 'Atlantic Catch Ltd.',
         intake_date: formatDate(intakeFinished),
         size: '5,000 units',
-        units_36: 12,
-        units_55: 12,
-        exit_36: formatDate(exitFinished36),
-        exit_55: formatDate(exitFinished55),
+        units_36: 0,
+        units_55: 0,
+        exit_36: null,
+        exit_55: null,
         is_manually_unlocked: false
       },
       {
@@ -182,7 +182,12 @@ export async function seedMockData() {
         shipment_id: shipLockedId,
         number: '26-170', // Julian date batch number example (June 19, 2026 is day 170)
         production_date: '2026-06-19',
-        expiration_date: '2029-06-19'
+        expiration_date: '2029-06-19',
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitLocked36),
+        exit_55: formatDate(exitLocked55),
+        is_manually_unlocked: false
       },
       {
         id: batchFinished1Id,
@@ -190,21 +195,36 @@ export async function seedMockData() {
         number: '26-160', // June 9, 2026
         production_date: '2026-06-09',
         expiration_date: '2029-06-09',
-        approved_at: formatTimestamp(now)
+        approved_at: formatTimestamp(now),
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitFinished36),
+        exit_55: formatDate(exitFinished55),
+        is_manually_unlocked: false
       },
       {
         id: batchFinished2Id,
         shipment_id: shipFinishedId,
         number: '26-161', // June 10, 2026
         production_date: '2026-06-10',
-        expiration_date: '2029-06-10'
+        expiration_date: '2029-06-10',
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitFinished36),
+        exit_55: formatDate(exitFinished55),
+        is_manually_unlocked: false
       },
       {
         id: batchBypassId,
         shipment_id: shipBypassId,
         number: '26-170', // Today
         production_date: '2026-06-19',
-        expiration_date: '2028-06-19'
+        expiration_date: '2028-06-19',
+        units_36: 0,
+        units_55: 0,
+        exit_36: null,
+        exit_55: null,
+        is_manually_unlocked: false
       },
       {
         id: batchRetestId,
@@ -213,7 +233,12 @@ export async function seedMockData() {
         production_date: '2026-06-18',
         expiration_date: '2028-06-18',
         retest_requested_at: formatTimestamp(now),
-        retest_reason: 'Brix average failed specifications. Value was 55.4 (min is 60.0)'
+        retest_reason: 'Brix average failed specifications. Value was 55.4 (min is 60.0)',
+        units_36: 0,
+        units_55: 0,
+        exit_36: null,
+        exit_55: null,
+        is_manually_unlocked: false
       }
     ]
 

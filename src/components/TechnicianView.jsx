@@ -160,11 +160,8 @@ export default function TechnicianView() {
     const data = Object.fromEntries(new FormData(form))
     const isNew = shipmentModal === 'new'
     
-    // Auto incubation exit date calculation
     const template = templates.find(t => t.id === data.template_id)
     const intakeDate = data.intake_date
-    const u36 = Number(data.units_36 || 0)
-    const u55 = Number(data.units_55 || 0)
 
     const addDays = (dateStr, days) => {
       const next = new Date(dateStr + 'T00:00:00')
@@ -172,23 +169,20 @@ export default function TechnicianView() {
       return next.toISOString().slice(0, 10)
     }
 
-    const exit36 = u36 && template?.incubation_36 ? addDays(intakeDate, template.incubation_36) : null
-    const exit55 = u55 && template?.incubation_55 ? addDays(intakeDate, template.incubation_55) : null
-
     try {
       let shipmentId = isNew ? null : shipmentModal.id
 
-      // 1. Save shipment details
+      // 1. Save shipment details (set shipment level incubation fields to 0 / null)
       const payload = {
         template_id: data.template_id,
         supplier: data.supplier,
         intake_date: intakeDate,
         size: data.size || null,
-        units_36: u36,
-        units_55: u55,
-        exit_36: exit36,
-        exit_55: exit55,
-        is_manually_unlocked: isNew ? false : shipmentModal.is_manually_unlocked
+        units_36: 0,
+        units_55: 0,
+        exit_36: null,
+        exit_55: null,
+        is_manually_unlocked: false
       }
 
       if (isNew) {
@@ -215,6 +209,15 @@ export default function TechnicianView() {
         const prodDate = row.querySelector('[name="production_date"]').value || (parsed.valid ? parsed.date : null)
         const expDate = row.querySelector('[name="expiration_date"]').value || null
 
+        // Batch-level incubation details
+        const u36 = Number(row.querySelector('[name="units_36"]')?.value || 0)
+        const u55 = Number(row.querySelector('[name="units_55"]')?.value || 0)
+        const exit36 = u36 && template?.incubation_36 ? addDays(intakeDate, template.incubation_36) : null
+        const exit55 = u55 && template?.incubation_55 ? addDays(intakeDate, template.incubation_55) : null
+
+        const batchId = row.dataset.id
+        const existingBatch = isNew ? null : (shipmentModal.batches || []).find(b => b.id === batchId)
+
         const uuidv4 = () => {
           if (typeof crypto !== 'undefined' && crypto.randomUUID) {
             return crypto.randomUUID()
@@ -226,11 +229,19 @@ export default function TechnicianView() {
         }
 
         return {
-          id: row.dataset.id || uuidv4(),
+          id: batchId || uuidv4(),
           shipment_id: shipmentId,
           number: numInput ? numInput.trim() : null,
           production_date: prodDate,
-          expiration_date: expDate
+          expiration_date: expDate,
+          units_36: u36,
+          units_55: u55,
+          exit_36: exit36,
+          exit_55: exit55,
+          is_manually_unlocked: existingBatch ? existingBatch.is_manually_unlocked : false,
+          incubation_exited_at: existingBatch ? existingBatch.incubation_exited_at : null,
+          incubation_removed_early_at: existingBatch ? existingBatch.incubation_removed_early_at : null,
+          incubation_early_acknowledged_at: existingBatch ? existingBatch.incubation_early_acknowledged_at : null
         }
       })
 
@@ -258,12 +269,12 @@ export default function TechnicianView() {
   }
 
   // Toggle incubation manually (Override Lock)
-  const toggleIncubationUnlock = async (shipmentId, currentStatus) => {
+  const toggleIncubationUnlock = async (batchId, currentStatus) => {
     try {
       const { error } = await supabase
-        .from('shipments')
+        .from('batches')
         .update({ is_manually_unlocked: !currentStatus })
-        .eq('id', shipmentId)
+        .eq('id', batchId)
       if (error) throw error
       fetchData()
     } catch (err) {
@@ -274,29 +285,29 @@ export default function TechnicianView() {
   // Helpers
   const getTemplate = (id) => templates.find(t => t.id === id)
 
-  const getIncubationStatus = (shipment) => {
-    const template = getTemplate(shipment.template_id)
-    if (!template) return { required: false, locked: false, label: 'Ready' }
+  const getIncubationStatus = (batch, templateId) => {
+    const template = getTemplate(templateId)
+    if (!template || !batch) return { required: false, locked: false, label: 'Ready' }
     
     if (template.requires_incubation === false) {
       return { required: false, locked: false, label: 'Ready' }
     }
 
-    const needs36 = (shipment.units_36 || 0) > 0 && (template.incubation_36 || 0) > 0
-    const needs55 = (shipment.units_55 || 0) > 0 && (template.incubation_55 || 0) > 0
+    const needs36 = (batch.units_36 || 0) > 0 && (template.incubation_36 || 0) > 0
+    const needs55 = (batch.units_55 || 0) > 0 && (template.incubation_55 || 0) > 0
     const required = needs36 || needs55
 
     // If manual unlock by admin is active, it overrides all incubation blocks
-    if (shipment.is_manually_unlocked) {
+    if (batch.is_manually_unlocked) {
       return { required, locked: false, label: 'Unlocked by Admin' }
     }
 
-    const exited = !!(shipment.incubation_exited_at || shipment.incubation_removed_early_at)
+    const exited = !!(batch.incubation_exited_at || batch.incubation_removed_early_at)
     
     // Check if target date is reached
     const today = new Date().toISOString().slice(0, 10)
-    const due36 = needs36 ? (shipment.exit_36 && shipment.exit_36 <= today) : false
-    const due55 = needs55 ? (shipment.exit_55 && shipment.exit_55 <= today) : false
+    const due36 = needs36 ? (batch.exit_36 && batch.exit_36 <= today) : false
+    const due55 = needs55 ? (batch.exit_55 && batch.exit_55 <= today) : false
     const due = required && !exited && (due36 || due55)
 
     const locked = required && !exited && !due
@@ -313,13 +324,11 @@ export default function TechnicianView() {
 
   // Filter shipments
   const filteredShipments = shipments.filter(shipment => {
-    const status = getIncubationStatus(shipment)
     const isCompleted = shipment.batches.length > 0 && shipment.batches.every(b => b.approved_at)
-
     if (isCompleted) return false // Hide completed shipments from technician view
 
     if (activeTab === 'due') {
-      return status.due
+      return shipment.batches.some(b => getIncubationStatus(b, shipment.template_id).due)
     }
     return true // 'pending' tab shows all active shipments
   })
@@ -387,7 +396,7 @@ export default function TechnicianView() {
               activeTab === 'due' ? 'bg-teal-500 text-slate-950' : 'text-slate-400 hover:text-white'
             }`}
           >
-            Incubation Attention ({shipments.filter(s => getIncubationStatus(s).due).length})
+            Incubation Attention ({shipments.filter(s => s.batches.some(b => getIncubationStatus(b, s.template_id).due)).length})
           </button>
           <button
             onClick={() => setActiveTab('intake')}
@@ -424,57 +433,68 @@ export default function TechnicianView() {
             <div className="space-y-4">
               {shipments.map(s => {
                 const temp = getTemplate(s.template_id)
-                const incStatus = getIncubationStatus(s)
                 return (
                   <div
                     key={s.id}
-                    className="p-6 bg-slate-900 border border-slate-800 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-slate-750 transition-all"
+                    className="p-6 bg-slate-900 border border-slate-800 rounded-3xl flex flex-col justify-between gap-6 hover:border-slate-750 transition-all"
                   >
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-2">
                         <h3 className="text-lg font-bold text-white">{temp?.name}</h3>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                          incStatus.locked ? 'bg-red-950 text-red-400 border border-red-500/20' : 'bg-teal-950 text-teal-400 border border-teal-500/20'
-                        }`}>
-                          {incStatus.label}
-                        </span>
+                        <p className="text-xs text-slate-400">
+                          Supplier: <span className="font-semibold text-slate-200">{s.supplier}</span> • 
+                          Arrived: <span className="font-semibold text-slate-200">{s.intake_date}</span>
+                          {s.size && ` • Size: ${s.size}`}
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-400">
-                        Supplier: <span className="font-semibold text-slate-200">{s.supplier}</span> • 
-                        Arrived: <span className="font-semibold text-slate-200">{s.intake_date}</span>
-                        {s.size && ` • Size: ${s.size}`}
-                      </p>
-                      {/* Batches count info */}
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {s.batches.map(b => (
-                          <span key={b.id} className="px-2.5 py-0.5 bg-slate-950 text-slate-400 border border-slate-850 rounded text-[10px] font-semibold">
-                            {b.number || 'Unnamed Batch'} {b.approved_at && '✓'}
-                          </span>
-                        ))}
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setShipmentModal(s)}
+                          className="p-2 bg-slate-850 border border-slate-800 hover:border-slate-750 text-slate-400 hover:text-white rounded-xl transition-all"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      {incStatus.required && !incStatus.exited && (
-                        <button
-                          onClick={() => toggleIncubationUnlock(s.id, s.is_manually_unlocked)}
-                          className={`flex items-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
-                            s.is_manually_unlocked
-                              ? 'bg-amber-950/20 border-amber-500/30 text-amber-400 hover:bg-amber-900/10'
-                              : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
-                          }`}
-                        >
-                          {s.is_manually_unlocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                          <span>{s.is_manually_unlocked ? 'Re-lock' : 'Unlock Testing'}</span>
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => setShipmentModal(s)}
-                        className="p-2 bg-slate-850 border border-slate-800 hover:border-slate-750 text-slate-400 hover:text-white rounded-xl transition-all"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                    {/* Batches count info & per-batch status */}
+                    <div className="mt-4 space-y-2 border-t border-slate-800/60 pt-4">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Batches & Incubation Status</p>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {s.batches.map(b => {
+                          const bStatus = getIncubationStatus(b, s.template_id)
+                          return (
+                            <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/40 p-3 rounded-2xl border border-slate-850">
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-bold text-white">{b.number || 'Unnamed Batch'}</span>
+                                {b.approved_at && <span className="text-emerald-400 text-xs font-semibold">✓ Approved</span>}
+                                {bStatus.required && (
+                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${
+                                    bStatus.locked ? 'bg-red-950 text-red-400 border border-red-500/20' : 'bg-teal-950 text-teal-400 border border-teal-500/20'
+                                  }`}>
+                                    {bStatus.label}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {bStatus.required && !bStatus.exited && (
+                                  <button
+                                    onClick={() => toggleIncubationUnlock(b.id, b.is_manually_unlocked)}
+                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-all ${
+                                      b.is_manually_unlocked
+                                        ? 'bg-amber-955/20 border-amber-500/30 text-amber-400 hover:bg-amber-900/10'
+                                        : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                                    }`}
+                                  >
+                                    {b.is_manually_unlocked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                                    <span>{b.is_manually_unlocked ? 'Re-lock' : 'Unlock'}</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 )
@@ -617,8 +637,9 @@ export default function TechnicianView() {
             <div className="space-y-6">
             {filteredShipments.map(shipment => {
               const template = getTemplate(shipment.template_id)
-              const incStatus = getIncubationStatus(shipment)
               const isExpanded = expandedShipmentId === shipment.id
+              const lockedBatchesCount = shipment.batches.filter(b => getIncubationStatus(b, shipment.template_id).locked).length
+              const requiresIncubation = template?.requires_incubation !== false && shipment.batches.some(b => (b.units_36 || 0) > 0 || (b.units_55 || 0) > 0)
 
               return (
                 <div
@@ -642,20 +663,20 @@ export default function TechnicianView() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      {incStatus.locked ? (
+                      {lockedBatchesCount > 0 ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-950/40 border border-red-500/35 text-red-400 text-xs font-bold rounded-full">
                           <Lock className="w-3.5 h-3.5" />
-                          <span>Locked (Incubation)</span>
+                          <span>Locked ({lockedBatchesCount} Batches)</span>
                         </span>
-                      ) : shipment.is_manually_unlocked ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-950/40 border border-teal-500/35 text-teal-400 text-xs font-bold rounded-full">
-                          <Unlock className="w-3.5 h-3.5" />
-                          <span>Admin Released</span>
-                        </span>
-                      ) : (
+                      ) : requiresIncubation ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-950/40 border border-emerald-500/35 text-emerald-400 text-xs font-bold rounded-full">
                           <CheckCircle className="w-3.5 h-3.5" />
-                          <span>Ready for Testing</span>
+                          <span>Incubation Done</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-950/40 border border-teal-500/35 text-teal-400 text-xs font-bold rounded-full">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Ready</span>
                         </span>
                       )}
                       <span className="text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full font-bold">
@@ -667,23 +688,6 @@ export default function TechnicianView() {
                   {/* Shipment Details Panel */}
                   {isExpanded && (
                     <div className="p-6 border-t border-slate-800 bg-slate-950/30 space-y-6">
-                      {/* Incubation details block */}
-                      {incStatus.required && (
-                        <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl flex flex-col sm:flex-row justify-between gap-4">
-                          <div className="flex items-start gap-3">
-                            <Clock className="w-5 h-5 text-teal-400 mt-0.5" />
-                            <div>
-                              <p className="text-xs font-bold text-slate-300">INCUBATION WORKFLOW</p>
-                              <p className="text-[11px] text-slate-400 mt-0.5">
-                                Required: 36°C ({template?.incubation_36 || 0} days) | 55°C ({template?.incubation_55 || 0} days)
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-sm font-semibold self-center">
-                            Status: <span className={`${incStatus.locked ? 'text-red-400' : 'text-emerald-400'}`}>{incStatus.label}</span>
-                          </div>
-                        </div>
-                      )}
 
                       {/* Batches Table */}
                       <div className="space-y-4">
@@ -699,6 +703,7 @@ export default function TechnicianView() {
                               const isBatchExpanded = expandedBatchId === batch.id
                               const batchResultsCount = template?.tests.filter(tid => isTestEntered(tid, batch.id, results)).length || 0
                               const totalTestsCount = template?.tests.length || 0
+                              const bStatus = getIncubationStatus(batch, shipment.template_id)
 
                               return (
                                   <div
@@ -715,15 +720,25 @@ export default function TechnicianView() {
 
                                     {/* Batch row header */}
                                     <div
-                                      onClick={() => !incStatus.locked && setExpandedBatchId(isBatchExpanded ? null : batch.id)}
+                                      onClick={() => !bStatus.locked && setExpandedBatchId(isBatchExpanded ? null : batch.id)}
                                       className={`p-4 flex items-center justify-between gap-4 select-none ${
-                                        incStatus.locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800/20'
+                                        bStatus.locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800/20'
                                       }`}
                                     >
                                       <div>
-                                        <span className="text-sm font-bold text-white">{batch.number || 'Unnamed Batch'}</span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm font-bold text-white">{batch.number || 'Unnamed Batch'}</span>
+                                          {bStatus.required && (
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                              bStatus.locked ? 'bg-red-950 text-red-400 border border-red-500/20' : 'bg-teal-950 text-teal-400 border border-teal-500/20'
+                                            }`}>
+                                              {bStatus.label}
+                                            </span>
+                                          )}
+                                        </div>
                                         <p className="text-[10px] text-slate-400 mt-0.5">
                                           Production: {batch.production_date || '-'} • Expiration: {batch.expiration_date || '-'}
+                                          {bStatus.required && ` • Units: 36°C: ${batch.units_36 || 0} | 55°C: ${batch.units_55 || 0}`}
                                         </p>
                                       </div>
 
@@ -748,7 +763,7 @@ export default function TechnicianView() {
                                   </div>
 
                                   {/* Batch Tests Entry Forms */}
-                                  {isBatchExpanded && !incStatus.locked && (
+                                  {isBatchExpanded && !bStatus.locked && (
                                     <div className="p-4 border-t border-slate-850 bg-slate-950/20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                       {template?.tests
                                         .filter(tid => {

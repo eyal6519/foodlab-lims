@@ -123,6 +123,14 @@ create table if not exists public.batches (
 alter table public.batches alter column number drop not null;
 alter table public.batches add column if not exists retest_requested_at timestamp with time zone;
 alter table public.batches add column if not exists retest_reason text;
+alter table public.batches add column if not exists units_36 integer default 0;
+alter table public.batches add column if not exists units_55 integer default 0;
+alter table public.batches add column if not exists exit_36 date;
+alter table public.batches add column if not exists exit_55 date;
+alter table public.batches add column if not exists is_manually_unlocked boolean default false;
+alter table public.batches add column if not exists incubation_exited_at timestamp with time zone;
+alter table public.batches add column if not exists incubation_removed_early_at timestamp with time zone;
+alter table public.batches add column if not exists incubation_early_acknowledged_at timestamp with time zone;
 
 alter table public.batches enable row level security;
 
