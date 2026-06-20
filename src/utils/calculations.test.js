@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { num, fmt, avg, calculateTest } from './calculations'
+import { num, fmt, avg, avgLogPh, calculateTest } from './calculations'
 
 describe('Math and Calculations Utilities', () => {
   describe('num()', () => {
@@ -42,6 +42,23 @@ describe('Math and Calculations Utilities', () => {
     it('returns NaN for empty list or only NaNs', () => {
       expect(avg([])).toBeNaN()
       expect(avg([NaN])).toBeNaN()
+    })
+  })
+
+  describe('avgLogPh()', () => {
+    it('calculates logarithmic pH average correctly', () => {
+      expect(avgLogPh([7.0, 7.0])).toBe(7.0)
+      expect(avgLogPh([6.0, 7.0])).toBeCloseTo(6.26, 2)
+      expect(avgLogPh([5.0, 6.0, 7.0])).toBeCloseTo(5.43, 2)
+    })
+
+    it('ignores non-finite numbers', () => {
+      expect(avgLogPh([6.0, NaN, 7.0, NaN])).toBeCloseTo(6.26, 2)
+    })
+
+    it('returns NaN for empty list or only NaNs', () => {
+      expect(avgLogPh([])).toBeNaN()
+      expect(avgLogPh([NaN])).toBeNaN()
     })
   })
 
@@ -107,10 +124,15 @@ describe('Math and Calculations Utilities', () => {
     })
 
     it('calculates pH and formats as pH of X.XX', () => {
-      const res = calculateTest('ph', [{ value: '5.5' }])
-      expect(res.complete).toBe(true)
-      expect(res.average).toBe(5.5)
-      expect(res.label).toBe('pH of 5.5')
+      const res1 = calculateTest('ph', [{ value: '5.5' }])
+      expect(res1.complete).toBe(true)
+      expect(res1.average).toBe(5.5)
+      expect(res1.label).toBe('pH of 5.5')
+
+      const res2 = calculateTest('ph', [{ value: '6.0' }, { value: '7.0' }])
+      expect(res2.complete).toBe(true)
+      expect(res2.average).toBeCloseTo(6.26, 2)
+      expect(res2.label).toBe('pH of 6.26')
     })
 
     it('calculates acidity with Citric acid constant', () => {

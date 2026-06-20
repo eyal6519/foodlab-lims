@@ -20,6 +20,16 @@ export function avg(values) {
   return clean.reduce((sum, v) => sum + v, 0) / clean.length
 }
 
+// Helper utility for calculating logarithmic pH averages safely
+export function avgLogPh(values) {
+  const clean = values.filter(Number.isFinite)
+  if (!clean.length) return NaN
+  const hConcs = clean.map(v => Math.pow(10, -v))
+  const avgHConc = hConcs.reduce((sum, c) => sum + c, 0) / hConcs.length
+  if (avgHConc <= 0) return NaN
+  return -Math.log10(avgHConc)
+}
+
 export const TESTS = [
   {
     id: 'labeling_packaging',
@@ -459,7 +469,7 @@ export function calculateTest(testId, rows = [], batchResults = {}) {
   // Special pH display format: "pH of x.xx"
   if (testId === 'ph') {
     const values = rows.map(r => test.calc(r)).filter(Number.isFinite)
-    const average = avg(values)
+    const average = avgLogPh(values)
     return {
       label: Number.isFinite(average) ? `pH of ${fmt(average)}` : '-',
       average,
