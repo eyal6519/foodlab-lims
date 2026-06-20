@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { TESTS, calculateTest, isTestEntered } from '../utils/calculations'
+import { TESTS, testMap, calculateTest, isTestEntered } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import ReplicateModal from './ReplicateModal'
 import ShipmentModal from './ShipmentModal'
@@ -18,7 +18,9 @@ import {
   Settings,
   XCircle,
   Plus,
-  Edit
+  Edit,
+  Search,
+  X
 } from 'lucide-react'
 
 export default function TechnicianView() {
@@ -27,7 +29,9 @@ export default function TechnicianView() {
   const [templates, setTemplates] = useState([])
   const [results, setResults] = useState({}) // batchId:testId -> replicates list
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('pending') // 'pending' | 'due' | 'intake'
+  const [activeTab, setActiveTab] = useState('pending') // 'pending' | 'due' | 'intake' | 'templates'
+  const [templateSearch, setTemplateSearch] = useState('')
+  const [templateFilter, setTemplateFilter] = useState('all') // 'all' | 'incubation' | 'bypass'
 
   // Modal State
   const [activeTestModal, setActiveTestModal] = useState(null) // { batch, test }
@@ -368,10 +372,10 @@ export default function TechnicianView() {
 
       <main className="max-w-6xl mx-auto px-4 mt-8">
         {/* Navigation Tabs */}
-        <div className="flex gap-2 p-1 bg-slate-900 border border-slate-800 rounded-2xl max-w-lg mb-8">
+        <div className="flex gap-2 p-1 bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl mb-8 overflow-x-auto">
           <button
             onClick={() => setActiveTab('pending')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 ${
               activeTab === 'pending' ? 'bg-teal-500 text-slate-950' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -379,7 +383,7 @@ export default function TechnicianView() {
           </button>
           <button
             onClick={() => setActiveTab('due')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 ${
               activeTab === 'due' ? 'bg-teal-500 text-slate-950' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -387,16 +391,24 @@ export default function TechnicianView() {
           </button>
           <button
             onClick={() => setActiveTab('intake')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 ${
               activeTab === 'intake' ? 'bg-teal-500 text-slate-950' : 'text-slate-400 hover:text-white'
             }`}
           >
             Shipment Intake
           </button>
+          <button
+            onClick={() => setActiveTab('templates')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 ${
+              activeTab === 'templates' ? 'bg-teal-500 text-slate-950' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Product Templates
+          </button>
         </div>
 
         {/* Shipments List */}
-        {activeTab === 'intake' ? (
+        {activeTab === 'intake' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold text-white">Intake Log</h2>
@@ -469,16 +481,140 @@ export default function TechnicianView() {
               })}
             </div>
           </div>
-        ) : filteredShipments.length === 0 ? (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
-            <FileSpreadsheet className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-slate-300">No shipments found</h3>
-            <p className="text-slate-500 text-sm mt-1">
-              There are no shipments matching this filter.
-            </p>
-          </div>
-        ) : (
+        )}
+
+        {activeTab === 'templates' && (
           <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white">Product Specification Templates</h2>
+            </div>
+
+            {(() => {
+              const filteredTemplates = templates.filter(t => {
+                const matchesSearch = t.name.toLowerCase().includes(templateSearch.toLowerCase())
+                let matchesFilter = true
+                if (templateFilter === 'incubation') {
+                  matchesFilter = t.requires_incubation !== false
+                } else if (templateFilter === 'bypass') {
+                  matchesFilter = t.requires_incubation === false
+                }
+                return matchesSearch && matchesFilter
+              })
+
+              return (
+                <>
+                  {/* Search & Filter Controls */}
+                  <div className="flex flex-col sm:flex-row gap-4 justify-between sm:items-center bg-slate-900/50 p-4 border border-slate-800/80 rounded-3xl">
+                    {/* Search Box */}
+                    <div className="relative flex-1">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <Search className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="text"
+                        value={templateSearch}
+                        onChange={(e) => setTemplateSearch(e.target.value)}
+                        placeholder="Search templates by product name..."
+                        className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-teal-500 transition-all"
+                      />
+                      {templateSearch && (
+                        <button
+                          onClick={() => setTemplateSearch('')}
+                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-450 hover:text-white"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex gap-2 shrink-0 overflow-x-auto">
+                      {[
+                        { id: 'all', label: 'All Templates' },
+                        { id: 'incubation', label: 'Requires Incubation' },
+                        { id: 'bypass', label: 'Bypass Incubation' }
+                      ].map(f => (
+                        <button
+                          key={f.id}
+                          onClick={() => setTemplateFilter(f.id)}
+                          className={`px-4 py-2.5 text-xs font-bold rounded-2xl border transition-all shrink-0 ${
+                            templateFilter === f.id
+                              ? 'bg-teal-500/10 border-teal-500 text-teal-400'
+                              : 'bg-slate-950 border-slate-850 text-slate-450 hover:text-slate-200 hover:border-slate-800'
+                          }`}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {filteredTemplates.length === 0 ? (
+                    <div className="p-12 text-center text-slate-500 border border-dashed border-slate-800 rounded-3xl">
+                      No product templates match your search or filter criteria.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {filteredTemplates.map(t => (
+                        <div
+                          key={t.id}
+                          className="p-6 bg-slate-900 border border-slate-800 rounded-3xl flex flex-col justify-between hover:border-slate-750 transition-all"
+                        >
+                          <div>
+                            <div className="flex justify-between items-start gap-4">
+                              <h3 className="text-base font-bold text-white">{t.name}</h3>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">{t.packaging || 'No standard packaging'}</p>
+                            
+                            <div className="mt-4 space-y-2">
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Incubation Cycles</p>
+                              <div className="flex gap-4 text-xs text-slate-300">
+                                {t.requires_incubation !== false ? (
+                                  <>
+                                    <span>36°C: <strong>{t.incubation_36} days</strong></span>
+                                    <span>55°C: <strong>{t.incubation_55} days</strong></span>
+                                  </>
+                                ) : (
+                                  <span className="text-slate-500 italic font-semibold">Requires Incubation: No</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-6">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Enabled Tests ({t.tests.length})</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {t.tests.map(tid => {
+                                const test = testMap[tid]
+                                return (
+                                  <span key={tid} className="px-2 py-0.5 bg-slate-950 border border-slate-850 rounded text-[9px] font-semibold text-slate-400">
+                                    {test?.name || tid}
+                                  </span>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+          </div>
+        )}
+
+        {(activeTab === 'pending' || activeTab === 'due') && (
+          filteredShipments.length === 0 ? (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
+              <FileSpreadsheet className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-slate-300">No shipments found</h3>
+              <p className="text-slate-500 text-sm mt-1">
+                There are no shipments matching this filter.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
             {filteredShipments.map(shipment => {
               const template = getTemplate(shipment.template_id)
               const incStatus = getIncubationStatus(shipment)
@@ -680,7 +816,7 @@ export default function TechnicianView() {
               )
             })}
           </div>
-        )}
+        ))}
       </main>
 
       {/* Replicates Modal Portal */}
