@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { num, fmt, avg, avgLogPh, calculateTest } from './calculations'
+import { num, fmt, avg, avgLogPh, calculateTest, isShipmentArchived } from './calculations'
 
 describe('Math and Calculations Utilities', () => {
   describe('num()', () => {
@@ -147,6 +147,53 @@ describe('Math and Calculations Utilities', () => {
       ])
       expect(res.complete).toBe(true)
       expect(res.label).toBe('Coating %: 20% / Filling %: 30%')
+    })
+  })
+
+  describe('isShipmentArchived()', () => {
+    it('returns false if shipment is null, has no batches, or empty batches list', () => {
+      expect(isShipmentArchived(null)).toBe(false)
+      expect(isShipmentArchived({})).toBe(false)
+      expect(isShipmentArchived({ batches: [] })).toBe(false)
+    })
+
+    it('returns false if any batch in shipment is not approved', () => {
+      const shipment = {
+        batches: [
+          { id: 'b1', approved_at: '2026-06-19T12:00:00Z' },
+          { id: 'b2', approved_at: null }
+        ]
+      }
+      expect(isShipmentArchived(shipment)).toBe(false)
+    })
+
+    it('returns false if all batches approved but within 24-hour grace period', () => {
+      const now = new Date()
+      // approved 12 hours ago
+      const recentApproval = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString()
+      
+      const shipment = {
+        batches: [
+          { id: 'b1', approved_at: recentApproval }
+        ]
+      }
+      expect(isShipmentArchived(shipment)).toBe(false)
+    })
+
+    it('returns true if all batches approved and latest approval is older than 24 hours', () => {
+      const now = new Date()
+      // approved 25 hours ago
+      const oldApproval = new Date(now.getTime() - 25 * 60 * 60 * 1000).toISOString()
+      // approved 30 hours ago
+      const olderApproval = new Date(now.getTime() - 30 * 60 * 60 * 1000).toISOString()
+
+      const shipment = {
+        batches: [
+          { id: 'b1', approved_at: olderApproval },
+          { id: 'b2', approved_at: oldApproval }
+        ]
+      }
+      expect(isShipmentArchived(shipment)).toBe(true)
     })
   })
 })

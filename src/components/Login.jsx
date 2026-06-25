@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { Beaker, Lock, Mail, AlertCircle, AlertTriangle, Info } from 'lucide-react'
+import LanguageToggle from './LanguageToggle'
 
 export default function Login() {
   const { login } = useAuth()
+  const { t } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,11 +19,11 @@ export default function Login() {
       setToast({
         visible: true,
         type: 'warning',
-        title: 'Connection Offline',
-        message: 'The LIMS database connection is not configured. The application cannot authenticate with the system.'
+        title: t('login.toast.offline.title'),
+        message: t('login.toast.offline.body')
       })
     }
-  }, [])
+  }, [t])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -32,8 +35,8 @@ export default function Login() {
       setToast({
         visible: true,
         type: 'warning',
-        title: 'Configuration Missing',
-        message: 'LIMS server configuration is incomplete. The application cannot establish a secure link to the database.'
+        title: t('login.toast.config_missing.title'),
+        message: t('login.toast.config_missing.body')
       })
       setLoading(false)
       return
@@ -45,22 +48,22 @@ export default function Login() {
       const errMsg = err.message || ''
       const errStatus = err.status || 0
       
-      let title = 'Authentication Failed'
-      let message = 'An unexpected error occurred. Please try again.'
+      let title = t('login.toast.auth_failed.title')
+      let message = t('login.toast.auth_failed.body')
       let type = 'error'
 
       if (errMsg.includes('Invalid login credentials') || errMsg.includes('invalid_grant')) {
-        title = 'Incorrect Credentials'
-        message = 'The email address or password you entered is incorrect. Please check your spelling and try again.'
+        title = t('login.toast.bad_credentials.title')
+        message = t('login.toast.bad_credentials.body')
       } else if (errStatus === 500 || errMsg.includes('unexpected_failure') || errMsg.includes('database')) {
-        title = 'LIMS Server Error (500)'
-        message = 'The LIMS server returned an internal database error. This usually indicates a system configuration issue or a temporary database failure. Please contact your Laboratory Administrator if this persists.'
+        title = t('login.toast.server_error.title')
+        message = t('login.toast.server_error.body')
       } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('NetworkError')) {
-        title = 'Network Connection Issue'
-        message = 'Could not reach the database. Please check your internet connection or verify that the LIMS database server is online.'
+        title = t('login.toast.network.title')
+        message = t('login.toast.network.body')
       } else {
-        title = 'Application Error'
-        message = errMsg || 'A script or connection error occurred during authorization.'
+        title = t('login.toast.generic.title')
+        message = errMsg || t('login.toast.generic.body')
       }
 
       setToast({
@@ -76,9 +79,14 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 relative overflow-hidden">
+      {/* Language Toggle — top right */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageToggle />
+      </div>
+
       {/* Toast Notification Container */}
       {toast.visible && (
-        <div className="fixed top-6 right-6 z-50 max-w-sm w-full animate-in slide-in-from-top-4 duration-300">
+        <div className="fixed top-6 right-6 left-6 sm:left-auto z-50 max-w-sm animate-in slide-in-from-top-4 duration-300">
           <div className={`p-4 rounded-2xl border backdrop-blur-xl shadow-2xl flex gap-3 items-start ${
             toast.type === 'error' 
               ? 'bg-red-950/90 border-red-500/30 text-red-200' 
@@ -119,13 +127,13 @@ export default function Login() {
             <Beaker className="w-10 h-10 animate-pulse" />
           </div>
           <p className="text-xs uppercase tracking-widest text-teal-400 font-semibold mb-1">
-            Food Quality Control
+            {t('login.subtitle')}
           </p>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Laboratory LIMS
+            {t('login.title')}
           </h1>
           <p className="text-slate-400 mt-2 text-sm">
-            Sign in to start tracking quality batches
+            {t('login.heading')}
           </p>
         </div>
 
@@ -134,7 +142,7 @@ export default function Login() {
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                Email Address
+                {t('login.email_label')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
@@ -145,7 +153,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="technician@foodlab.com"
+                  placeholder={t('login.email_placeholder')}
                   className="w-full pl-11 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all duration-200"
                 />
               </div>
@@ -153,7 +161,7 @@ export default function Login() {
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                Password
+                {t('login.password_label')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
@@ -164,7 +172,7 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder={t('login.password_placeholder')}
                   className="w-full pl-11 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all duration-200"
                 />
               </div>
@@ -181,17 +189,17 @@ export default function Login() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Authenticating...
+                  {t('login.submitting')}
                 </span>
               ) : (
-                'Sign In'
+                t('login.submit')
               )}
             </button>
           </form>
         </div>
 
         <p className="text-center text-xs text-slate-500 mt-8">
-          Authorized personnel only. All access is logged and monitored.
+          {t('login.footer')}
         </p>
       </div>
     </div>

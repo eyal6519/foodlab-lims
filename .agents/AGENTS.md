@@ -16,3 +16,7 @@ Please follow these instructions strictly for this workspace:
 - Token efficiency is highly important.
 - **At the end of every response** (whenever about to move to a new task, a new step, or a specific modification), **always recommend which model tier (Low, Medium, or High)** the user should select for their next prompt.
 - **Critical Recommendation Logic**: Always evaluate the model tier recommendation based on the complexity of the **AI's next response** (the actions, coding, and planning to be performed by the agent), rather than the simplicity of the user's immediate text input. Strike the perfect balance: suggest the lowest/most efficient tier possible that can still successfully handle the next step.
+
+## 4. Running Terminal Commands
+- **Windows PowerShell Restrictions**: Due to script execution policies preventing direct execution of `.ps1` scripts, all `npm` terminal commands must be wrapped with `cmd /c` prefix (e.g., `cmd /c npm run build` or `cmd /c npm test`). Do not execute `npm` directly.
+

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Plus, Trash2, AlertTriangle, Check } from 'lucide-react'
 import { num } from '../utils/calculations'
+import { useLanguage } from '../context/LanguageContext'
 
 function formatLabelWithUnit(label) {
   if (typeof label !== 'string') return label
@@ -18,6 +19,7 @@ function formatLabelWithUnit(label) {
 }
 
 export default function ReplicateModal({ test, initialRows, onSave, onClose, batchNumber }) {
+  const { t } = useLanguage()
   const [rows, setRows] = useState([{}])
   const [warnings, setWarnings] = useState([])
 
@@ -76,22 +78,22 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
   const validateRowData = (currentRows) => {
     const list = []
     currentRows.forEach((row, i) => {
-      const repLabel = `Replicate ${i + 1}`
-      
+      const repNum = i + 1
+
       // pH physical validations
       if (test.id === 'ph' && row.value !== '') {
         const v = num(row.value)
         if (v < 0 || v > 14 || Number.isNaN(v)) {
-          list.push(`${repLabel}: pH value must be between 0 and 14.`)
+          list.push(t('rep.validation.ph_range').replace('{n}', repNum))
         }
       }
-      
+
       // Negative checks for physical values
       test.fields.forEach(f => {
         if (f.type === 'number' && row[f.id] !== '') {
           const v = num(row[f.id])
           if (v < 0) {
-            list.push(`${repLabel}: ${f.label} cannot be negative.`)
+            list.push(t('rep.validation.no_negative').replace('{n}', repNum).replace('{label}', f.label))
           }
         }
       })
@@ -99,10 +101,10 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
 
     // Replicate count validations
     if (test.min && currentRows.length < test.min) {
-      list.push(`This test requires at least ${test.min} replicates (currently: ${currentRows.length}).`)
+      list.push(t('rep.validation.min_reps').replace('{n}', test.min).replace('{c}', currentRows.length))
     }
     if (test.max && currentRows.length > test.max) {
-      list.push(`This test permits a maximum of ${test.max} replicates (currently: ${currentRows.length}).`)
+      list.push(t('rep.validation.max_reps').replace('{n}', test.max).replace('{c}', currentRows.length))
     }
 
     setWarnings(list)
@@ -111,11 +113,11 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
   const handleSave = () => {
     // Perform final validation check before allowing save
     validateRowData(rows)
-    
+
     // Check if there are blocking physical errors (like pH out of range)
-    const hasBlockingError = warnings.some(w => w.includes('must be') || w.includes('cannot be'))
+    const hasBlockingError = warnings.some(w => w.includes('must be') || w.includes('cannot be') || w.includes('חייב') || w.includes('לא יכול'))
     if (hasBlockingError) {
-      alert('Please correct invalid data entry before saving.')
+      alert(t('rep.alert.fix_errors'))
       return
     }
 
@@ -132,7 +134,7 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
           <div>
             <h2 className="text-lg font-bold text-white">{test.name}</h2>
             <p className="text-xs text-slate-400 mt-1">
-              Batch: <span className="font-semibold text-teal-400">{batchNumber}</span> • Blind Data Entry
+              {t('rep.modal.batch_label')} <span className="font-semibold text-teal-400">{batchNumber}</span> {t('rep.modal.blind_entry')}
             </p>
           </div>
           <button
@@ -150,7 +152,7 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
             <div className="p-4 bg-amber-950/30 border border-amber-500/30 rounded-2xl space-y-2">
               <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
                 <AlertTriangle className="w-4 h-4" />
-                <span>Entry Alerts / Warnings</span>
+                <span>{t('rep.modal.warnings_title')}</span>
               </div>
               <ul className="list-disc list-inside text-xs text-amber-200 space-y-1 pl-1">
                 {warnings.map((w, idx) => (
@@ -168,7 +170,7 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
                 className="p-4 bg-slate-950/40 border border-slate-800/80 rounded-2xl flex items-end gap-4 relative group hover:border-slate-800 transition-all duration-200"
               >
                 <div className="absolute top-2 left-3 text-[10px] text-slate-600 font-bold">
-                  REP #{idx + 1}
+                  {t('rep.replicate.label').replace('{n}', idx + 1)}
                 </div>
 
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
@@ -207,9 +209,9 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
                             onChange={(e) => handleAddFieldVal(idx, field.id, e.target.value)}
                             className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200"
                           >
-                            <option value="">Select Option</option>
-                            <option value="Pass">Pass</option>
-                            <option value="Fail">Fail</option>
+                            <option value="">{t('rep.select.default')}</option>
+                            <option value="Pass">{t('rep.select.pass')}</option>
+                            <option value="Fail">{t('rep.select.fail')}</option>
                           </select>
                         </div>
                       )
@@ -241,7 +243,7 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
                           step="any"
                           value={value}
                           onChange={(e) => handleAddFieldVal(idx, field.id, e.target.value)}
-                          placeholder="Enter value"
+                          placeholder={t('rep.input.placeholder')}
                           className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200"
                         />
                       </div>
@@ -253,7 +255,7 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
                   <button
                     onClick={() => removeReplicate(idx)}
                     className="p-2 bg-slate-800/40 hover:bg-red-950/40 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-xl transition-all duration-200"
-                    aria-label="Remove replicate"
+                    aria-label={t('rep.replicate.remove')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -264,9 +266,9 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
 
           {/* Replicate Constraints Hint */}
           <div className="text-[11px] text-slate-500 font-medium">
-            {test.single && '• Single replicate required for this test.'}
-            {test.min && `• Minimum of ${test.min} replicates required.`}
-            {test.max && `• Maximum of ${test.max} replicates allowed.`}
+            {test.single && t('rep.hint.single')}
+            {test.min && t('rep.hint.min').replace('{n}', test.min)}
+            {test.max && t('rep.hint.max').replace('{n}', test.max)}
           </div>
         </div>
 
@@ -278,7 +280,7 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
               className="flex items-center gap-1.5 px-4 py-2 border border-slate-800 hover:border-slate-700 bg-slate-950 hover:bg-slate-900 text-xs font-bold text-slate-300 hover:text-white rounded-xl transition-all duration-200"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Replicate</span>
+              <span>{t('rep.btn.add_replicate')}</span>
             </button>
           ) : (
             <div />
@@ -289,14 +291,14 @@ export default function ReplicateModal({ test, initialRows, onSave, onClose, bat
               onClick={onClose}
               className="px-5 py-2 border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all"
             >
-              Cancel
+              {t('rep.btn.cancel')}
             </button>
             <button
               onClick={handleSave}
               className="flex items-center gap-1.5 px-6 py-2 bg-teal-500 hover:bg-teal-400 active:scale-[0.98] text-xs font-bold text-slate-950 rounded-xl transition-all duration-200"
             >
               <Check className="w-4 h-4" />
-              <span>Save Data</span>
+              <span>{t('rep.btn.save')}</span>
             </button>
           </div>
         </div>

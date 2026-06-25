@@ -1,5 +1,6 @@
 import React from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { useLanguage } from './context/LanguageContext'
 import Login from './components/Login'
 import ManagerView from './components/ManagerView'
 import TechnicianView from './components/TechnicianView'
@@ -8,6 +9,7 @@ import { Beaker } from 'lucide-react'
 
 function AppContent() {
   const { user, profile, loading } = useAuth()
+  const { t } = useLanguage()
 
   if (loading) {
     return (
@@ -16,7 +18,7 @@ function AppContent() {
           <Beaker className="w-8 h-8 animate-spin" />
         </div>
         <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">
-          Loading LIMS Portal...
+          {t('app.loading')}
         </p>
       </div>
     )
@@ -40,12 +42,12 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-6 text-center">
       <div className="max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-4 shadow-xl">
-        <h2 className="text-xl font-bold text-white">Access Pending</h2>
+        <h2 className="text-xl font-bold text-white">{t('app.access_pending.title')}</h2>
         <p className="text-sm text-slate-450">
-          Your account ({user.email}) has been authenticated successfully, but a Lab Manager has not yet assigned you a role.
+          {t('app.access_pending.body').replace('{email}', user.email)}
         </p>
         <p className="text-xs text-amber-400 font-semibold uppercase tracking-wider">
-          Please contact your Laboratory Administrator.
+          {t('app.access_pending.contact')}
         </p>
       </div>
     </div>
@@ -60,4 +62,3 @@ export default function App() {
     </AuthProvider>
   )
 }
-

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, XCircle } from 'lucide-react'
 import { parseBatchNumber } from '../utils/batchParser'
+import { useLanguage } from '../context/LanguageContext'
 
 export default function ShipmentModal({ templates, initialShipment, onSave, onClose }) {
+  const { t } = useLanguage()
   const [batches, setBatches] = useState([{ number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
   const [selectedTemplateId, setSelectedTemplateId] = useState(initialShipment?.template_id || '')
 
@@ -55,13 +57,15 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm">
       <form
         onSubmit={onSave}
-        className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+        className="bg-slate-900 border-0 sm:border border-slate-800 rounded-none sm:rounded-3xl w-full max-w-2xl h-full sm:h-auto sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
       >
         <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-          <h2 className="text-lg font-bold text-white">{initialShipment ? 'Edit Shipment' : 'Log New Shipment'}</h2>
+          <h2 className="text-lg font-bold text-white">
+            {initialShipment ? t('shipment.title.edit') : t('shipment.title.new')}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -71,10 +75,10 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Product</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.product')}</label>
               <select
                 name="template_id"
                 required
@@ -82,7 +86,7 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                 onChange={(e) => setSelectedTemplateId(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
               >
-                <option value="">-- Select Product --</option>
+                <option value="">{t('shipment.field.product_placeholder')}</option>
                 {templates.map(t => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -91,18 +95,18 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Supplier</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.supplier')}</label>
               <input
                 type="text"
                 name="supplier"
                 required
                 defaultValue={initialShipment?.supplier || ''}
-                placeholder="Supplier Name"
+                placeholder={t('shipment.field.supplier_placeholder')}
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Intake Date</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.intake_date')}</label>
               <input
                 type="date"
                 name="intake_date"
@@ -112,12 +116,12 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Packaging Size / Unit</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.packaging')}</label>
               <input
                 type="text"
                 name="size"
                 defaultValue={initialShipment?.size || ''}
-                placeholder="e.g. 140 g, 960 g, 1 L"
+                placeholder={t('shipment.field.packaging_placeholder')}
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
               />
             </div>
@@ -125,14 +129,14 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
 
           <div className="border-t border-slate-800 pt-6 space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-xs font-bold text-slate-350 uppercase tracking-widest">Batches</h3>
+              <h3 className="text-xs font-bold text-slate-350 uppercase tracking-widest">{t('shipment.batches.heading')}</h3>
               <button
                 type="button"
                 onClick={addBatchRow}
                 className="flex items-center gap-1 px-3 py-1 bg-slate-950 border border-slate-800 hover:border-slate-700 text-[10px] font-bold text-slate-300 hover:text-white rounded-lg transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Batch</span>
+                <span>{t('shipment.batches.add')}</span>
               </button>
             </div>
 
@@ -142,28 +146,38 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                   <div
                     key={idx}
                     data-id={batch.id || ''}
-                    className="batch-form-row p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex items-center gap-4 relative pt-6"
+                    className="batch-form-row px-0 py-4 sm:p-4 bg-transparent sm:bg-slate-950/40 border-0 sm:border border-slate-800 rounded-none sm:rounded-2xl flex flex-col sm:flex-row gap-4 relative pt-8 sm:pt-6"
                   >
                     <div className="absolute top-2 left-3 text-[9px] text-slate-600 font-bold uppercase">
-                      Batch #{idx + 1}
+                      {t('shipment.batch.label').replace('{n}', idx + 1)}
                     </div>
+
+                    {batches.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeBatchRow(idx)}
+                        className="absolute top-2 right-2 p-1.5 bg-slate-800/40 hover:bg-red-950/40 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-lg transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
 
                     <div className="flex-1 space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Batch Number (YY-JJJ)</label>
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.batch_number')}</label>
                           <input
                             type="text"
                             name="batch_number"
                             value={batch.number || ''}
                             onChange={(e) => handleBatchValChange(idx, 'number', e.target.value)}
-                            placeholder="e.g. 26-168"
+                            placeholder={t('shipment.field.batch_number_placeholder')}
                             className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Production Date</label>
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.prod_date')}</label>
                           <input
                             type="date"
                             name="production_date"
@@ -174,7 +188,7 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Expiration Date</label>
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.exp_date')}</label>
                           <input
                             type="date"
                             name="expiration_date"
@@ -189,7 +203,7 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-900/60 pt-3">
                           {hasInc36 ? (
                             <div className="space-y-1">
-                              <label className="text-[9px] font-bold text-slate-450 uppercase tracking-wider">Units incubated at 36°C</label>
+                              <label className="text-[9px] font-bold text-slate-450 uppercase tracking-wider">{t('shipment.field.incubation_36')}</label>
                               <input
                                 type="number"
                                 name="units_36"
@@ -204,7 +218,7 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                           )}
                           {hasInc55 ? (
                             <div className="space-y-1">
-                              <label className="text-[9px] font-bold text-slate-450 uppercase tracking-wider">Units incubated at 55°C</label>
+                              <label className="text-[9px] font-bold text-slate-455 uppercase tracking-wider">{t('shipment.field.incubation_55')}</label>
                               <input
                                 type="number"
                                 name="units_55"
@@ -220,16 +234,6 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                         </div>
                       )}
                     </div>
-
-                    {batches.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeBatchRow(idx)}
-                        className="p-2 bg-slate-800 border border-slate-850 hover:border-red-500/20 text-slate-400 hover:text-red-400 rounded-xl transition-all self-center"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
                   </div>
                 )
               })}
@@ -237,19 +241,19 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-850 flex justify-end gap-3 bg-slate-900/30">
+        <div className="px-6 py-4 border-t border-slate-850 flex justify-end gap-3 bg-slate-900/95 backdrop-blur-md sticky bottom-0 z-10">
           <button
             type="button"
             onClick={onClose}
             className="px-5 py-2 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all"
           >
-            Cancel
+            {t('shipment.btn.cancel')}
           </button>
           <button
             type="submit"
-            className="px-6 py-2 bg-teal-500 hover:bg-teal-400 text-slate-955 text-xs font-bold rounded-xl transition-all"
+            className="px-6 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
           >
-            Save Log
+            {t('shipment.btn.save')}
           </button>
         </div>
       </form>

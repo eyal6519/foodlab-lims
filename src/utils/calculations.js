@@ -46,7 +46,6 @@ export const TESTS = [
     name: 'Weight',
     unit: 'g',
     standardsType: 'min',
-    max: 10,
     fields: [
       { id: 'gross', label: 'Gross weight (g) [Bruto]', type: 'number' },
       { id: 'tare', label: 'Tare weight (g)', type: 'number' },
@@ -575,4 +574,28 @@ export function isTestEntered(testId, batchId, resultsMap) {
     return false
   }
   return resultsMap[`${batchId}:${testId}`]?.length > 0
+}
+
+// Helper utility to check if a shipment is archived (all batches approved and oldest approval is > 24 hours ago)
+export function isShipmentArchived(shipment) {
+  if (!shipment || !shipment.batches || shipment.batches.length === 0) {
+    return false
+  }
+
+  const allApproved = shipment.batches.every(b => b.approved_at)
+  if (!allApproved) {
+    return false
+  }
+
+  const approvalTimes = shipment.batches
+    .map(b => new Date(b.approved_at).getTime())
+    .filter(Number.isFinite)
+
+  if (approvalTimes.length === 0) {
+    return false
+  }
+
+  const latestApprovalTime = Math.max(...approvalTimes)
+  const oneDayInMs = 24 * 60 * 60 * 1000
+  return Date.now() - latestApprovalTime > oneDayInMs
 }
