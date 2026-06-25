@@ -128,7 +128,8 @@ export async function seedMockData() {
     exitPartial55.setDate(intakePartial.getDate() + 3) // exited 1 day ago (yesterday)
 
     const shipPartialId = generateUUID()
-
+const shipExited55Id = generateUUID()
+const shipExited55TodayId = generateUUID()
     const shipments = [
       {
         id: shipLockedId,
@@ -187,9 +188,21 @@ export async function seedMockData() {
         units_36: 0,
         units_55: 0,
         exit_36: null,
-        exit_55: null,
+        exit_55: formatDate(exitPartial55),
         is_manually_unlocked: false
-      }
+      },
+        {
+          id: shipExited55TodayId,
+          template_id: tunaTemplateId,
+          supplier: 'Pacific Fish Co.',
+          intake_date: formatDate(new Date()), // today
+          size: '7,500 units',
+          units_36: 0,
+          units_55: 0,
+          exit_36: null,
+          exit_55: formatDate(new Date()), // exited today
+          is_manually_unlocked: false
+        }
     ]
 
     const { error: shipErr } = await supabase.from('shipments').insert(shipments)
