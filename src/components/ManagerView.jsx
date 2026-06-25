@@ -638,6 +638,12 @@ export default function ManagerView() {
 
   const lockedBatchesCount = shipments.filter(s => !isShipmentArchived(s)).flatMap(s => s.batches).filter(b => getIncubationStatus(b, b.template_id).locked).length
 
+  const awaitingTestingCount = shipments
+    .filter(s => !isShipmentArchived(s))
+    .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: b.template_id || s.template_id })))
+    .filter(b => !b.approved_at && !getIncubationStatus(b, b.template_id).locked)
+    .length
+
   const managerTabs = [
     { id: 'dashboard', label: t('mgr.tab.overview'), icon: LayoutDashboard },
     { id: 'in_incubation', label: `${t('mgr.tab.in_incubation').replace(' ({n})', '').replace(' {n}', '').replace('{n}', '')} (${lockedBatchesCount})`, icon: Clock },
@@ -672,23 +678,40 @@ export default function ManagerView() {
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-white mb-2">{t('mgr.overview.title')}</h2>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="p-6 bg-slate-900 border border-slate-800 border-l-4 border-l-teal-500 rounded-3xl">
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('mgr.overview.templates')}</p>
-                  <p className="text-4xl font-extrabold text-white mt-2">{templates.length}</p>
-                </div>
-                <div className="p-6 bg-slate-900 border border-slate-800 border-l-4 border-l-amber-500 rounded-3xl">
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('mgr.overview.awaiting')}</p>
-                  <p className="text-4xl font-extrabold text-white mt-2">
-                    {shipments.flatMap(s => s.batches).filter(b => !b.approved_at).length}
-                  </p>
-                </div>
-                <div className="p-6 bg-slate-900 border border-slate-800 border-l-4 border-l-emerald-500 rounded-3xl">
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('mgr.overview.approved')}</p>
-                  <p className="text-4xl font-extrabold text-white mt-2">
-                    {shipments.flatMap(s => s.batches).filter(b => b.approved_at).length}
-                  </p>
-                </div>
+              <div className="grid grid-cols-2 gap-3 sm:gap-6 max-w-2xl">
+                <button
+                  onClick={() => setActiveTab('review')}
+                  className="p-3 sm:p-4 bg-slate-900 border border-slate-800 hover:border-amber-500/40 rounded-2xl flex items-center justify-between transition-all text-start w-full cursor-pointer group active:scale-[0.98] shadow-md hover:shadow-lg hover:shadow-slate-950/20 focus:outline-none"
+                >
+                  <div className="space-y-1">
+                    <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider group-hover:text-amber-400 transition-colors">
+                      {t('mgr.overview.awaiting')}
+                    </span>
+                    <span className="text-xl sm:text-3xl font-black text-white block">
+                      {awaitingTestingCount}
+                    </span>
+                  </div>
+                  <div className="p-1.5 sm:p-2 bg-amber-500/10 rounded-xl text-amber-500 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all shrink-0 ml-2">
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('in_incubation')}
+                  className="p-3 sm:p-4 bg-slate-900 border border-slate-800 hover:border-teal-500/40 rounded-2xl flex items-center justify-between transition-all text-start w-full cursor-pointer group active:scale-[0.98] shadow-md hover:shadow-lg hover:shadow-slate-950/20 focus:outline-none"
+                >
+                  <div className="space-y-1">
+                    <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider group-hover:text-teal-400 transition-colors">
+                      {t('status.in_incubation')}
+                    </span>
+                    <span className="text-xl sm:text-3xl font-black text-white block">
+                      {lockedBatchesCount}
+                    </span>
+                  </div>
+                  <div className="p-1.5 sm:p-2 bg-teal-500/10 rounded-xl text-teal-500 group-hover:bg-teal-500 group-hover:text-slate-950 transition-all shrink-0 ml-2">
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                </button>
               </div>
 
               {/* Incubation warnings */}
