@@ -91,13 +91,13 @@ export async function seedMockData() {
     // --- Create Shipments ---
     const now = new Date()
 
-    // 1. Shipment locked in incubation (Canned Tuna)
+    // 1. Shipment locked in incubation (Canned Tuna) - exited 55°C yesterday, still in 36°C
     const intakeLocked = new Date()
-    intakeLocked.setDate(now.getDate() - 2) // 2 days ago
+    intakeLocked.setDate(now.getDate() - 4) // 4 days ago
     const exitLocked36 = new Date(intakeLocked)
-    exitLocked36.setDate(intakeLocked.getDate() + 5)
+    exitLocked36.setDate(intakeLocked.getDate() + 6) // exits in 2 days
     const exitLocked55 = new Date(intakeLocked)
-    exitLocked55.setDate(intakeLocked.getDate() + 3)
+    exitLocked55.setDate(intakeLocked.getDate() + 3) // exited yesterday
 
     const shipLockedId = generateUUID()
 
