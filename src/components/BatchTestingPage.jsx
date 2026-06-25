@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Trash2, AlertTriangle, Check, Info } from 'lucide-react'
-import { TESTS, testMap, calculateTest, num } from '../utils/calculations'
+import { ArrowLeft, Plus, Trash2, AlertTriangle, Check, Info, Lock } from 'lucide-react'
+import { TESTS, testMap, calculateTest, num, isTestLocked } from '../utils/calculations'
 import { useLanguage } from '../context/LanguageContext'
 
 function formatLabelWithUnit(label) {
@@ -90,7 +90,8 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
       const repNum = i + 1
 
       // pH physical validations
-      if (test.id === 'ph' && row.value !== '') {
+      const isPhTest = test.id === 'ph' || test.id === 'ph_before' || test.id === 'ph_36' || test.id === 'ph_55'
+      if (isPhTest && row.value !== '') {
         const v = num(row.value)
         if (v < 0 || v > 14 || Number.isNaN(v)) {
           list.push(t('batch.validation.ph_range').replace('{n}', repNum))
@@ -469,9 +470,19 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
             const test = TESTS.find(t => t.id === testId)
             if (!test) return null
 
+            const isLocked = isTestLocked(testId, batch, template)
             const rows = testData[testId] || []
             const testWarnings = warnings[testId] || []
-            const isAddDisabled = test.single || (test.max && rows.length >= test.max)
+            const isAddDisabled = isLocked || test.single || (test.max && rows.length >= test.max)
+
+            // Calculate days remaining and target date for lock notice
+            let daysRemaining = 0
+            const today = new Date().toISOString().slice(0, 10)
+            const exitDate = testId.includes('36') ? batch.exit_36 : (testId.includes('55') ? batch.exit_55 : null)
+            if (exitDate) {
+              const diffTime = new Date(exitDate).getTime() - new Date(today).getTime()
+              daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
+            }
 
             // Calculate test preview
             const batchResults = {}
@@ -483,23 +494,34 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
             return (
               <section
                 key={testId}
-                className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-lg space-y-6"
+                className={`bg-slate-900 border rounded-3xl p-6 shadow-lg space-y-6 transition-all duration-300 ${
+                  isLocked ? 'border-slate-805/40 opacity-70 bg-slate-900/50' : 'border-slate-800'
+                }`}
               >
                 {/* Test Card Header */}
                 <div className="flex justify-between items-start gap-4 pb-4 border-b border-slate-800/60">
                   <div>
                     <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      {test.name}
+                      {isLocked && <Lock className="w-4 h-4 text-amber-500 shrink-0" />}
+                      <span className={isLocked ? 'text-slate-400' : ''}>{test.name}</span>
                       {test.unit && (
                         <span className="text-xs text-slate-400 font-normal">({test.unit})</span>
                       )}
                     </h3>
-                    <div className="flex gap-4 mt-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                    <div className="flex flex-col gap-1 mt-1">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                         {t('batch.test.replicates_label')} {rows.length}
                         {test.min && ` ${t('batch.test.min').replace('{n}', test.min)}`}
                         {test.max && ` ${t('batch.test.max').replace('{n}', test.max)}`}
                       </span>
+                      {isLocked && (
+                        <span className="text-[10px] text-amber-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                          {t('batch.test.locked')
+                            .replace('{temp}', testId.includes('36') ? '36°C' : '55°C')
+                            .replace('{date}', exitDate || '')
+                            .replace('{days}', String(daysRemaining))}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -513,7 +535,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                 </div>
 
                 {/* Warnings Banner */}
-                {testWarnings.length > 0 && (
+                {testWarnings.length > 0 && !isLocked && (
                   <div className="p-4 bg-amber-950/30 border border-amber-500/30 rounded-2xl space-y-2">
                     <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
                       <AlertTriangle className="w-4 h-4" />
@@ -529,7 +551,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
                 {/* Default Batch Tare & Subtraction Switch */}
                 {testId === 'weight' && (
-                  <div className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
+                  <div className="p-4 bg-slate-950/40 border border-slate-855 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-6 w-full md:w-auto">
                       <div className="flex flex-col gap-1.5 w-full sm:w-44">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -538,10 +560,11 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                         <input
                           type="number"
                           step="any"
+                          disabled={isLocked}
                           value={batchTare}
                           onChange={(e) => handleBatchTareChange(e.target.value)}
                           placeholder={t('batch.weight.tare_placeholder')}
-                          className="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200"
+                          className="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                         />
                       </div>
 
@@ -549,9 +572,10 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                         <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-350 cursor-pointer select-none">
                           <input
                             type="checkbox"
+                            disabled={isLocked}
                             checked={subtractTare}
                             onChange={(e) => handleSubtractTareToggle(e.target.checked)}
-                            className="w-4 h-4 rounded bg-slate-900 border-slate-800 text-teal-600 focus:ring-teal-500/50 cursor-pointer"
+                            className="w-4 h-4 rounded bg-slate-900 border-slate-800 text-teal-600 focus:ring-teal-500/50 cursor-pointer disabled:opacity-50"
                           />
                           <span>{t('batch.weight.subtract_toggle')}</span>
                         </label>
@@ -571,7 +595,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                         {t('batch.replicate.label').replace('{n}', idx + 1)}
                       </div>
 
-                      {rows.length > 1 && (
+                      {rows.length > 1 && !isLocked && (
                         <button
                           type="button"
                           onClick={() => removeReplicate(testId, idx)}
@@ -592,10 +616,11 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               <input
                                 type="number"
                                 step="any"
+                                disabled={isLocked}
                                 value={subtractTare ? (row.gross ?? '') : (row.net ?? '')}
                                 onChange={(e) => handleAddFieldVal(testId, idx, subtractTare ? 'gross' : 'net', e.target.value)}
                                 placeholder={subtractTare ? t('batch.weight.gross_placeholder') : t('batch.weight.net_placeholder')}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200"
+                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                               />
                             </div>
                             
@@ -620,8 +645,9 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                                     </label>
                                     <select
                                       value={value}
+                                      disabled={isLocked}
                                       onChange={(e) => handleAddFieldVal(testId, idx, field.id, e.target.value)}
-                                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200"
+                                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                                     >
                                       {field.options.map(([optVal, optLabel]) => (
                                         <option key={optVal} value={optVal}>
@@ -641,8 +667,9 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                                     </label>
                                     <select
                                       value={value}
+                                      disabled={isLocked}
                                       onChange={(e) => handleAddFieldVal(testId, idx, field.id, e.target.value)}
-                                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200"
+                                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                                     >
                                       <option value="">{t('batch.select.default')}</option>
                                       <option value="Pass">{t('batch.select.pass')}</option>
@@ -658,9 +685,10 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                                     <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-350 cursor-pointer">
                                       <input
                                         type="checkbox"
+                                        disabled={isLocked}
                                         checked={!!value}
                                         onChange={(e) => handleAddFieldVal(testId, idx, field.id, e.target.checked)}
-                                        className="w-4 h-4 rounded bg-slate-900 border-slate-800 text-teal-600 focus:ring-teal-500/50"
+                                        className="w-4 h-4 rounded bg-slate-900 border-slate-800 text-teal-600 focus:ring-teal-500/50 disabled:opacity-50"
                                       />
                                       <span>{field.label}</span>
                                     </label>
@@ -676,10 +704,11 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                                   <input
                                     type={field.type === 'number' ? 'number' : 'text'}
                                     step="any"
+                                    disabled={isLocked}
                                     value={value}
                                     onChange={(e) => handleAddFieldVal(testId, idx, field.id, e.target.value)}
                                     placeholder={t('batch.input.placeholder')}
-                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200"
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                                   />
                                 </div>
                               )
@@ -707,8 +736,8 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
                   <div className="text-[10px] text-slate-500 font-medium italic">
                     {test.single && t('batch.hint.single')}
-                    {test.min && t('batch.hint.min').replace('{n}', test.min)}
-                    {test.max && t('batch.hint.max').replace('{n}', test.max)}
+                    {test.min && !isLocked && t('batch.hint.min').replace('{n}', test.min)}
+                    {test.max && !isLocked && t('batch.hint.max').replace('{n}', test.max)}
                   </div>
                 </div>
               </section>

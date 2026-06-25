@@ -79,6 +79,30 @@ export const TESTS = [
     calc: r => num(r.hg) * 25.4
   },
   {
+    id: 'vacuum_before',
+    name: 'Vacuum Before Incubation',
+    unit: 'mmHg',
+    standardsType: 'min',
+    fields: [{ id: 'hg', label: 'Vacuum (inHg)', type: 'number' }],
+    calc: r => num(r.hg) * 25.4
+  },
+  {
+    id: 'vacuum_36',
+    name: 'Vacuum 36°C',
+    unit: 'mmHg',
+    standardsType: 'min',
+    fields: [{ id: 'hg', label: 'Vacuum (inHg)', type: 'number' }],
+    calc: r => num(r.hg) * 25.4
+  },
+  {
+    id: 'vacuum_55',
+    name: 'Vacuum 55°C',
+    unit: 'mmHg',
+    standardsType: 'min',
+    fields: [{ id: 'hg', label: 'Vacuum (inHg)', type: 'number' }],
+    calc: r => num(r.hg) * 25.4
+  },
+  {
     id: 'drained_weight',
     name: 'Drained Weight',
     unit: 'g',
@@ -89,6 +113,39 @@ export const TESTS = [
   {
     id: 'ph',
     name: 'pH',
+    unit: 'pH',
+    standardsType: 'range',
+    fields: [{ id: 'value', label: 'pH value', type: 'number' }],
+    calc: r => {
+      const v = num(r.value)
+      return v >= 0 && v <= 14 ? v : NaN
+    }
+  },
+  {
+    id: 'ph_before',
+    name: 'pH Before Incubation',
+    unit: 'pH',
+    standardsType: 'range',
+    fields: [{ id: 'value', label: 'pH value', type: 'number' }],
+    calc: r => {
+      const v = num(r.value)
+      return v >= 0 && v <= 14 ? v : NaN
+    }
+  },
+  {
+    id: 'ph_36',
+    name: 'pH 36°C',
+    unit: 'pH',
+    standardsType: 'range',
+    fields: [{ id: 'value', label: 'pH value', type: 'number' }],
+    calc: r => {
+      const v = num(r.value)
+      return v >= 0 && v <= 14 ? v : NaN
+    }
+  },
+  {
+    id: 'ph_55',
+    name: 'pH 55°C',
     unit: 'pH',
     standardsType: 'range',
     fields: [{ id: 'value', label: 'pH value', type: 'number' }],
@@ -466,7 +523,7 @@ export function calculateTest(testId, rows = [], batchResults = {}) {
   }
 
   // Special pH display format: "pH of x.xx"
-  if (testId === 'ph') {
+  if (testId === 'ph' || testId === 'ph_before' || testId === 'ph_36' || testId === 'ph_55') {
     const values = rows.map(r => test.calc(r)).filter(Number.isFinite)
     const average = avgLogPh(values)
     return {
@@ -598,4 +655,32 @@ export function isShipmentArchived(shipment) {
   const latestApprovalTime = Math.max(...approvalTimes)
   const oneDayInMs = 24 * 60 * 60 * 1000
   return Date.now() - latestApprovalTime > oneDayInMs
+}
+
+export function isTestLocked(testId, batch, template) {
+  if (!batch || !template) return false
+  if (template.requires_incubation === false) return false
+  if (batch.is_manually_unlocked) return false
+  if (batch.incubation_exited_at || batch.incubation_removed_early_at) return false
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  // 36°C tests: ph_36, vacuum_36
+  if (testId === 'ph_36' || testId === 'vacuum_36') {
+    const needs36 = (batch.units_36 || 0) > 0 && (template.incubation_36 || 0) > 0
+    if (!needs36) return true // If not incubated at 36, then locked
+    const due36 = batch.exit_36 && batch.exit_36 <= today
+    return !due36
+  }
+
+  // 55°C tests: ph_55, vacuum_55
+  if (testId === 'ph_55' || testId === 'vacuum_55') {
+    const needs55 = (batch.units_55 || 0) > 0 && (template.incubation_55 || 0) > 0
+    if (!needs55) return true // If not incubated at 55, then locked
+    const due55 = batch.exit_55 && batch.exit_55 <= today
+    return !due55
+  }
+
+  // Before incubation tests and other tests are never locked
+  return false
 }

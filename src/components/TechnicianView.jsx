@@ -409,7 +409,7 @@ export default function TechnicianView() {
 
     // If manual unlock by admin is active, it overrides all incubation blocks
     if (batch.is_manually_unlocked) {
-      return { required, locked: false, label: t('status.unlocked_admin') }
+      return { required, locked: false, label: t('status.unlocked_admin') || t('status.unlocked_override') }
     }
 
     const exited = !!(batch.incubation_exited_at || batch.incubation_removed_early_at)
@@ -418,22 +418,36 @@ export default function TechnicianView() {
     const today = new Date().toISOString().slice(0, 10)
     const due36 = needs36 ? (batch.exit_36 && batch.exit_36 <= today) : false
     const due55 = needs55 ? (batch.exit_55 && batch.exit_55 <= today) : false
-    const due = required && !exited && (due36 || due55)
 
-    const locked = required && !exited && !due
+    const is36Locked = needs36 && !due36 && !exited
+    const is55Locked = needs55 && !due55 && !exited
+
+    // The batch as a whole is locked only if ALL configured chambers are still locked
+    const locked = required && !exited && (needs36 ? is36Locked : true) && (needs55 ? is55Locked : true)
+    
+    // The batch is due if any are due and not yet exited
+    const due = required && !exited && (due36 || due55)
 
     let label = t('status.ready')
     if (required) {
-      if (exited) label = t('status.exited')
-      else if (due) label = t('status.due')
-      else label = t('status.in_incubation')
+      if (exited) {
+        label = t('status.exited')
+      } else if (is36Locked && is55Locked) {
+        label = t('status.in_incubation')
+      } else if (!is36Locked && is55Locked) {
+        label = t('status.partial_36_exited') || '36°C Exited / 55°C Incubating'
+      } else if (is36Locked && !is55Locked) {
+        label = t('status.partial_55_exited') || '55°C Exited / 36°C Incubating'
+      } else {
+        label = t('status.due')
+      }
     }
 
     let daysRemaining = 0
     if (locked) {
       const activeExits = []
-      if (needs36 && batch.exit_36) activeExits.push(new Date(batch.exit_36))
-      if (needs55 && batch.exit_55) activeExits.push(new Date(batch.exit_55))
+      if (is36Locked && batch.exit_36) activeExits.push(new Date(batch.exit_36))
+      if (is55Locked && batch.exit_55) activeExits.push(new Date(batch.exit_55))
       
       if (activeExits.length > 0) {
         const latestExit = new Date(Math.max(...activeExits))
@@ -443,7 +457,7 @@ export default function TechnicianView() {
       }
     }
 
-    return { required, locked, due, exited, label, daysRemaining }
+    return { required, locked, due, exited, label, daysRemaining, is36Locked, is55Locked }
   }
 
   const getDaysRemainingForDate = (exitDateStr) => {

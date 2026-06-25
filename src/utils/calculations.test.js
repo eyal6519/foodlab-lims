@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { num, fmt, avg, avgLogPh, calculateTest, isShipmentArchived } from './calculations'
+import { num, fmt, avg, avgLogPh, calculateTest, isShipmentArchived, isTestLocked } from './calculations'
 
 describe('Math and Calculations Utilities', () => {
   describe('num()', () => {
@@ -194,6 +194,129 @@ describe('Math and Calculations Utilities', () => {
         ]
       }
       expect(isShipmentArchived(shipment)).toBe(true)
+    })
+  })
+
+  describe('isTestLocked()', () => {
+    const templateWithInc = {
+      requires_incubation: true,
+      incubation_36: 10,
+      incubation_55: 5
+    }
+
+    const templateNoInc = {
+      requires_incubation: false
+    }
+
+    it('returns false if template does not require incubation', () => {
+      const batch = { units_36: 1, units_55: 1, exit_36: '2026-07-10', exit_55: '2026-07-05' }
+      expect(isTestLocked('ph_36', batch, templateNoInc)).toBe(false)
+      expect(isTestLocked('ph_55', batch, templateNoInc)).toBe(false)
+    })
+
+    it('returns false if batch is manually unlocked or fully exited', () => {
+      const batchUnlocked = {
+        units_36: 1,
+        units_55: 1,
+        exit_36: '2026-07-10',
+        exit_55: '2026-07-05',
+        is_manually_unlocked: true
+      }
+      const batchExited = {
+        units_36: 1,
+        units_55: 1,
+        exit_36: '2026-07-10',
+        exit_55: '2026-07-05',
+        incubation_exited_at: '2026-06-25T12:00:00Z'
+      }
+
+      expect(isTestLocked('ph_36', batchUnlocked, templateWithInc)).toBe(false)
+      expect(isTestLocked('ph_55', batchExited, templateWithInc)).toBe(false)
+    })
+
+    it('locks 36°C tests if exit_36 is in the future', () => {
+      // today is 2026-06-25
+      const batch = {
+        units_36: 1,
+        exit_36: '2026-07-05' // future
+      }
+      expect(isTestLocked('ph_36', batch, templateWithInc)).toBe(true)
+      expect(isTestLocked('vacuum_36', batch, templateWithInc)).toBe(true)
+    })
+
+    it('unlocks 36°C tests if exit_36 is in the past or today', () => {
+      const batchPast = {
+        units_36: 1,
+        exit_36: '2026-06-20' // past
+      }
+      const batchToday = {
+        units_36: 1,
+        exit_36: '2026-06-25' // today
+      }
+      expect(isTestLocked('ph_36', batchPast, templateWithInc)).toBe(false)
+      expect(isTestLocked('vacuum_36', batchToday, templateWithInc)).toBe(false)
+    })
+
+    it('locks 36°C tests if batch has no units in 36°C chamber', () => {
+      const batch = {
+        units_36: 0,
+        units_55: 1,
+        exit_55: '2026-06-20'
+      }
+      expect(isTestLocked('ph_36', batch, templateWithInc)).toBe(true)
+    })
+
+    it('locks 55°C tests if exit_55 is in the future', () => {
+      const batch = {
+        units_55: 1,
+        exit_55: '2026-07-05'
+      }
+      expect(isTestLocked('ph_55', batch, templateWithInc)).toBe(true)
+      expect(isTestLocked('vacuum_55', batch, templateWithInc)).toBe(true)
+    })
+
+    it('unlocks 55°C tests if exit_55 is in the past or today', () => {
+      const batchPast = {
+        units_55: 1,
+        exit_55: '2026-06-20'
+      }
+      const batchToday = {
+        units_55: 1,
+        exit_55: '2026-06-25'
+      }
+      expect(isTestLocked('ph_55', batchPast, templateWithInc)).toBe(false)
+      expect(isTestLocked('vacuum_55', batchToday, templateWithInc)).toBe(false)
+    })
+
+    it('returns false for before-incubation tests or other tests', () => {
+      const batch = {
+        units_36: 1,
+        units_55: 1,
+        exit_36: '2026-07-10',
+        exit_55: '2026-07-05'
+      }
+      expect(isTestLocked('ph_before', batch, templateWithInc)).toBe(false)
+      expect(isTestLocked('vacuum_before', batch, templateWithInc)).toBe(false)
+      expect(isTestLocked('weight', batch, templateWithInc)).toBe(false)
+    })
+  })
+
+  describe('new pH tests calculations', () => {
+    it('calculates logarithmic pH average correctly for ph_before, ph_36, and ph_55', () => {
+      const resBefore = calculateTest('ph_before', [{ value: '6.0' }, { value: '7.0' }])
+      expect(resBefore.complete).toBe(true)
+      expect(resBefore.average).toBeCloseTo(6.26, 2)
+      expect(resBefore.label).toBe('pH of 6.26')
+
+      const res36 = calculateTest('ph_36', [{ value: '5.0' }, { value: '6.0' }])
+      expect(res36.complete).toBe(true)
+      expect(res36.average).toBeCloseTo(5.26, 2)
+      expect(res36.label).toBe('pH of 5.26')
+
+      const res55 = calculateTest('ph_55', [{ value: '7.4' }])
+      expect(res55.complete).toBe(true)
+      expect(res55.average).toBe(7.4)
+      expect(res55.label).toBe('pH of 7.4')
     })
   })
 })

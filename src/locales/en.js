@@ -103,6 +103,7 @@ const en = {
   'batch.hint.max': '• Maximum of {n} replicates allowed.',
   'batch.btn.save': 'Save All Results',
   'batch.btn.cancel': 'Cancel',
+  'batch.test.locked': 'Locked - Incubating ({temp} exits on {date} / in {days} days)',
 
   // Replicate Modal
   'rep.modal.batch_label': 'Batch:',
@@ -316,6 +317,8 @@ const en = {
   'status.exited': 'Exited Incubation',
   'status.due': 'Incubation Due',
   'status.in_incubation': 'In Incubation',
+  'status.partial_36_exited': '36°C Exited / 55°C Incubating',
+  'status.partial_55_exited': '55°C Exited / 36°C Incubating',
 
   // COA Document
   'coa.title': 'Certificate Of Analysis',

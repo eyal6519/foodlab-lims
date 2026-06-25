@@ -103,6 +103,7 @@ const he = {
   'batch.hint.max': '• מותרים עד {n} רפליקטים.',
   'batch.btn.save': 'שמור את כל התוצאות',
   'batch.btn.cancel': 'ביטול',
+  'batch.test.locked': 'נעול - באינקובציה ({temp} יוצא ב-{date} / בעוד {days} ימים)',
 
   // Replicate Modal
   'rep.modal.batch_label': 'אצווה:',
@@ -316,6 +317,8 @@ const he = {
   'status.exited': 'יצא מאינקובציה',
   'status.due': 'אינקובציה ממתינה ליציאה',
   'status.in_incubation': 'באינקובציה',
+  'status.partial_36_exited': 'יצא מ-36°C / 55°C באינקובציה',
+  'status.partial_55_exited': 'יצא מ-55°C / 36°C באינקובציה',
 
   // COA Document (shared between Manager + Technician)
   'coa.title': 'תעודת אנליזה',
