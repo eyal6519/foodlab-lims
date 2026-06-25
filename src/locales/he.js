@@ -459,6 +459,7 @@ const he = {
   'tech.settings.save': 'שמור הגדרות',
 
   // Common / Shared
+  'common.back_to_dashboard': 'חזרה למסך הבית',
   'common.cancel': 'ביטול',
   'common.save': 'שמור',
   'common.unnamed_batch': 'אצווה ללא שם',

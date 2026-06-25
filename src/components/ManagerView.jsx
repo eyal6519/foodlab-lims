@@ -17,6 +17,7 @@ import {
   Users,
   Printer,
   Download,
+  ArrowLeft,
   AlertTriangle,
   Lock,
   Unlock,
@@ -788,6 +789,14 @@ export default function ManagerView() {
 
             return (
               <div className="space-y-6">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="flex items-center gap-1.5 text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors uppercase tracking-wider group cursor-pointer w-fit mb-2 focus:outline-none"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                  <span>{t('common.back_to_dashboard')}</span>
+                </button>
+
                 <h2 className="text-xl font-bold text-white mb-2">{t('incubation.title')}</h2>
                 
                 {lockedBatches.length === 0 ? (
@@ -1103,6 +1112,14 @@ export default function ManagerView() {
           {/* REVIEW & APPROVAL */}
           {activeTab === 'review' && (
             <div className="space-y-6">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className="flex items-center gap-1.5 text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors uppercase tracking-wider group cursor-pointer w-fit mb-2 focus:outline-none"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                <span>{t('common.back_to_dashboard')}</span>
+              </button>
+
               <h2 className="text-xl font-bold text-white">{t('mgr.review.title')}</h2>
 
               {shipments.filter(s => !isShipmentArchived(s)).flatMap(s => s.batches.map(b => ({ ...b, shipment: s }))).length === 0 ? (

@@ -459,6 +459,7 @@ const en = {
   'tech.settings.save': 'Save Settings',
 
   // Common / Shared
+  'common.back_to_dashboard': 'Back to Dashboard',
   'common.cancel': 'Cancel',
   'common.save': 'Save',
   'common.unnamed_batch': 'Unnamed Batch',
