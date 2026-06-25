@@ -59,11 +59,15 @@ export async function seedMockData() {
         requires_incubation: true,
         incubation_36: 5,
         incubation_55: 3,
-        tests: ['weight', 'ph', 'vacuum', 'organoleptic'],
+        tests: ['weight', 'ph_before', 'ph_36', 'ph_55', 'vacuum_before', 'vacuum_36', 'vacuum_55', 'organoleptic'],
         standards: {
           weight: { min: 155, max: 165 },
-          ph: { min: 5.5, max: 6.5 },
-          vacuum: { min: 10, max: 50 }
+          ph_before: { min: 5.5, max: 6.5 },
+          ph_36: { min: 5.5, max: 6.5 },
+          ph_55: { min: 5.5, max: 6.5 },
+          vacuum_before: { min: 10, max: 50 },
+          vacuum_36: { min: 10, max: 50 },
+          vacuum_55: { min: 10, max: 50 }
         }
       },
       {
@@ -115,6 +119,16 @@ export async function seedMockData() {
     const intakeRetest = new Date()
     const shipRetestId = generateUUID()
 
+    // 5. Shipment partially exited (55°C exited, 36°C locked)
+    const intakePartial = new Date()
+    intakePartial.setDate(now.getDate() - 4) // 4 days ago
+    const exitPartial36 = new Date(intakePartial)
+    exitPartial36.setDate(intakePartial.getDate() + 5) // exits in 1 day (tomorrow)
+    const exitPartial55 = new Date(intakePartial)
+    exitPartial55.setDate(intakePartial.getDate() + 3) // exited 1 day ago (yesterday)
+
+    const shipPartialId = generateUUID()
+
     const shipments = [
       {
         id: shipLockedId,
@@ -163,6 +177,18 @@ export async function seedMockData() {
         exit_36: null,
         exit_55: null,
         is_manually_unlocked: false
+      },
+      {
+        id: shipPartialId,
+        template_id: tunaTemplateId,
+        supplier: 'Indian Ocean Fisheries',
+        intake_date: formatDate(intakePartial),
+        size: '8,000 units',
+        units_36: 0,
+        units_55: 0,
+        exit_36: null,
+        exit_55: null,
+        is_manually_unlocked: false
       }
     ]
 
@@ -175,6 +201,7 @@ export async function seedMockData() {
     const batchFinished2Id = generateUUID()
     const batchBypassId = generateUUID()
     const batchRetestId = generateUUID()
+    const batchPartialId = generateUUID()
 
     const batches = [
       {
@@ -239,6 +266,18 @@ export async function seedMockData() {
         exit_36: null,
         exit_55: null,
         is_manually_unlocked: false
+      },
+      {
+        id: batchPartialId,
+        shipment_id: shipPartialId,
+        number: '26-166', // 4 days ago
+        production_date: '2026-06-15',
+        expiration_date: '2029-06-15',
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitPartial36),
+        exit_55: formatDate(exitPartial55),
+        is_manually_unlocked: false
       }
     ]
 
@@ -278,7 +317,7 @@ export async function seedMockData() {
       {
         id: generateUUID(),
         batch_id: batchFinished1Id,
-        test_id: 'ph',
+        test_id: 'ph_before',
         replicates: [
           { value: '6.0' }
         ],
@@ -287,9 +326,45 @@ export async function seedMockData() {
       {
         id: generateUUID(),
         batch_id: batchFinished1Id,
-        test_id: 'vacuum',
+        test_id: 'ph_36',
+        replicates: [
+          { value: '6.1' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchFinished1Id,
+        test_id: 'ph_55',
+        replicates: [
+          { value: '5.9' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchFinished1Id,
+        test_id: 'vacuum_before',
         replicates: [
           { hg: '1.0' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchFinished1Id,
+        test_id: 'vacuum_36',
+        replicates: [
+          { hg: '1.1' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchFinished1Id,
+        test_id: 'vacuum_55',
+        replicates: [
+          { hg: '1.2' }
         ],
         updated_at: formatTimestamp(now)
       },
@@ -299,6 +374,24 @@ export async function seedMockData() {
         test_id: 'organoleptic',
         replicates: [
           { pass: 'pass', reason: 'Passes sensory' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchPartialId,
+        test_id: 'ph_before',
+        replicates: [
+          { value: '5.9' }
+        ],
+        updated_at: formatTimestamp(now)
+      },
+      {
+        id: generateUUID(),
+        batch_id: batchPartialId,
+        test_id: 'vacuum_before',
+        replicates: [
+          { hg: '1.2' }
         ],
         updated_at: formatTimestamp(now)
       }
