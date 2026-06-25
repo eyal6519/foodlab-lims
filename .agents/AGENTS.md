@@ -20,3 +20,6 @@ Please follow these instructions strictly for this workspace:
 ## 4. Running Terminal Commands
 - **Windows PowerShell Restrictions**: Due to script execution policies preventing direct execution of `.ps1` scripts, all `npm` terminal commands must be wrapped with `cmd /c` prefix (e.g., `cmd /c npm run build` or `cmd /c npm test`). Do not execute `npm` directly.
 
+## 5. Git & Continuous Deployment
+- **Automatic Pushes to GitHub**: You must **ALWAYS** stage, commit (using descriptive, conventional commit messages), and push all code changes (`git push origin main`) to the GitHub repository at the end of every task or whenever new changes are made, without waiting for the user to ask. This ensures continuous deployment to Vercel and Supabase.
+
