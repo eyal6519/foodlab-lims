@@ -55,6 +55,7 @@ export default function TechnicianView() {
   const [shipmentModal, setShipmentModal] = useState(null) // { id, template_id, ... } or 'new'
   const [expandedShipmentId, setExpandedShipmentId] = useState(null)
   const [expandedBatchId, setExpandedBatchId] = useState(null)
+  const [expandedIntakeShipmentId, setExpandedIntakeShipmentId] = useState(null)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
 
@@ -545,80 +546,95 @@ export default function TechnicianView() {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl divide-y divide-slate-800/60 overflow-hidden shadow-xl">
               {shipments.filter(s => !isShipmentArchived(s)).map(s => {
                 const temp = getTemplate(s.template_id)
+                const isExpanded = expandedIntakeShipmentId === s.id
                 return (
                   <div
                     key={s.id}
-                    className="p-6 bg-slate-900 border border-slate-800 rounded-3xl flex flex-col justify-between gap-6 hover:border-slate-750 transition-all"
+                    className="transition-colors hover:bg-slate-850/20"
                   >
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-bold text-white">{temp?.name}</h3>
-                        <p className="text-xs text-slate-400">
-                          {t('tech.intake.supplier')} <span className="font-semibold text-slate-200">{s.supplier}</span> • 
-                          {t('tech.intake.arrived')} <span className="font-semibold text-slate-200">{s.intake_date}</span>
-                          {s.size && ` ${t('tech.intake.size').replace('{s}', s.size)}`}
+                    {/* Summary Bar (Gmail Style - Compact, Thin) */}
+                    <div
+                      onClick={() => setExpandedIntakeShipmentId(isExpanded ? null : s.id)}
+                      className="p-4 cursor-pointer flex items-center justify-between gap-4 select-none"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2">
+                          <h3 className="text-sm font-bold text-white truncate">{temp?.name}</h3>
+                          <span className="text-[10px] text-slate-505 font-bold shrink-0">
+                            ({t('tech.batch.batches_count').replace('{n}', s.batches.length)})
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                          {t('tech.intake.supplier')} <span className="font-semibold text-slate-350">{s.supplier}</span> • 
+                          {t('tech.intake.arrived')} <span className="font-semibold text-slate-350">{s.intake_date}</span>
+                          {s.size && ` • ${t('tech.intake.size').replace('{s}', s.size)}`}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 shrink-0">
                         <button
-                          onClick={() => setShipmentModal(s)}
-                          className="p-2 bg-slate-850 border border-slate-800 hover:border-slate-750 text-slate-400 hover:text-white rounded-xl transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShipmentModal(s)
+                          }}
+                          className="p-1.5 bg-slate-800 border border-slate-750 hover:border-slate-700 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
 
-                    {/* Batches count info & per-batch status */}
-                    <div className="mt-4 space-y-2 border-t border-slate-800/60 pt-4">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('tech.intake.batches_section')}</p>
-                      <div className="grid grid-cols-1 gap-2.5">
-                        {s.batches.map(b => {
-                          const bStatus = getIncubationStatus(b, s.template_id)
-                          return (
-                            <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/40 p-3 rounded-2xl border border-slate-850">
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs font-bold text-white">{b.number || t('tech.intake.unnamed')}</span>
-                                {b.approved_at && <span className="text-emerald-400 text-xs font-semibold">{t('tech.intake.approved')}</span>}
-                                {bStatus.required && (
-                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${
-                                    bStatus.locked 
-                                      ? 'bg-red-950 text-red-400 border border-red-500/20' 
-                                      : bStatus.due 
-                                      ? 'bg-amber-950 text-amber-400 border border-amber-500/20 animate-pulse'
-                                      : 'bg-teal-950 text-teal-400 border border-teal-500/20'
-                                  }`}>
-                                    {bStatus.locked ? (
-                                      bStatus.daysRemaining === 0 ? t('tech.intake.exits_today') :
-                                      bStatus.daysRemaining === 1 ? t('tech.intake.exits_tomorrow') :
-                                      t('tech.intake.exits_in').replace('{n}', bStatus.daysRemaining)
-                                    ) : bStatus.due ? t('tech.intake.ready') : bStatus.label}
-                                  </span>
-                                )}
+                    {/* Expandable Details Panel */}
+                    {isExpanded && (
+                      <div className="p-4 bg-slate-950/40 border-t border-slate-800/50 space-y-3">
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{t('tech.intake.batches_section')}</p>
+                        <div className="grid grid-cols-1 gap-2">
+                          {s.batches.map(b => {
+                            const bStatus = getIncubationStatus(b, s.template_id)
+                            return (
+                              <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-900 border border-slate-800/80 p-2.5 rounded-xl">
+                                <div className="flex items-center gap-2.5">
+                                  <span className="text-xs font-bold text-white">{b.number || t('tech.intake.unnamed')}</span>
+                                  {b.approved_at && <span className="text-emerald-400 text-[10px] font-semibold">{t('tech.intake.approved')}</span>}
+                                  {bStatus.required && (
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                      bStatus.locked 
+                                        ? 'bg-red-950 text-red-400 border border-red-500/20' 
+                                        : bStatus.due 
+                                        ? 'bg-amber-950 text-amber-400 border border-amber-500/20 animate-pulse'
+                                        : 'bg-teal-950 text-teal-400 border border-teal-500/20'
+                                    }`}>
+                                      {bStatus.locked ? (
+                                        bStatus.daysRemaining === 0 ? t('tech.intake.exits_today') :
+                                        bStatus.daysRemaining === 1 ? t('tech.intake.exits_tomorrow') :
+                                        t('tech.intake.exits_in').replace('{n}', bStatus.daysRemaining)
+                                      ) : bStatus.due ? t('tech.intake.ready') : bStatus.label}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {bStatus.required && !bStatus.exited && (
+                                    <button
+                                      onClick={() => toggleIncubationUnlock(b.id, b.is_manually_unlocked)}
+                                      className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold border transition-all cursor-pointer ${
+                                        b.is_manually_unlocked
+                                          ? 'bg-amber-950/20 border-amber-500/30 text-amber-400 hover:bg-amber-900/10'
+                                          : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                                      }`}
+                                    >
+                                      {b.is_manually_unlocked ? <Unlock className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
+                                      <span>{b.is_manually_unlocked ? t('tech.intake.relock') : t('tech.intake.unlock')}</span>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {bStatus.required && !bStatus.exited && (
-                                  <button
-                                    onClick={() => toggleIncubationUnlock(b.id, b.is_manually_unlocked)}
-                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-all ${
-                                      b.is_manually_unlocked
-                                        ? 'bg-amber-950/20 border-amber-500/30 text-amber-400 hover:bg-amber-900/10'
-                                        : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
-                                    }`}
-                                  >
-                                    {b.is_manually_unlocked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                                    <span>{b.is_manually_unlocked ? t('tech.intake.relock') : t('tech.intake.unlock')}</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )
               })}

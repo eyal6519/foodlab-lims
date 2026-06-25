@@ -931,58 +931,60 @@ export default function ManagerView() {
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl divide-y divide-slate-800/60 overflow-hidden shadow-xl">
                 {shipments.filter(s => !isShipmentArchived(s)).map(s => {
                   const temp = getTemplate(s.template_id)
                   const isExpanded = expandedIntakeShipmentId === s.id
                   return (
                     <div
                       key={s.id}
-                      className="bg-slate-900 border border-slate-800 hover:border-slate-755 rounded-3xl overflow-hidden transition-all duration-200 shadow-xl"
+                      className="transition-colors hover:bg-slate-850/20"
                     >
-                      {/* Summary Bar */}
+                      {/* Summary Bar (Gmail Style - Compact, Thin) */}
                       <div
                         onClick={() => setExpandedIntakeShipmentId(isExpanded ? null : s.id)}
-                        className="p-6 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 select-none hover:bg-slate-800/10 transition-colors"
+                        className="p-4 cursor-pointer flex items-center justify-between gap-4 select-none"
                       >
-                        <div>
-                          <h3 className="text-lg font-bold text-white">{temp?.name}</h3>
-                          <p className="text-xs text-slate-400 mt-1">
-                            {t('mgr.intake.supplier')} <span className="font-semibold text-slate-200">{s.supplier}</span> • 
-                            {t('mgr.intake.arrived')} <span className="font-semibold text-slate-200">{s.intake_date}</span>
-                            {s.size && ` ${t('mgr.intake.size').replace('{s}', s.size)}`}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-sm font-bold text-white truncate">{temp?.name}</h3>
+                            <span className="text-[10px] text-slate-500 font-bold shrink-0">
+                              ({t('tech.batch.batches_count').replace('{n}', s.batches.length)})
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                            {t('mgr.intake.supplier')} <span className="font-semibold text-slate-350">{s.supplier}</span> • 
+                            {t('mgr.intake.arrived')} <span className="font-semibold text-slate-355">{s.intake_date}</span>
+                            {s.size && ` • ${t('mgr.intake.size').replace('{s}', s.size)}`}
                           </p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
                               setShipmentModal(s)
                             }}
-                            className="p-2 bg-slate-850 border border-slate-800 hover:border-slate-750 text-slate-455 hover:text-white rounded-xl transition-all cursor-pointer"
+                            className="p-1.5 bg-slate-800 border border-slate-750 hover:border-slate-700 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer"
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-3.5 h-3.5" />
                           </button>
-                          <span className="text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full font-bold">
-                            {t('tech.batch.batches_count').replace('{n}', s.batches.length)}
-                          </span>
                         </div>
                       </div>
 
                       {/* Expandable Details Panel */}
                       {isExpanded && (
-                        <div className="p-6 border-t border-slate-800 bg-slate-950/30 space-y-4">
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('mgr.intake.batches_section')}</p>
-                          <div className="grid grid-cols-1 gap-2.5">
+                        <div className="p-4 bg-slate-950/40 border-t border-slate-800/50 space-y-3">
+                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{t('mgr.intake.batches_section')}</p>
+                          <div className="grid grid-cols-1 gap-2">
                             {s.batches.map(b => {
                               const bStatus = getIncubationStatus(b, s.template_id)
                               return (
-                                <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/40 p-3 rounded-2xl border border-slate-850">
-                                  <div className="flex items-center gap-3">
+                                <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-900 border border-slate-800/80 p-2.5 rounded-xl">
+                                  <div className="flex items-center gap-2.5">
                                     <span className="text-xs font-bold text-white">{b.number || t('mgr.intake.unnamed')}</span>
-                                    {b.approved_at && <span className="text-emerald-400 text-xs font-semibold">{t('mgr.intake.approved')}</span>}
+                                    {b.approved_at && <span className="text-emerald-400 text-[10px] font-semibold">{t('mgr.intake.approved')}</span>}
                                     {bStatus.required && (
-                                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${
+                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                                         bStatus.locked 
                                           ? 'bg-red-950 text-red-400 border border-red-500/20' 
                                           : bStatus.due 
@@ -1001,13 +1003,13 @@ export default function ManagerView() {
                                     {bStatus.required && !bStatus.exited && (
                                       <button
                                         onClick={() => toggleIncubationUnlock(b.id, b.is_manually_unlocked)}
-                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold border transition-all cursor-pointer ${
                                           b.is_manually_unlocked
                                             ? 'bg-amber-950/20 border-amber-500/30 text-amber-400 hover:bg-amber-900/10'
                                             : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
                                         }`}
                                       >
-                                        {b.is_manually_unlocked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                                        {b.is_manually_unlocked ? <Unlock className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
                                         <span>{b.is_manually_unlocked ? t('mgr.intake.relock') : t('mgr.intake.unlock')}</span>
                                       </button>
                                     )}
