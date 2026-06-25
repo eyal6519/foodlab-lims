@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { supabaseAdmin as supabase } from '../lib/supabase'
 
 // Helper to generate UUIDs in the browser
 function generateUUID() {
