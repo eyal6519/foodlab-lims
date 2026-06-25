@@ -93,6 +93,7 @@ export default function ManagerView() {
 
   const [notifiedBatchIds, setNotifiedBatchIds] = useState([])
   const [notificationBellOpen, setNotificationBellOpen] = useState(false)
+  const [expandedShipmentId, setExpandedShipmentId] = useState(null)
 
   // Request notification permissions on mount
   useEffect(() => {
@@ -759,16 +760,9 @@ export default function ManagerView() {
 
           {/* IN INCUBATION TAB (MANAGER VIEW) */}
           {activeTab === 'in_incubation' && (() => {
-            const lockedBatches = shipments
+            const filteredShipments = shipments
               .filter(s => !isShipmentArchived(s))
-              .flatMap(s => (s.batches || []).map(b => ({
-                ...b,
-                supplier: s.supplier,
-                intake_date: s.intake_date,
-                template_name: getTemplate(s.template_id)?.name,
-                template_id: s.template_id
-              })))
-              .filter(b => getIncubationStatus(b, b.template_id).locked)
+              .filter(s => s.batches.some(b => getIncubationStatus(b, s.template_id).locked))
 
             const getDaysRemainingForDate = (exitDateStr) => {
               if (!exitDateStr) return null
@@ -799,77 +793,120 @@ export default function ManagerView() {
 
                 <h2 className="text-xl font-bold text-white mb-2">{t('incubation.title')}</h2>
                 
-                {lockedBatches.length === 0 ? (
+                {filteredShipments.length === 0 ? (
                   <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
                     <Clock className="w-12 h-12 text-slate-600 mx-auto mb-4" />
                     <h3 className="text-lg font-bold text-slate-300">{t('incubation.empty')}</h3>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4">
-                    {lockedBatches.map(batch => {
-                      const temp = getTemplate(batch.template_id)
-                      const needs36 = (batch.units_36 || 0) > 0 && (temp?.incubation_36 || 0) > 0
-                      const needs55 = (batch.units_55 || 0) > 0 && (temp?.incubation_55 || 0) > 0
+                  <div className="space-y-6">
+                    {filteredShipments.map(shipment => {
+                      const template = getTemplate(shipment.template_id)
+                      const isExpanded = expandedShipmentId === shipment.id
+                      const lockedBatches = shipment.batches.filter(b => getIncubationStatus(b, shipment.template_id).locked)
 
                       return (
                         <div
-                          key={batch.id}
-                          className="bg-slate-900 border border-slate-800 p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-slate-750 transition-all shadow-xl"
+                          key={shipment.id}
+                          className="bg-slate-900 border border-slate-800 hover:border-slate-750 rounded-3xl overflow-hidden transition-all duration-250 shadow-xl"
                         >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-3">
+                          {/* Summary Bar */}
+                          <div
+                            onClick={() => setExpandedShipmentId(isExpanded ? null : shipment.id)}
+                            className="p-6 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 select-none hover:bg-slate-800/10 transition-colors"
+                          >
+                            <div>
                               <h3 className="text-lg font-bold text-white">
-                                {batch.template_name || t('tech.batch.unknown_product')}
+                                {template?.name || t('tech.batch.unknown_product')}
                               </h3>
-                              <span className="text-xs font-bold text-slate-400">
-                                {t('mgr.archive.batch_label').replace('{n}', batch.number || t('common.unnamed_batch'))}
-                              </span>
-                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-red-950 text-red-400 border border-red-500/20 flex items-center gap-1">
-                                <Lock className="w-2.5 h-2.5" />
-                                {t('status.in_incubation')}
-                              </span>
+                              <p className="text-xs text-slate-400 mt-1">
+                                {t('tech.batch.supplier')} <span className="font-semibold text-slate-200">{shipment.supplier}</span> • 
+                                {t('tech.batch.arrived')} <span className="font-semibold text-slate-200">{shipment.intake_date}</span>
+                              </p>
                             </div>
-                            <p className="text-xs text-slate-400 mt-1">
-                              {t('common.supplier')} <span className="font-semibold text-slate-200">{batch.supplier}</span> • 
-                              {t('common.arrived')} <span className="font-semibold text-slate-200">{batch.intake_date}</span> • 
-                              {t('tech.batch.prod')} <span className="font-semibold text-slate-200">{batch.production_date || '-'}</span>
-                            </p>
 
-                            {/* Incubator Cycles Breakdown */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-800/60">
-                              {needs36 && (
-                                <div className="p-3.5 bg-slate-950/40 rounded-2xl border border-slate-855 flex flex-col gap-1.5">
-                                  <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('incubation.incubator_36')}</span>
-                                  <div className="flex justify-between items-center mt-1">
-                                    <span className="text-xs font-semibold text-slate-200">{t('incubation.units').replace('{n}', batch.units_36)}</span>
-                                    <span className="text-xs font-bold text-amber-400">{formatExitText(batch.exit_36)}</span>
-                                  </div>
-                                  <span className="text-[9px] text-slate-500 mt-1">{t('incubation.exit_date')} {batch.exit_36}</span>
-                                </div>
-                              )}
-                              {needs55 && (
-                                <div className="p-3.5 bg-slate-950/40 rounded-2xl border border-slate-855 flex flex-col gap-1.5">
-                                  <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('incubation.incubator_55')}</span>
-                                  <div className="flex justify-between items-center mt-1">
-                                    <span className="text-xs font-semibold text-slate-200">{t('incubation.units').replace('{n}', batch.units_55)}</span>
-                                    <span className="text-xs font-bold text-amber-400">{formatExitText(batch.exit_55)}</span>
-                                  </div>
-                                  <span className="text-[9px] text-slate-500 mt-1">{t('incubation.exit_date')} {batch.exit_55}</span>
-                                </div>
-                              )}
+                            <div className="flex items-center gap-3">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-950/40 border border-red-500/35 text-red-400 text-xs font-bold rounded-full">
+                                <Lock className="w-3.5 h-3.5" />
+                                <span>{t('tech.batch.locked').replace('{n}', lockedBatches.length)}</span>
+                              </span>
                             </div>
                           </div>
 
-                          {/* Action Button for Manager */}
-                          <div className="flex items-center shrink-0 w-full md:w-auto mt-2 md:mt-0">
-                            <button
-                              onClick={() => toggleIncubationUnlock(batch.id, batch.is_manually_unlocked)}
-                              className="flex items-center justify-center gap-1.5 px-5 py-3 md:py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl transition-all cursor-pointer w-full md:w-auto shadow-md hover:shadow-amber-500/10"
-                            >
-                              <Unlock className="w-4 h-4 text-slate-950" />
-                              <span>{t('mgr.overview.unlock')}</span>
-                            </button>
-                          </div>
+                          {/* Shipment Details Panel */}
+                          {isExpanded && (
+                            <div className="p-6 border-t border-slate-800 bg-slate-950/30 space-y-6">
+                              <div className="space-y-4">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                  {t('incubation.title')}
+                                </h4>
+                                
+                                <div className="space-y-4">
+                                  {lockedBatches.map(batch => {
+                                    const needs36 = (batch.units_36 || 0) > 0 && (template?.incubation_36 || 0) > 0
+                                    const needs55 = (batch.units_55 || 0) > 0 && (template?.incubation_55 || 0) > 0
+
+                                    return (
+                                      <div
+                                        key={batch.id}
+                                        className="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                                      >
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <span className="text-sm font-bold text-white">
+                                              {t('mgr.archive.batch_label').replace('{n}', batch.number || t('common.unnamed_batch'))}
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-red-950 text-red-400 border border-red-500/20 flex items-center gap-1">
+                                              <Lock className="w-2.5 h-2.5" />
+                                              {t('status.in_incubation')}
+                                            </span>
+                                          </div>
+                                          <p className="text-[10px] text-slate-400 mt-1">
+                                            {t('tech.batch.prod')} {batch.production_date || '-'} • {t('tech.batch.exp')} {batch.expiration_date || '-'}
+                                          </p>
+
+                                          {/* Incubator Cycles Breakdown */}
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-800/40">
+                                            {needs36 && (
+                                              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-855 flex flex-col gap-1.5">
+                                                <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('incubation.incubator_36')}</span>
+                                                <div className="flex justify-between items-center mt-1">
+                                                  <span className="text-xs font-semibold text-slate-200">{t('incubation.units').replace('{n}', batch.units_36)}</span>
+                                                  <span className="text-xs font-bold text-amber-400">{formatExitText(batch.exit_36)}</span>
+                                                </div>
+                                                <span className="text-[9px] text-slate-500 mt-1">{t('incubation.exit_date')} {batch.exit_36}</span>
+                                              </div>
+                                            )}
+                                            {needs55 && (
+                                              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-855 flex flex-col gap-1.5">
+                                                <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('incubation.incubator_55')}</span>
+                                                <div className="flex justify-between items-center mt-1">
+                                                  <span className="text-xs font-semibold text-slate-200">{t('incubation.units').replace('{n}', batch.units_55)}</span>
+                                                  <span className="text-xs font-bold text-amber-400">{formatExitText(batch.exit_55)}</span>
+                                                </div>
+                                                <span className="text-[9px] text-slate-500 mt-1">{t('incubation.exit_date')} {batch.exit_55}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Action Button for Manager */}
+                                        <div className="flex items-center shrink-0 w-full md:w-auto mt-2 md:mt-0">
+                                          <button
+                                            onClick={() => toggleIncubationUnlock(batch.id, batch.is_manually_unlocked)}
+                                            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl transition-all cursor-pointer w-full md:w-auto shadow-md hover:shadow-amber-500/10"
+                                          >
+                                            <Unlock className="w-4 h-4 text-slate-950" />
+                                            <span>{t('mgr.overview.unlock')}</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
