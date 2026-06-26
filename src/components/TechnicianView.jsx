@@ -95,7 +95,7 @@ export default function TechnicianView() {
   useEffect(() => {
     const checkExits = () => {
       const activeDue = shipments
-        .flatMap(s => (s.batches || []).map(b => ({ ...b, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
+        .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
         .filter(b => {
           const bStatus = getIncubationStatus(b, b.template_id)
           return bStatus.due
@@ -528,11 +528,15 @@ export default function TechnicianView() {
   }
 
   const dueBatches = shipments
-    .flatMap(s => (s.batches || []).map(b => ({ ...b, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
+    .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
     .filter(b => getIncubationStatus(b, b.template_id).due)
 
   const pendingShipmentsCount = shipments.filter(s => !isShipmentArchived(s) && s.batches.some(b => !getIncubationStatus(b, s.template_id).locked)).length
-  const inIncubationCount = shipments.filter(s => !isShipmentArchived(s)).flatMap(s => s.batches).filter(b => getIncubationStatus(b, b.template_id).locked).length
+  const inIncubationCount = shipments
+    .filter(s => !isShipmentArchived(s))
+    .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id })))
+    .filter(b => getIncubationStatus(b, b.template_id).locked)
+    .length
 
   const technicianTabs = [
     { id: 'pending', label: `${t('tech.tab.pending').replace(' ({n})', '').replace(' {n}', '').replace('{n}', '')} (${pendingShipmentsCount})`, icon: ClipboardList },

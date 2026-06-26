@@ -124,7 +124,7 @@ export default function ManagerView() {
   useEffect(() => {
     const checkExits = () => {
       const activeDue = shipments
-        .flatMap(s => (s.batches || []).map(b => ({ ...b, supplier: s.supplier, template_name: getTemplate(b.template_id)?.name })))
+        .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
         .filter(b => {
           const bStatus = getIncubationStatus(b, b.template_id)
           return bStatus.due
@@ -665,7 +665,7 @@ export default function ManagerView() {
   }
 
   const dueBatches = shipments
-    .flatMap(s => (s.batches || []).map(b => ({ ...b, supplier: s.supplier, template_name: getTemplate(b.template_id)?.name })))
+    .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
     .filter(b => getIncubationStatus(b, b.template_id).due)
 
   const freshCoasCount = shipments
@@ -676,7 +676,11 @@ export default function ManagerView() {
       return age <= 24 * 60 * 60 * 1000
     }).length
 
-  const lockedBatchesCount = shipments.filter(s => !isShipmentArchived(s)).flatMap(s => s.batches).filter(b => getIncubationStatus(b, b.template_id).locked).length
+  const lockedBatchesCount = shipments
+    .filter(s => !isShipmentArchived(s))
+    .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id })))
+    .filter(b => getIncubationStatus(b, b.template_id).locked)
+    .length
 
   const awaitingTestingCount = shipments
     .filter(s => !isShipmentArchived(s))
