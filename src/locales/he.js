@@ -104,6 +104,14 @@ const he = {
   'batch.btn.save': 'שמור את כל התוצאות',
   'batch.btn.cancel': 'ביטול',
   'batch.test.locked': 'נעול - באינקובציה ({temp} יוצא ב-{date} / בעוד {days} ימים)',
+  'batch.test.formula_label': 'נוסחה:',
+  'batch.validation.oven_moisture': 'רפליקט {n}: המשקל בסיום ({end} גרם) לא יכול להיות גדול ממשקל כורית + דוגמה ({start} גרם).',
+  'batch.validation.sieving_size': 'רפליקט {n}: המשקל שעבר ({passed} גרם) לא יכול להיות גדול ממשקל הדוגמה הכולל ({sample} גרם).',
+  'batch.validation.tuna_chunk': 'רפליקט {n}: משקל הנתחים ({chunk} גרם) לא יכול להיות גדול מהמשקל הכולל ({total} גרם).',
+  'batch.validation.fat_separation': 'רפליקט {n}: משקל השומן ({fat} גרם) לא יכול להיות גדול מהמשקל הכולל ({total} גרם).',
+  'batch.validation.general_ratio': 'רפליקט {n}: החלק ({part}) לא יכול להיות גדול מהשלם ({whole}).',
+  'batch.validation.ash_crucible': 'רפליקט {n}: המשקל לאחר שריפה ({end} גרם) לא יכול להיות קטן ממשקל הכורית הריקה ({crucible} גרם).',
+  'batch.validation.drip_loss': 'רפליקט {n}: המשקל לאחר הפשרה ({after} גרם) לא יכול להיות גדול מהמשקל לפני הפשרה ({before} גרם).',
 
   // Replicate Modal
   'rep.modal.batch_label': 'אצווה:',

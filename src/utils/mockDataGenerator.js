@@ -52,40 +52,57 @@ export async function seedMockData() {
     const firstTechId = profiles?.find(p => p.role === 'technician')?.id || null
     const assignedArray = firstTechId ? [firstTechId] : []
 
-    // --- Create Product Templates ---
-    const tunaTemplateId = generateUUID()
-    const jamTemplateId = generateUUID()
-
+    // --- Create Product Template with ALL tests ---
+    const allTestsTemplateId = generateUUID()
     const templates = [
       {
-        id: tunaTemplateId,
-        name: 'Canned Tuna 160g',
-        packaging: 'Metal Can',
+        id: allTestsTemplateId,
+        name: 'All-Tests Master Spec',
+        packaging: 'Standard Demo Packaging',
         requires_incubation: true,
         incubation_36: 5,
         incubation_55: 3,
-        tests: ['weight', 'ph_before', 'ph_36', 'ph_55', 'vacuum_before', 'vacuum_36', 'vacuum_55', 'organoleptic'],
+        tests: [
+          'labeling_packaging', 'weight', 'volume', 'vacuum', 'vacuum_before', 'vacuum_36', 'vacuum_55',
+          'drained_weight', 'ph', 'ph_before', 'ph_36', 'ph_55', 'moisture_device', 'moisture_oven',
+          'brix', 'acidity', 'ash', 'acid_insoluble_ash', 'sieving_size', 'salt', 'specific_gravity',
+          'aqueous_layer', 'organoleptic', 'peroxides', 'drip_loss', 'water_activity', 'paprika_asta',
+          'fat_separation', 'oxygen_analyzer', 'filling_coating', 'salt_auto', 'acidity_auto',
+          'tuna_chunk', 'foreign_matter', 'general_ratio'
+        ],
         standards: {
-          weight: { min: 155, max: 165 },
-          ph_before: { min: 5.5, max: 6.5 },
-          ph_36: { min: 5.5, max: 6.5 },
-          ph_55: { min: 5.5, max: 6.5 },
-          vacuum_before: { min: 10, max: 50 },
-          vacuum_36: { min: 10, max: 50 },
-          vacuum_55: { min: 10, max: 50 }
-        }
-      },
-      {
-        id: jamTemplateId,
-        name: 'Peach Jam 250g',
-        packaging: 'Glass Jar',
-        requires_incubation: false,
-        incubation_36: 0,
-        incubation_55: 0,
-        tests: ['brix', 'ph', 'organoleptic'],
-        standards: {
-          brix: { min: 60, max: 65 },
-          ph: { min: 3.2, max: 4.0 }
+          weight: { min: 100, max: 200 },
+          volume: { min: 90, max: 180 },
+          vacuum: { min: 5, max: 30 },
+          vacuum_before: { min: 5, max: 30 },
+          vacuum_36: { min: 5, max: 30 },
+          vacuum_55: { min: 5, max: 30 },
+          drained_weight: { min: 80, max: 150 },
+          ph: { min: 4.0, max: 6.8 },
+          ph_before: { min: 4.0, max: 6.8 },
+          ph_36: { min: 4.0, max: 6.8 },
+          ph_55: { min: 4.0, max: 6.8 },
+          moisture_device: { min: 10, max: 40 },
+          moisture_oven: { min: 10, max: 40 },
+          brix: { min: 10, max: 30 },
+          acidity: { min: 0.1, max: 2.0 },
+          ash: { min: 0.1, max: 5.0 },
+          acid_insoluble_ash: { min: 0.01, max: 1.0 },
+          sieving_size: { min: 0, max: 100 },
+          salt: { min: 0.5, max: 3.0 },
+          specific_gravity: { min: 0.9, max: 1.2 },
+          aqueous_layer: { min: 0, max: 10 },
+          peroxides: { min: 0, max: 15 },
+          drip_loss: { min: 0, max: 12 },
+          water_activity: { min: 0.5, max: 0.95 },
+          paprika_asta: { min: 50, max: 180 },
+          fat_separation: { min: 0, max: 5 },
+          oxygen_analyzer: { min: 0, max: 5 },
+          filling_coating: { min: 10, max: 50 },
+          salt_auto: { min: 0.5, max: 3.0 },
+          acidity_auto: { min: 0.1, max: 2.0 },
+          tuna_chunk: { min: 50, max: 95 },
+          general_ratio: { min: 10, max: 90 }
         }
       }
     ]
@@ -93,214 +110,155 @@ export async function seedMockData() {
     const { error: tempErr } = await supabase.from('product_templates').insert(templates)
     if (tempErr) throw tempErr
 
-    // --- Create Shipments ---
+    // --- Create Shipments representing the 4 exit states ---
     const now = new Date()
 
-    // 1. Shipment locked in incubation (Canned Tuna) - exited 55°C yesterday, still in 36°C
-    const intakeLocked = new Date()
-    intakeLocked.setDate(now.getDate() - 4) // 4 days ago
-    const exitLocked36 = new Date(intakeLocked)
-    exitLocked36.setDate(intakeLocked.getDate() + 6) // exits in 2 days
-    const exitLocked55 = new Date(intakeLocked)
-    exitLocked55.setDate(intakeLocked.getDate() + 3) // exited yesterday
+    // 1. Demo: Exited 36°C Only
+    const shipExited36Id = generateUUID()
+    const intakeExited36 = new Date()
+    intakeExited36.setDate(now.getDate() - 6) // received 6 days ago
+    const exitExited36_36 = new Date(intakeExited36)
+    exitExited36_36.setDate(intakeExited36.getDate() + 5) // exited yesterday (day 5)
+    const exitExited36_55 = new Date(intakeExited36)
+    exitExited36_55.setDate(intakeExited36.getDate() + 8) // exits in 2 days (day 8)
 
-    const shipLockedId = generateUUID()
+    // 2. Demo: Exited 55°C Only
+    const shipExited55Id = generateUUID()
+    const intakeExited55 = new Date()
+    intakeExited55.setDate(now.getDate() - 4) // received 4 days ago
+    const exitExited55_36 = new Date(intakeExited55)
+    exitExited55_36.setDate(intakeExited55.getDate() + 6) // exits in 2 days (day 6)
+    const exitExited55_55 = new Date(intakeExited55)
+    exitExited55_55.setDate(intakeExited55.getDate() + 3) // exited yesterday (day 3)
 
-    // 2. Shipment finished incubation (Canned Tuna)
-    const intakeFinished = new Date()
-    intakeFinished.setDate(now.getDate() - 10) // 10 days ago
-    const exitFinished36 = new Date(intakeFinished)
-    exitFinished36.setDate(intakeFinished.getDate() + 5)
-    const exitFinished55 = new Date(intakeFinished)
-    exitFinished55.setDate(intakeFinished.getDate() + 3)
+    // 3. Demo: Exited Both
+    const shipExitedBothId = generateUUID()
+    const intakeExitedBoth = new Date()
+    intakeExitedBoth.setDate(now.getDate() - 7) // received 7 days ago
+    const exitExitedBoth_36 = new Date(intakeExitedBoth)
+    exitExitedBoth_36.setDate(intakeExitedBoth.getDate() + 5) // exited 2 days ago (day 5)
+    const exitExitedBoth_55 = new Date(intakeExitedBoth)
+    exitExitedBoth_55.setDate(intakeExitedBoth.getDate() + 3) // exited 4 days ago (day 3)
 
-    const shipFinishedId = generateUUID()
+    // 4. Demo: Active Incubation (Locked)
+    const shipActiveId = generateUUID()
+    const intakeActive = new Date() // received today
+    const exitActive_36 = new Date(intakeActive)
+    exitActive_36.setDate(intakeActive.getDate() + 5) // exits in 5 days
+    const exitActive_55 = new Date(intakeActive)
+    exitActive_55.setDate(intakeActive.getDate() + 3) // exits in 3 days
 
-    // 3. Shipment bypassing incubation (Peach Jam)
-    const intakeBypass = new Date() // Today
-    const shipBypassId = generateUUID()
-
-    // 4. Shipment for Retest scenario (Peach Jam)
-    const intakeRetest = new Date()
-    const shipRetestId = generateUUID()
-
-    // 5. Shipment partially exited (55°C exited, 36°C locked)
-    const intakePartial = new Date()
-    intakePartial.setDate(now.getDate() - 4) // 4 days ago
-    const exitPartial36 = new Date(intakePartial)
-    exitPartial36.setDate(intakePartial.getDate() + 5) // exits in 1 day (tomorrow)
-    const exitPartial55 = new Date(intakePartial)
-    exitPartial55.setDate(intakePartial.getDate() + 3) // exited 1 day ago (yesterday)
-
-    const shipPartialId = generateUUID()
-const shipExited55Id = generateUUID()
-const shipExited55TodayId = generateUUID()
     const shipments = [
       {
-        id: shipLockedId,
-        template_id: tunaTemplateId,
-        supplier: 'Pacific Fish Co.',
-        intake_date: formatDate(intakeLocked),
+        id: shipExited36Id,
+        template_id: allTestsTemplateId,
+        supplier: 'Demo Supplier (Exited 36 Only)',
+        intake_date: formatDate(intakeExited36),
         size: '10,000 units',
-        units_36: 0,
-        units_55: 0,
-        exit_36: null,
-        exit_55: null,
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitExited36_36),
+        exit_55: formatDate(exitExited36_55),
         is_manually_unlocked: false,
         assigned_to: assignedArray
       },
       {
-        id: shipFinishedId,
-        template_id: tunaTemplateId,
-        supplier: 'Atlantic Catch Ltd.',
-        intake_date: formatDate(intakeFinished),
-        size: '5,000 units',
-        units_36: 0,
-        units_55: 0,
-        exit_36: null,
-        exit_55: null,
+        id: shipExited55Id,
+        template_id: allTestsTemplateId,
+        supplier: 'Demo Supplier (Exited 55 Only)',
+        intake_date: formatDate(intakeExited55),
+        size: '10,000 units',
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitExited55_36),
+        exit_55: formatDate(exitExited55_55),
         is_manually_unlocked: false,
         assigned_to: assignedArray
       },
       {
-        id: shipBypassId,
-        template_id: jamTemplateId,
-        supplier: 'Sweet Orchards Inc.',
-        intake_date: formatDate(intakeBypass),
-        size: '2,500 units',
-        units_36: 0,
-        units_55: 0,
-        exit_36: null,
-        exit_55: null,
+        id: shipExitedBothId,
+        template_id: allTestsTemplateId,
+        supplier: 'Demo Supplier (Exited Both)',
+        intake_date: formatDate(intakeExitedBoth),
+        size: '10,000 units',
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitExitedBoth_36),
+        exit_55: formatDate(exitExitedBoth_55),
         is_manually_unlocked: false,
-        assigned_to: []
+        assigned_to: assignedArray
       },
       {
-        id: shipRetestId,
-        template_id: jamTemplateId,
-        supplier: 'Fruit Growers Coop',
-        intake_date: formatDate(intakeRetest),
-        size: '1,200 units',
-        units_36: 0,
-        units_55: 0,
-        exit_36: null,
-        exit_55: null,
+        id: shipActiveId,
+        template_id: allTestsTemplateId,
+        supplier: 'Demo Supplier (Active Incubation - Locked)',
+        intake_date: formatDate(intakeActive),
+        size: '10,000 units',
+        units_36: 12,
+        units_55: 12,
+        exit_36: formatDate(exitActive_36),
+        exit_55: formatDate(exitActive_55),
         is_manually_unlocked: false,
-        assigned_to: []
-      },
-      {
-        id: shipPartialId,
-        template_id: tunaTemplateId,
-        supplier: 'Indian Ocean Fisheries',
-        intake_date: formatDate(intakePartial),
-        size: '8,000 units',
-        units_36: 0,
-        units_55: 0,
-        exit_36: null,
-        exit_55: formatDate(exitPartial55),
-        is_manually_unlocked: false,
-        assigned_to: []
-      },
-        {
-          id: shipExited55TodayId,
-          template_id: tunaTemplateId,
-          supplier: 'Pacific Fish Co.',
-          intake_date: formatDate(new Date()), // today
-          size: '7,500 units',
-          units_36: 0,
-          units_55: 0,
-          exit_36: null,
-          exit_55: formatDate(new Date()), // exited today
-          is_manually_unlocked: false,
-          assigned_to: []
-        }
+        assigned_to: assignedArray
+      }
     ]
 
     const { error: shipErr } = await supabase.from('shipments').insert(shipments)
     if (shipErr) throw shipErr
 
     // --- Create Batches ---
-    const batchLockedId = generateUUID()
-    const batchFinished1Id = generateUUID()
-    const batchFinished2Id = generateUUID()
-    const batchBypassId = generateUUID()
-    const batchRetestId = generateUUID()
-    const batchPartialId = generateUUID()
+    const batchExited36Id = generateUUID()
+    const batchExited55Id = generateUUID()
+    const batchExitedBothId = generateUUID()
+    const batchActiveId = generateUUID()
 
     const batches = [
       {
-        id: batchLockedId,
-        shipment_id: shipLockedId,
-        number: '26-170', // Julian date batch number example (June 19, 2026 is day 170)
-        production_date: '2026-06-19',
+        id: batchExited36Id,
+        number: 'DEMO-EXIT36',
+        shipment_id: shipExited36Id,
+        production_date: formatDate(intakeExited36),
         expiration_date: '2029-06-19',
         units_36: 12,
         units_55: 12,
-        exit_36: formatDate(exitLocked36),
-        exit_55: formatDate(exitLocked55),
+        exit_36: formatDate(exitExited36_36),
+        exit_55: formatDate(exitExited36_55),
         is_manually_unlocked: false
       },
       {
-        id: batchFinished1Id,
-        shipment_id: shipFinishedId,
-        number: '26-160', // June 9, 2026
-        production_date: '2026-06-09',
-        expiration_date: '2029-06-09',
-        approved_at: formatTimestamp(now),
+        id: batchExited55Id,
+        number: 'DEMO-EXIT55',
+        shipment_id: shipExited55Id,
+        production_date: formatDate(intakeExited55),
+        expiration_date: '2029-06-19',
         units_36: 12,
         units_55: 12,
-        exit_36: formatDate(exitFinished36),
-        exit_55: formatDate(exitFinished55),
+        exit_36: formatDate(exitExited55_36),
+        exit_55: formatDate(exitExited55_55),
         is_manually_unlocked: false
       },
       {
-        id: batchFinished2Id,
-        shipment_id: shipFinishedId,
-        number: '26-161', // June 10, 2026
-        production_date: '2026-06-10',
-        expiration_date: '2029-06-10',
+        id: batchExitedBothId,
+        number: 'DEMO-EXITBOTH',
+        shipment_id: shipExitedBothId,
+        production_date: formatDate(intakeExitedBoth),
+        expiration_date: '2029-06-19',
         units_36: 12,
         units_55: 12,
-        exit_36: formatDate(exitFinished36),
-        exit_55: formatDate(exitFinished55),
+        exit_36: formatDate(exitExitedBoth_36),
+        exit_55: formatDate(exitExitedBoth_55),
         is_manually_unlocked: false
       },
       {
-        id: batchBypassId,
-        shipment_id: shipBypassId,
-        number: '26-170', // Today
-        production_date: '2026-06-19',
-        expiration_date: '2028-06-19',
-        units_36: 0,
-        units_55: 0,
-        exit_36: null,
-        exit_55: null,
-        is_manually_unlocked: false
-      },
-      {
-        id: batchRetestId,
-        shipment_id: shipRetestId,
-        number: '26-169', // Yesterday
-        production_date: '2026-06-18',
-        expiration_date: '2028-06-18',
-        retest_requested_at: formatTimestamp(now),
-        retest_reason: 'Brix average failed specifications. Value was 55.4 (min is 60.0)',
-        units_36: 0,
-        units_55: 0,
-        exit_36: null,
-        exit_55: null,
-        is_manually_unlocked: false
-      },
-      {
-        id: batchPartialId,
-        shipment_id: shipPartialId,
-        number: '26-166', // 4 days ago
-        production_date: '2026-06-15',
-        expiration_date: '2029-06-15',
+        id: batchActiveId,
+        number: 'DEMO-LOCKED',
+        shipment_id: shipActiveId,
+        production_date: formatDate(intakeActive),
+        expiration_date: '2029-06-19',
         units_36: 12,
         units_55: 12,
-        exit_36: formatDate(exitPartial36),
-        exit_55: formatDate(exitPartial55),
+        exit_36: formatDate(exitActive_36),
+        exit_55: formatDate(exitActive_55),
         is_manually_unlocked: false
       }
     ]
@@ -308,115 +266,27 @@ const shipExited55TodayId = generateUUID()
     const { error: batchErr } = await supabase.from('batches').insert(batches)
     if (batchErr) throw batchErr
 
-    // --- Create Test Results (Failure for Retest Batch and Passing/Approved for Finished Batch) ---
+    // --- Create Initial Test Results (to make the UI feel populated for demonstration) ---
     const testResults = [
       {
         id: generateUUID(),
-        batch_id: batchRetestId,
-        test_id: 'brix',
-        replicates: [
-          { value: '55.2' },
-          { value: '55.6' }
-        ],
+        batch_id: batchExitedBothId,
+        test_id: 'ph_before',
+        replicates: [{ value: '6.2' }],
         updated_at: formatTimestamp(now)
       },
       {
         id: generateUUID(),
-        batch_id: batchRetestId,
-        test_id: 'ph',
-        replicates: [
-          { value: '3.5' }
-        ],
-        updated_at: formatTimestamp(now)
-      },
-      {
-        id: generateUUID(),
-        batch_id: batchFinished1Id,
+        batch_id: batchExitedBothId,
         test_id: 'weight',
-        replicates: [
-          { gross: '165.0', tare: '5.0', net: '160.0' }
-        ],
+        replicates: [{ gross: '150.000', tare: '5.000', net: '145.000' }],
         updated_at: formatTimestamp(now)
       },
       {
         id: generateUUID(),
-        batch_id: batchFinished1Id,
+        batch_id: batchExited36Id,
         test_id: 'ph_before',
-        replicates: [
-          { value: '6.0' }
-        ],
-        updated_at: formatTimestamp(now)
-      },
-      {
-        id: generateUUID(),
-        batch_id: batchFinished1Id,
-        test_id: 'ph_36',
-        replicates: [
-          { value: '6.1' }
-        ],
-        updated_at: formatTimestamp(now)
-      },
-      {
-        id: generateUUID(),
-        batch_id: batchFinished1Id,
-        test_id: 'ph_55',
-        replicates: [
-          { value: '5.9' }
-        ],
-        updated_at: formatTimestamp(now)
-      },
-      {
-        id: generateUUID(),
-        batch_id: batchFinished1Id,
-        test_id: 'vacuum_before',
-        replicates: [
-          { hg: '1.0' }
-        ],
-        updated_at: formatTimestamp(now)
-      },
-      {
-        id: generateUUID(),
-        batch_id: batchFinished1Id,
-        test_id: 'vacuum_36',
-        replicates: [
-          { hg: '1.1' }
-        ],
-        updated_at: formatTimestamp(now)
-      },
-      {
-        id: generateUUID(),
-        batch_id: batchFinished1Id,
-        test_id: 'vacuum_55',
-        replicates: [
-          { hg: '1.2' }
-        ],
-        updated_at: formatTimestamp(now)
-      },
-      {
-        id: generateUUID(),
-        batch_id: batchFinished1Id,
-        test_id: 'organoleptic',
-        replicates: [
-          { pass: 'pass', reason: 'Passes sensory' }
-        ],
-        updated_at: formatTimestamp(now)
-      },
-      {
-        id: generateUUID(),
-        batch_id: batchPartialId,
-        test_id: 'ph_before',
-        replicates: [
-          { value: '5.9' }
-        ],
-        updated_at: formatTimestamp(now)
-      },
-      {
-        id: generateUUID(),
-        batch_id: batchPartialId,
-        test_id: 'vacuum_before',
-        replicates: [
-          { hg: '1.2' }
-        ],
+        replicates: [{ value: '6.1' }],
         updated_at: formatTimestamp(now)
       }
     ]
@@ -498,4 +368,3 @@ export async function seedQAUsers() {
     return { success: false, error: err.message }
   }
 }
-

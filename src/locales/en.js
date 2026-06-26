@@ -104,6 +104,14 @@ const en = {
   'batch.btn.save': 'Save All Results',
   'batch.btn.cancel': 'Cancel',
   'batch.test.locked': 'Locked - Incubating ({temp} exits on {date} / in {days} days)',
+  'batch.test.formula_label': 'Formula:',
+  'batch.validation.oven_moisture': 'Replicate {n}: End mass ({end}g) cannot be greater than Crucible + Sample mass ({start}g).',
+  'batch.validation.sieving_size': 'Replicate {n}: Passed mass ({passed}g) cannot be greater than total Sample mass ({sample}g).',
+  'batch.validation.tuna_chunk': 'Replicate {n}: Chunk mass ({chunk}g) cannot be greater than total Mass ({total}g).',
+  'batch.validation.fat_separation': 'Replicate {n}: Fat mass ({fat}g) cannot be greater than total Mass ({total}g).',
+  'batch.validation.general_ratio': 'Replicate {n}: Part ({part}) cannot be greater than Whole ({whole}).',
+  'batch.validation.ash_crucible': 'Replicate {n}: Mass after burning ({end}g) cannot be less than Crucible mass ({crucible}g).',
+  'batch.validation.drip_loss': 'Replicate {n}: Mass after defrost ({after}g) cannot be greater than Mass before defrost ({before}g).',
 
   // Replicate Modal
   'rep.modal.batch_label': 'Batch:',

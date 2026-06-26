@@ -3,6 +3,29 @@ import { ArrowLeft, Plus, Trash2, AlertTriangle, Check, Info, Lock } from 'lucid
 import { TESTS, testMap, calculateTest, num, isTestLocked } from '../utils/calculations'
 import { useLanguage } from '../context/LanguageContext'
 
+const TEST_FORMULAS = {
+  weight: 'Net = Gross - Tare',
+  volume: 'Volume = Weight / Specific Gravity',
+  vacuum: 'Vacuum (mmHg) = Vacuum (inHg) * 25.4',
+  vacuum_before: 'Vacuum (mmHg) = Vacuum (inHg) * 25.4',
+  vacuum_36: 'Vacuum (mmHg) = Vacuum (inHg) * 25.4',
+  vacuum_55: 'Vacuum (mmHg) = Vacuum (inHg) * 25.4',
+  moisture_oven: 'Moisture % = ((Sample + Crucible - End) / Sample) * 100',
+  acidity: 'Acidity % = (Titration Volume * Acid Constant) / Sample Mass',
+  ash: 'Ash % = ((End Mass - Crucible Mass) / Sample Mass) * 100',
+  acid_insoluble_ash: 'Acid-Insoluble Ash % = ((End Mass - Crucible Mass) / Sample Mass) * 100',
+  sieving_size: 'Passed % = (Passed Mass / Sample Mass) * 100',
+  salt: 'Salt % = (Silver Nitrate Volume * 0.585) / Sample Mass',
+  aqueous_layer: 'Aqueous % = (Aqueous Volume / Denominator Mass) * 100',
+  peroxides: 'Peroxides = (Thiosulfate Volume * 10) / Sample Mass',
+  drip_loss: 'Drip Loss % = 100 - (100 * Defrost Mass / Initial Mass)',
+  paprika_asta: 'ASTA Color = (Absorption * 1640) / Sample Mass (mg)',
+  fat_separation: 'Fat Separation % = (Fat Mass * 100) / Total Mass',
+  filling_coating: 'Coating % = (External / Total) * 100 | Filling % = (Internal / Total) * 100',
+  tuna_chunk: 'Chunk % = (Chunk Mass / Total Mass) * 100',
+  general_ratio: 'Ratio % = (Part / Whole) * 100'
+}
+
 function formatLabelWithUnit(label) {
   if (typeof label !== 'string') return label
   const match = label.match(/(.*?)(\(.*?\))(.*)/)
@@ -98,15 +121,94 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
         }
       }
 
-      // Negative checks for physical values
+      // Negative checks for physical values (allowing down to -0.5 for weight/moisture error margins)
+      const isMoistureOrWeight = test.id === 'moisture_device' || test.id === 'moisture_oven' || test.id === 'weight'
       test.fields.forEach(f => {
         if (f.type === 'number' && row[f.id] !== '') {
           const v = num(row[f.id])
-          if (v < 0) {
-            list.push(t('batch.validation.no_negative').replace('{n}', repNum).replace('{label}', f.label))
+          if (isMoistureOrWeight) {
+            if (v < -0.5) {
+              list.push(t('batch.validation.no_negative').replace('{n}', repNum).replace('{label}', f.label))
+            }
+          } else {
+            if (v < 0) {
+              list.push(t('batch.validation.no_negative').replace('{n}', repNum).replace('{label}', f.label))
+            }
           }
         }
       })
+
+      // Physical logic validations
+      if (test.id === 'moisture_oven') {
+        const sample = num(row.sample)
+        const crucible = num(row.crucible)
+        const end = num(row.end)
+        if (Number.isFinite(sample) && Number.isFinite(crucible) && Number.isFinite(end)) {
+          if (end > (sample + crucible)) {
+            list.push(t('batch.validation.oven_moisture').replace('{n}', repNum).replace('{end}', end).replace('{start}', sample + crucible))
+          }
+        }
+      }
+
+      if (test.id === 'sieving_size') {
+        const sample = num(row.sample)
+        const passed = num(row.passed)
+        if (Number.isFinite(sample) && Number.isFinite(passed)) {
+          if (passed > sample) {
+            list.push(t('batch.validation.sieving_size').replace('{n}', repNum).replace('{passed}', passed).replace('{sample}', sample))
+          }
+        }
+      }
+
+      if (test.id === 'tuna_chunk') {
+        const chunk = num(row.chunk)
+        const total = num(row.total)
+        if (Number.isFinite(chunk) && Number.isFinite(total)) {
+          if (chunk > total) {
+            list.push(t('batch.validation.tuna_chunk').replace('{n}', repNum).replace('{chunk}', chunk).replace('{total}', total))
+          }
+        }
+      }
+
+      if (test.id === 'fat_separation') {
+        const fat = num(row.fat)
+        const total = num(row.total)
+        if (Number.isFinite(fat) && Number.isFinite(total)) {
+          if (fat > total) {
+            list.push(t('batch.validation.fat_separation').replace('{n}', repNum).replace('{fat}', fat).replace('{total}', total))
+          }
+        }
+      }
+
+      if (test.id === 'general_ratio') {
+        const part = num(row.part)
+        const whole = num(row.whole)
+        if (Number.isFinite(part) && Number.isFinite(whole)) {
+          if (part > whole) {
+            list.push(t('batch.validation.general_ratio').replace('{n}', repNum).replace('{part}', part).replace('{whole}', whole))
+          }
+        }
+      }
+
+      if (test.id === 'ash' || test.id === 'acid_insoluble_ash') {
+        const crucible = num(row.crucible)
+        const end = num(row.end)
+        if (Number.isFinite(crucible) && Number.isFinite(end)) {
+          if (end < crucible) {
+            list.push(t('batch.validation.ash_crucible').replace('{n}', repNum).replace('{end}', end).replace('{crucible}', crucible))
+          }
+        }
+      }
+
+      if (test.id === 'drip_loss') {
+        const before = num(row.before)
+        const after = num(row.after)
+        if (Number.isFinite(before) && Number.isFinite(after)) {
+          if (after > before) {
+            list.push(t('batch.validation.drip_loss').replace('{n}', repNum).replace('{after}', after).replace('{before}', before))
+          }
+        }
+      }
     })
 
     // Replicate count validations
@@ -514,6 +616,11 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                         {test.min && ` ${t('batch.test.min').replace('{n}', test.min)}`}
                         {test.max && ` ${t('batch.test.max').replace('{n}', test.max)}`}
                       </span>
+                      {TEST_FORMULAS[testId] && (
+                        <span className="text-[10px] text-slate-450 font-semibold tracking-wide mt-0.5">
+                          {t('batch.test.formula_label')} <span className="font-mono text-slate-350">{TEST_FORMULAS[testId]}</span>
+                        </span>
+                      )}
                       {isLocked && (
                         <span className="text-[10px] text-amber-500 font-bold uppercase tracking-wider flex items-center gap-1">
                           {t('batch.test.locked')
@@ -707,7 +814,29 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                                     disabled={isLocked}
                                     value={value}
                                     onChange={(e) => handleAddFieldVal(testId, idx, field.id, e.target.value)}
-                                    placeholder={t('batch.input.placeholder')}
+                                    placeholder={(() => {
+                                      if (field.type !== 'number') return t('batch.input.placeholder')
+                                      const lower = field.label.toLowerCase()
+                                      if (lower.includes('weight') || lower.includes('mass') || lower.includes('crucible') || lower.includes('end') || lower.includes('passed') || lower.includes('chunk') || lower.includes('fat') || lower.includes('silver')) {
+                                        return 'e.g. 10.000'
+                                      }
+                                      if (lower.includes('ph')) {
+                                        return 'e.g. 6.50'
+                                      }
+                                      if (lower.includes('volume') || lower.includes('titration') || lower.includes('layer')) {
+                                        return 'e.g. 12.5'
+                                      }
+                                      if (lower.includes('brix') || lower.includes('sugar') || lower.includes('defrost') || lower.includes('before') || lower.includes('after') || lower.includes('absorption') || lower.includes('defects') || lower.includes('size')) {
+                                        return 'e.g. 15.0'
+                                      }
+                                      if (lower.includes('gravity')) {
+                                        return 'e.g. 1.025'
+                                      }
+                                      if (lower.includes('vacuum') || lower.includes('hg')) {
+                                        return 'e.g. 20.0'
+                                      }
+                                      return 'e.g. 5.0'
+                                    })()}
                                     className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                                   />
                                 </div>
