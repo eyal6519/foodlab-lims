@@ -20,9 +20,10 @@ This backlog file contains the planned features, user interface changes, and bug
 *   **Description**: Create mockups and verify the entry form for all test types in the system.
 *   **Goal**: Ensure it's easy and intuitive for technicians to input results, and verify that the output results match the specifications correctly.
 
-### 4. Color Palette Refinement (Soft Earthy Tone Theme)
+### 4. [COMPLETED] Color Palette Refinement (Soft Earthy Tone Theme)
 *   **Description**: Change the visual theme from the current high-contrast, neon-blue aesthetic to a softer, calmer color palette.
-*   **Palette direction**: Soft sage greens, warm browns, and light grayish/off-white backgrounds to reduce visual fatigue.
+*   **Status**: Done. Transitioned the global index.css variables to a light-grayish background with warm clay browns and soft sage greens.
+
 
 ### 5. Manager Dashboard Layout Refactor
 *   **Description**: Clean up the main view of the Manager Portal.
