@@ -33,7 +33,7 @@ export function avgLogPh(values) {
 export const TESTS = [
   {
     id: 'labeling_packaging',
-    name: 'Labeling and Packaging',
+    name: 'אריזה וסימון',
     kind: 'qualitative',
     standardsType: 'none',
     fields: [
@@ -43,7 +43,7 @@ export const TESTS = [
   },
   {
     id: 'weight',
-    name: 'Weight',
+    name: 'משקל',
     unit: 'g',
     standardsType: 'min',
     fields: [
@@ -64,7 +64,7 @@ export const TESTS = [
   },
   {
     id: 'volume',
-    name: 'Volume',
+    name: 'נפח',
     unit: 'ml',
     isCalculated: true,
     standardsType: 'min',
@@ -72,7 +72,7 @@ export const TESTS = [
   },
   {
     id: 'vacuum',
-    name: 'Vacuum',
+    name: 'וואקום (תת לחץ)',
     unit: 'mmHg',
     standardsType: 'min',
     fields: [{ id: 'hg', label: 'Vacuum (inHg)', type: 'number' }],
@@ -80,7 +80,7 @@ export const TESTS = [
   },
   {
     id: 'vacuum_before',
-    name: 'Vacuum Before Incubation',
+    name: 'וואקום לפני אינקובציה',
     unit: 'mmHg',
     standardsType: 'min',
     fields: [{ id: 'hg', label: 'Vacuum (inHg)', type: 'number' }],
@@ -88,7 +88,7 @@ export const TESTS = [
   },
   {
     id: 'vacuum_36',
-    name: 'Vacuum 36°C',
+    name: 'וואקום אחרי 36°C',
     unit: 'mmHg',
     standardsType: 'min',
     fields: [{ id: 'hg', label: 'Vacuum (inHg)', type: 'number' }],
@@ -96,7 +96,7 @@ export const TESTS = [
   },
   {
     id: 'vacuum_55',
-    name: 'Vacuum 55°C',
+    name: 'וואקום אחרי 55°C',
     unit: 'mmHg',
     standardsType: 'min',
     fields: [{ id: 'hg', label: 'Vacuum (inHg)', type: 'number' }],
@@ -104,7 +104,7 @@ export const TESTS = [
   },
   {
     id: 'drained_weight',
-    name: 'Drained Weight',
+    name: 'משקל מסונן',
     unit: 'g',
     standardsType: 'min',
     fields: [{ id: 'value', label: 'Drained weight (g)', type: 'number' }],
@@ -123,7 +123,7 @@ export const TESTS = [
   },
   {
     id: 'ph_before',
-    name: 'pH Before Incubation',
+    name: 'pH לפני אינקובציה',
     unit: 'pH',
     standardsType: 'range',
     fields: [{ id: 'value', label: 'pH value', type: 'number' }],
@@ -134,7 +134,7 @@ export const TESTS = [
   },
   {
     id: 'ph_36',
-    name: 'pH 36°C',
+    name: 'pH אחרי 36°C',
     unit: 'pH',
     standardsType: 'range',
     fields: [{ id: 'value', label: 'pH value', type: 'number' }],
@@ -145,7 +145,7 @@ export const TESTS = [
   },
   {
     id: 'ph_55',
-    name: 'pH 55°C',
+    name: 'pH אחרי 55°C',
     unit: 'pH',
     standardsType: 'range',
     fields: [{ id: 'value', label: 'pH value', type: 'number' }],
@@ -156,7 +156,7 @@ export const TESTS = [
   },
   {
     id: 'moisture_device',
-    name: 'Moisture (Drying Device)',
+    name: 'רטיבות בהלוגן (מהיר)',
     unit: '%',
     standardsType: 'max',
     fields: [{ id: 'value', label: 'Moisture %', type: 'number' }],
@@ -164,7 +164,7 @@ export const TESTS = [
   },
   {
     id: 'moisture_oven',
-    name: 'Moisture (Drying Oven)',
+    name: 'רטיבות (תנור ייבוש)',
     unit: '%',
     standardsType: 'max',
     fields: [
@@ -182,7 +182,7 @@ export const TESTS = [
   },
   {
     id: 'brix',
-    name: 'Soluble Solids (Brix)',
+    name: 'בריקס',
     unit: 'Brix',
     single: true,
     standardsType: 'range',
@@ -191,7 +191,7 @@ export const TESTS = [
   },
   {
     id: 'acidity',
-    name: 'Acidity',
+    name: 'חמיצות',
     unit: '%',
     standardsType: 'range',
     fields: [
@@ -220,7 +220,7 @@ export const TESTS = [
   },
   {
     id: 'ash',
-    name: 'Ash',
+    name: 'אפר',
     unit: '%',
     standardsType: 'max',
     fields: [
@@ -238,7 +238,7 @@ export const TESTS = [
   },
   {
     id: 'acid_insoluble_ash',
-    name: 'Acid-Insoluble Ash (HCl)',
+    name: 'אפר לא נמס בחומצה',
     unit: '%',
     standardsType: 'max',
     fields: [
@@ -256,7 +256,7 @@ export const TESTS = [
   },
   {
     id: 'sieving_size',
-    name: 'Sieving and Size',
+    name: 'גודל וניפוי',
     kind: 'multiResult',
     standardsType: 'range',
     fields: [
@@ -276,7 +276,7 @@ export const TESTS = [
   },
   {
     id: 'salt',
-    name: 'Salt',
+    name: 'מלח',
     unit: '%',
     standardsType: 'range',
     fields: [
@@ -292,7 +292,7 @@ export const TESTS = [
   },
   {
     id: 'specific_gravity',
-    name: 'Specific Gravity',
+    name: 'משקל סגולי',
     single: true,
     standardsType: 'range',
     fields: [{ id: 'value', label: 'Specific gravity', type: 'number' }],
@@ -300,7 +300,7 @@ export const TESTS = [
   },
   {
     id: 'aqueous_layer',
-    name: 'Aqueous Layer Volume',
+    name: 'שכבה מימית',
     kind: 'aqueous',
     unit: 'ml/100g',
     standardsType: 'max',
@@ -312,7 +312,7 @@ export const TESTS = [
   },
   {
     id: 'organoleptic',
-    name: 'Organoleptic Evaluation',
+    name: 'בדיקה אורגנולפטית',
     kind: 'qualitative',
     standardsType: 'none',
     fields: [
@@ -322,7 +322,7 @@ export const TESTS = [
   },
   {
     id: 'peroxides',
-    name: 'Peroxides in Oil',
+    name: 'פראוקסידים בשמן',
     unit: 'meq/kg',
     standardsType: 'max',
     fields: [
@@ -338,7 +338,7 @@ export const TESTS = [
   },
   {
     id: 'drip_loss',
-    name: 'Drip Loss in Fish (Ice %)',
+    name: 'אחוז קרח בדג',
     unit: '%',
     standardsType: 'max',
     fields: [
@@ -354,7 +354,7 @@ export const TESTS = [
   },
   {
     id: 'water_activity',
-    name: 'Water Activity (Aw)',
+    name: 'פעילות מים (Aw)',
     single: true,
     unit: 'Aw',
     standardsType: 'max',
@@ -363,7 +363,7 @@ export const TESTS = [
   },
   {
     id: 'paprika_asta',
-    name: 'Paprika Color (ASTA)',
+    name: 'צבע בפפריקה (ASTA)',
     unit: 'ASTA',
     min: 2,
     max: 2,
@@ -381,7 +381,7 @@ export const TESTS = [
   },
   {
     id: 'fat_separation',
-    name: 'Fat Separation',
+    name: 'הפרדת שומן',
     unit: '%',
     min: 2,
     max: 2,
@@ -399,7 +399,7 @@ export const TESTS = [
   },
   {
     id: 'oxygen_analyzer',
-    name: 'Oxygen Analyzer',
+    name: 'אחוז חמצן',
     single: true,
     unit: '%',
     standardsType: 'max',
@@ -408,7 +408,7 @@ export const TESTS = [
   },
   {
     id: 'filling_coating',
-    name: 'Filling and Coating',
+    name: 'מילוי וציפוי',
     kind: 'multiResult',
     max: 10,
     standardsType: 'range',
@@ -429,7 +429,7 @@ export const TESTS = [
   },
   {
     id: 'salt_auto',
-    name: 'Salt (Automatic Titrator)',
+    name: 'מלח (טיטרטור אוטומטי)',
     single: true,
     unit: '%',
     standardsType: 'range',
@@ -438,7 +438,7 @@ export const TESTS = [
   },
   {
     id: 'acidity_auto',
-    name: 'Acidity (Automatic Titrator)',
+    name: 'חמיצות (טיטרטור אוטומטי)',
     single: true,
     unit: '%',
     standardsType: 'range',
@@ -447,7 +447,7 @@ export const TESTS = [
   },
   {
     id: 'tuna_chunk',
-    name: 'Chunk Percentage in Tuna',
+    name: 'אחוז נתחים בטונה',
     unit: '%',
     min: 5,
     standardsType: 'min',
@@ -464,7 +464,7 @@ export const TESTS = [
   },
   {
     id: 'foreign_matter',
-    name: 'Foreign Matter / Insects / Defects',
+    name: 'גופים זרים / חרקים / פגמים',
     kind: 'qualitative',
     standardsType: 'none',
     fields: [
@@ -474,7 +474,7 @@ export const TESTS = [
   },
   {
     id: 'general_ratio',
-    name: 'General Ratio Test',
+    name: 'בדיקת יחס כללית',
     unit: '%',
     custom: true,
     standardsType: 'range',
