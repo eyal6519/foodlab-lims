@@ -492,7 +492,7 @@ export default function TechnicianView() {
     // If 'My Missions Only' toggle is enabled, filter out shipments not assigned to current user
     if (myMissionsOnly && activeTab === 'pending') {
       const assignedIds = Array.isArray(shipment.assigned_to) ? shipment.assigned_to : []
-      if (assignedIds.length > 0 && !assignedIds.includes(user.id)) {
+      if (!assignedIds.includes(user.id)) {
         return false
       }
     }
@@ -1197,7 +1197,7 @@ export default function TechnicianView() {
                   onChange={() => setMyMissionsOnly(!myMissionsOnly)}
                   className="sr-only"
                 />
-                <div className={`w-8 h-4.5 rounded-full p-0.5 transition-all duration-200 ${
+                <div dir="ltr" className={`w-8 h-4.5 rounded-full p-0.5 transition-all duration-200 ${
                   myMissionsOnly ? 'bg-teal-500' : 'bg-slate-800'
                 }`}>
                   <div className={`w-3.5 h-3.5 rounded-full bg-white transition-all duration-200 ${
