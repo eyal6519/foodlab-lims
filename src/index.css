@@ -41,46 +41,6 @@
   --badge-gray-border: #cbd5e1;
 }
 
-/* System Dark Mode preference (Sage/Earthy Dark Theme) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-app: #0c0f0d; /* Deep forest charcoal background */
-    --bg-card: #151916; /* Dark panel background */
-    --bg-card-hover: #1c221e;
-    --border-card: #272f2a;
-    --border-strong: #38433c;
-    --text-muted: #88978d; /* Soft grayish-green text */
-    --text-primary: #cbd5ce; /* Primary light text */
-    --text-headings: #ffffff; /* White headings */
-    
-    --accent-sage: #8bb197; /* Lighter sage accent for dark mode */
-    --accent-sage-dark: #a3c4ae;
-    --accent-sage-darker: #c6dfcf;
-    --accent-sage-light: #678b72;
-    --accent-sage-lighter: #4e6e58;
-    
-    --accent-brown: #b89c88; /* Lighter brown for dark mode */
-    --accent-brown-light: #d8c4b6;
-    --accent-brown-dark: #a38570;
-    
-    /* Pill Statuses - Dark Mode */
-    --badge-green-bg: #162a1e;
-    --badge-green-text: #8bb197;
-    --badge-green-border: #234731;
-    
-    --badge-red-bg: #351515;
-    --badge-red-text: #fca5a5;
-    --badge-red-border: #5c1d1d;
-    
-    --badge-amber-bg: #332009;
-    --badge-amber-text: #fcd34d;
-    --badge-amber-border: #52310a;
-    
-    --badge-gray-bg: #1e2621;
-    --badge-gray-text: #cbd5ce;
-    --badge-gray-border: #272f2a;
-  }
-}
 
 /* Explicit class-based dark mode overrides (for manual toggle) */
 :root.dark {
