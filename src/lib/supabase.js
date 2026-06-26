@@ -16,19 +16,31 @@ if (!supabaseServiceKey) {
   )
 }
 
+// Ensure singleton instances across Vite Hot Module Replacement (HMR) in development
+const globalRef = typeof window !== 'undefined' ? window : globalThis
+
+if (!globalRef.__supabaseClient) {
+  globalRef.__supabaseClient = createClient(
+    supabaseUrl || 'https://placeholder.supabase.co',
+    supabaseAnonKey || 'placeholder'
+  )
+}
+
+if (!globalRef.__supabaseAdminClient) {
+  globalRef.__supabaseAdminClient = supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      })
+    : globalRef.__supabaseClient
+}
+
 // regular client for app usage (anon key)
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
-)
+export const supabase = globalRef.__supabaseClient
 
 // admin client for privileged operations (e.g., seeding, wiping data)
-export const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
-      }
-    })
-  : supabase // fallback to anon client if service key not provided
+export const supabaseAdmin = globalRef.__supabaseAdminClient
+
