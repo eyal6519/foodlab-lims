@@ -1,11 +1,100 @@
 @import "tailwindcss";
 
-/* Additional global overrides if needed */
+@theme {
+  --color-slate-950: #f1f5f9;
+  --color-slate-900: #ffffff;
+  --color-slate-850: #f8fafc;
+  --color-slate-800: #e2e8f0;
+  --color-slate-750: #cbd5e1;
+  --color-slate-700: #cbd5e1;
+  --color-slate-600: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-450: #475569;
+  --color-slate-400: #334155;
+  --color-slate-350: #1e293b;
+  --color-slate-300: #0f172a;
+  
+  --color-teal-500: #4e6e58; /* Soft sage green */
+  --color-teal-400: #3c5644;
+  --color-teal-600: #2d4133;
+  --color-teal-300: #678b72;
+  --color-teal-200: #8bb197;
+  --color-teal-100: #b9d3c2;
+  --color-teal-50: #eef4f0;
+  
+  --color-emerald-600: #8c6f5a; /* Warm brown */
+  --color-emerald-500: #a38570;
+  --color-emerald-700: #735a49;
+  --color-emerald-400: #b89c88;
+}
+
+/* Additional global overrides */
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #020617;
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
   overflow-x: hidden;
+}
+
+/* Force dark text color for contrast on the new light background */
+.bg-slate-950, .bg-slate-900 {
+  color: #334155;
+}
+
+/* Headings and labels text overrides for light cards */
+.bg-slate-900 h1, .bg-slate-900 h2, .bg-slate-900 h3, .bg-slate-900 h4,
+.bg-slate-950 h1, .bg-slate-950 h2, .bg-slate-950 h3, .bg-slate-950 h4,
+h1.text-white, h2.text-white, h3.text-white, h4.text-white,
+.text-white {
+  color: #1e293b !important;
+}
+
+/* Restore white text for buttons, pills, gradients and badges for proper readability */
+.bg-gradient-to-r,
+.bg-gradient-to-r *,
+.bg-teal-600,
+.bg-teal-600 *,
+.bg-teal-500,
+.bg-teal-500 *,
+.bg-emerald-600,
+.bg-emerald-600 *,
+.bg-emerald-500,
+.bg-emerald-500 *,
+.bg-red-600,
+.bg-red-600 *,
+.bg-red-500,
+.bg-red-500 *,
+.bg-amber-600,
+.bg-amber-600 *,
+button.text-white,
+button.text-white *,
+.text-white-force {
+  color: #ffffff !important;
+}
+
+/* Sub-card backgrounds and input fields adjustments for light mode */
+input, select, textarea {
+  background-color: #ffffff !important;
+  border-color: #ced4da !important;
+  color: #1e293b !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Navigation items hover states */
+.hover\:bg-slate-800\/60:hover {
+  background-color: #e2e8f0 !important;
+}
+.hover\:bg-slate-800:hover {
+  background-color: #cbd5e1 !important;
+}
+
+/* Custom shadow for premium paper-like depth */
+.shadow-2xl {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
 }
 
 @media print {
@@ -138,4 +227,3 @@ body {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
-
