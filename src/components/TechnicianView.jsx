@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
-import { TESTS, testMap, calculateTest, isTestEntered, isShipmentArchived, fmt, num, avg } from '../utils/calculations'
+import { TESTS, testMap, calculateTest, isTestEntered, isShipmentArchived, fmt, num, avg, isTestLocked } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import BatchTestingPage from './BatchTestingPage'
 import LanguageToggle from './LanguageToggle'
@@ -498,7 +498,19 @@ export default function TechnicianView() {
     }
 
     if (activeTab === 'pending') {
-      return shipment.batches.some(b => !getIncubationStatus(b, shipment.template_id).locked)
+      const temp = getTemplate(shipment.template_id)
+      return (shipment.batches || []).some(b => {
+        if (b.approved_at) return false
+        if (getIncubationStatus(b, shipment.template_id).locked) return false
+        
+        const pendingTests = (temp?.tests || []).filter(testId => {
+          const test = testMap[testId]
+          if (!test || test.isCalculated) return false
+          if (isTestLocked(testId, b, temp)) return false
+          return !isTestEntered(testId, b.id, results)
+        })
+        return pendingTests.length > 0
+      })
     }
     if (activeTab === 'in_incubation') {
       return shipment.batches.some(b => getIncubationStatus(b, shipment.template_id).locked)
@@ -531,7 +543,28 @@ export default function TechnicianView() {
     .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
     .filter(b => getIncubationStatus(b, b.template_id).due)
 
-  const pendingShipmentsCount = shipments.filter(s => !isShipmentArchived(s) && s.batches.some(b => !getIncubationStatus(b, s.template_id).locked)).length
+  const pendingShipmentsCount = shipments.filter(s => {
+    if (isShipmentArchived(s)) return false
+    
+    if (myMissionsOnly) {
+      const assignedIds = Array.isArray(s.assigned_to) ? s.assigned_to : []
+      if (!assignedIds.includes(user.id)) return false
+    }
+
+    const temp = getTemplate(s.template_id)
+    return (s.batches || []).some(b => {
+      if (b.approved_at) return false
+      if (getIncubationStatus(b, s.template_id).locked) return false
+      
+      const pendingTests = (temp?.tests || []).filter(testId => {
+        const test = testMap[testId]
+        if (!test || test.isCalculated) return false
+        if (isTestLocked(testId, b, temp)) return false
+        return !isTestEntered(testId, b.id, results)
+      })
+      return pendingTests.length > 0
+    })
+  }).length
   const inIncubationCount = shipments
     .filter(s => !isShipmentArchived(s))
     .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id })))

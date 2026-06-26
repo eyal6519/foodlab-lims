@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
-import { TESTS, testMap, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg } from '../utils/calculations'
+import { TESTS, testMap, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg, isTestLocked } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import ShipmentModal from './ShipmentModal'
 import LanguageToggle from './LanguageToggle'
@@ -684,8 +684,20 @@ export default function ManagerView() {
 
   const awaitingTestingCount = shipments
     .filter(s => !isShipmentArchived(s))
-    .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: b.template_id || s.template_id })))
-    .filter(b => !b.approved_at && !getIncubationStatus(b, b.template_id).locked)
+    .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id })))
+    .filter(b => {
+      if (b.approved_at) return false
+      const temp = getTemplate(b.template_id)
+      if (getIncubationStatus(b, b.template_id).locked) return false
+      
+      const pendingTests = (temp?.tests || []).filter(testId => {
+        const test = testMap[testId]
+        if (!test || test.isCalculated) return false
+        if (isTestLocked(testId, b, temp)) return false
+        return !isTestEntered(testId, b.id, results)
+      })
+      return pendingTests.length > 0
+    })
     .length
 
   const managerTabs = [
@@ -762,7 +774,23 @@ export default function ManagerView() {
                 <h3 className="text-sm font-bold text-white mb-4">{t('mgr.dashboard.pending_shipments')}</h3>
                 
                 {(() => {
-                  const pendingShipments = shipments.filter(s => !isShipmentArchived(s))
+                  const pendingShipments = shipments.filter(s => {
+                    if (isShipmentArchived(s)) return false
+                    
+                    const temp = getTemplate(s.template_id)
+                    return (s.batches || []).some(b => {
+                      if (b.approved_at) return false
+                      if (getIncubationStatus(b, s.template_id).locked) return false
+                      
+                      const pendingTests = (temp?.tests || []).filter(testId => {
+                        const test = testMap[testId]
+                        if (!test || test.isCalculated) return false
+                        if (isTestLocked(testId, b, temp)) return false
+                        return !isTestEntered(testId, b.id, results)
+                      })
+                      return pendingTests.length > 0
+                    })
+                  })
 
                   if (pendingShipments.length === 0) {
                     return <p className="text-sm text-slate-500 italic">{t('tech.batch.no_shipments')}</p>

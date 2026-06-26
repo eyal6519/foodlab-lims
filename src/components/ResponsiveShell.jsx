@@ -90,8 +90,8 @@ export default function ResponsiveShell({
       </button>
 
       {bellOpen && (
-        <div className={`absolute mt-2 w-72 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl z-50 p-3 space-y-2 text-xs text-slate-200 ${
-          isRtl ? 'left-0' : 'right-0'
+        <div className={`absolute bottom-full mb-2 w-72 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl z-50 p-3 space-y-2 text-xs text-slate-200 ${
+          isRtl ? 'right-0' : 'left-0'
         }`}>
           <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
             <span className="font-bold text-white">{t('tech.header.incubation_alerts')}</span>
