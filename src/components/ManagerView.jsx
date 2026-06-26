@@ -82,6 +82,10 @@ export default function ManagerView() {
   const [retestReason, setRetestReason] = useState('')
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
 
+  // Assignment Modal State
+  const [assigningShipment, setAssigningShipment] = useState(null)
+  const [selectedTechs, setSelectedTechs] = useState([])
+
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
 
   const showToast = (message, type = 'success') => {
@@ -256,6 +260,25 @@ export default function ManagerView() {
       showToast(t('mgr.toast.user_deleted').replace('{email}', userEmail))
     } catch (err) {
       alert(`${t('mgr.alert.user_delete_error')} ${err.message}`)
+    }
+  }
+
+  const handleSaveAssignment = async () => {
+    if (!assigningShipment) return
+    try {
+      const { error } = await supabase
+        .from('shipments')
+        .update({ assigned_to: selectedTechs })
+        .eq('id', assigningShipment.id)
+      
+      if (error) throw error
+      
+      // Update local state
+      setShipments(prev => prev.map(s => s.id === assigningShipment.id ? { ...s, assigned_to: selectedTechs } : s))
+      showToast(t('mgr.toast.assignment_saved'))
+      setAssigningShipment(null)
+    } catch (err) {
+      alert(`Error updating assignment: ${err.message}`)
     }
   }
 
@@ -730,38 +753,63 @@ export default function ManagerView() {
                   </div>
                 </button>
               </div>
-
-              {/* Incubation warnings */}
+              {/* Pending Shipments & Assignments */}
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
-                <h3 className="text-sm font-bold text-white mb-4">{t('mgr.overview.incubation_heading')}</h3>
+                <h3 className="text-sm font-bold text-white mb-4">{t('mgr.dashboard.pending_shipments')}</h3>
                 
                 {(() => {
-                  const dueBatches = shipments.flatMap(s => (s.batches || []).map(b => ({ ...b, supplier: s.supplier, template_id: s.template_id })))
-                    .filter(b => getIncubationStatus(b, b.template_id).due)
+                  const pendingShipments = shipments.filter(s => !isShipmentArchived(s))
 
-                  if (dueBatches.length === 0) {
-                    return <p className="text-sm text-slate-500 italic">{t('mgr.overview.incubation_empty')}</p>
+                  if (pendingShipments.length === 0) {
+                    return <p className="text-sm text-slate-500 italic">{t('tech.batch.no_shipments')}</p>
                   }
 
                   return (
                     <div className="space-y-4">
-                      {dueBatches.map(b => {
-                        const temp = getTemplate(b.template_id)
-                        const bStatus = getIncubationStatus(b, b.template_id)
+                      {pendingShipments.map(s => {
+                        const temp = getTemplate(s.template_id)
+                        
+                        // Resolve assigned technician names
+                        const assignedIds = Array.isArray(s.assigned_to) ? s.assigned_to : []
+                        const assignedNames = assignedIds
+                          .map(id => usersList.find(u => u.id === id)?.name || usersList.find(u => u.id === id)?.email || id)
+                          .join(', ')
+
                         return (
                           <div
-                            key={b.id}
-                            className="p-4 bg-amber-950/20 border border-amber-500/20 rounded-2xl flex justify-between items-center gap-4"
+                            key={s.id}
+                            className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                           >
-                            <div>
-                              <p className="text-sm font-bold text-amber-400">{temp?.name} - {b.number || t('common.unnamed_batch')}</p>
-                              <p className="text-xs text-slate-400 mt-0.5">{t('common.supplier')} {b.supplier} • {t('mgr.review.prod')} {b.production_date || t('common.no_date')}</p>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-bold text-teal-400">
+                                {temp?.name || t('tech.batch.unknown_product')}
+                              </h4>
+                              <p className="text-xs text-slate-400 mt-1">
+                                {t('common.supplier')} <span className="font-semibold text-slate-200">{s.supplier}</span> • {t('common.arrived')} <span className="font-semibold text-slate-200">{s.intake_date}</span>
+                                {s.size && ` • ${t('tech.batch.size').replace('{s}', s.size)}`}
+                              </p>
+                              <div className="mt-2 flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('mgr.dashboard.assign_to')}</span>
+                                {assignedIds.length > 0 ? (
+                                  <span className="text-xs font-semibold text-slate-300 bg-slate-850 px-2 py-0.5 rounded-lg border border-slate-800">
+                                    {assignedNames}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs italic text-slate-500">
+                                    {t('tech.dashboard.unassigned')}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <button
-                              onClick={() => toggleIncubationUnlock(b.id, b.is_manually_unlocked)}
-                              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
+                              onClick={() => {
+                                setAssigningShipment(s)
+                                setSelectedTechs(assignedIds)
+                              }}
+                              className="self-start sm:self-center px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-955 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 font-sans"
                             >
-                              {t('mgr.overview.unlock')}
+                              <UserPlus className="w-4 h-4 text-slate-955" />
+                              <span>{t('mgr.dashboard.assign_mission')}</span>
                             </button>
                           </div>
                         )
@@ -1937,6 +1985,98 @@ export default function ManagerView() {
           updateAccount={updateAccount}
           showToast={showToast}
         />
+      )}
+
+      {/* MISSION ASSIGNMENT MODAL */}
+      {assigningShipment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop overlay */}
+          <div
+            onClick={() => setAssigningShipment(null)}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm"
+          />
+          
+          {/* Modal Panel */}
+          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-6 z-10">
+            <div>
+              <h3 className="text-lg font-bold text-white">
+                {t('mgr.dashboard.assign_mission')}
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {getTemplate(assigningShipment.template_id)?.name || t('tech.batch.unknown_product')} • {assigningShipment.supplier}
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                {t('mgr.dashboard.select_techs')}
+              </h4>
+              
+              <div className="max-h-60 overflow-y-auto pr-1 space-y-2 scrollbar-none">
+                {(() => {
+                  const technicians = usersList.filter(u => u.role === 'technician')
+                  
+                  if (technicians.length === 0) {
+                    return <p className="text-xs text-slate-500 italic p-3 text-center">{t('mgr.dashboard.no_techs')}</p>
+                  }
+                  
+                  return technicians.map(tech => {
+                    const isChecked = selectedTechs.includes(tech.id)
+                    return (
+                      <label
+                        key={tech.id}
+                        className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer select-none transition-all ${
+                          isChecked
+                            ? 'bg-teal-500/10 border-teal-500/30 text-teal-400'
+                            : 'bg-slate-950/40 border-slate-850 text-slate-450 hover:border-slate-800 hover:text-slate-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setSelectedTechs(prev => prev.filter(id => id !== tech.id))
+                            } else {
+                              setSelectedTechs(prev => [...prev, tech.id])
+                            }
+                          }}
+                          className="sr-only"
+                        />
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                          isChecked ? 'bg-teal-500 border-teal-400 text-slate-955' : 'border-slate-700 bg-slate-900'
+                        }`}>
+                          {isChecked && <CheckCircle className="w-3.5 h-3.5 text-white bg-teal-500 rounded-full" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold truncate">{tech.name || tech.email}</p>
+                          {tech.name && <p className="text-[9px] text-slate-500 truncate">{tech.email}</p>}
+                        </div>
+                      </label>
+                    )
+                  })
+                })()}
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setAssigningShipment(null)}
+                className="flex-1 py-2.5 border border-slate-800 hover:border-slate-750 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAssignment}
+                className="flex-1 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-955 text-xs font-bold rounded-xl transition-all cursor-pointer font-sans"
+              >
+                {t('mgr.dashboard.save_assignment')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toast Notification */}

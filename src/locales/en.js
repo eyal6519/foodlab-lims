@@ -491,8 +491,20 @@ const en = {
   'incubation.empty': 'No batches are currently in incubation.',
   'incubation.incubator_36': 'Incubator 36°C',
   'incubation.incubator_55': 'Incubator 55°C',
-  'incubation.exit_date': 'Exit Date:',
   'incubation.units': '{n} units',
+
+  // Task/Mission Assignment & Manager Dashboard Layout Refactor
+  'mgr.dashboard.pending_shipments': 'Pending Shipments & Assignments',
+  'mgr.dashboard.assign_mission': 'Assign Mission',
+  'mgr.dashboard.assign_to': 'Assign to:',
+  'mgr.dashboard.select_techs': 'Select Technicians',
+  'mgr.dashboard.save_assignment': 'Save Assignment',
+  'mgr.dashboard.no_techs': 'No technicians found',
+  'mgr.toast.assignment_saved': 'Assignment updated successfully.',
+  'tech.dashboard.my_missions': 'My Missions Only',
+  'tech.dashboard.assigned_to_me': 'Assigned to Me',
+  'tech.dashboard.assigned_to': 'Assigned to: {names}',
+  'tech.dashboard.unassigned': 'Unassigned',
 }
 
 export default en

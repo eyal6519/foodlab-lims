@@ -47,6 +47,11 @@ export async function seedMockData() {
     // First, clear everything
     await clearAllData()
 
+    // Fetch existing technician to pre-assign mock data for verification
+    const { data: profiles } = await supabase.from('profiles').select('*')
+    const firstTechId = profiles?.find(p => p.role === 'technician')?.id || null
+    const assignedArray = firstTechId ? [firstTechId] : []
+
     // --- Create Product Templates ---
     const tunaTemplateId = generateUUID()
     const jamTemplateId = generateUUID()
@@ -141,7 +146,8 @@ const shipExited55TodayId = generateUUID()
         units_55: 0,
         exit_36: null,
         exit_55: null,
-        is_manually_unlocked: false
+        is_manually_unlocked: false,
+        assigned_to: assignedArray
       },
       {
         id: shipFinishedId,
@@ -153,7 +159,8 @@ const shipExited55TodayId = generateUUID()
         units_55: 0,
         exit_36: null,
         exit_55: null,
-        is_manually_unlocked: false
+        is_manually_unlocked: false,
+        assigned_to: assignedArray
       },
       {
         id: shipBypassId,
@@ -165,7 +172,8 @@ const shipExited55TodayId = generateUUID()
         units_55: 0,
         exit_36: null,
         exit_55: null,
-        is_manually_unlocked: false
+        is_manually_unlocked: false,
+        assigned_to: []
       },
       {
         id: shipRetestId,
@@ -177,7 +185,8 @@ const shipExited55TodayId = generateUUID()
         units_55: 0,
         exit_36: null,
         exit_55: null,
-        is_manually_unlocked: false
+        is_manually_unlocked: false,
+        assigned_to: []
       },
       {
         id: shipPartialId,
@@ -189,7 +198,8 @@ const shipExited55TodayId = generateUUID()
         units_55: 0,
         exit_36: null,
         exit_55: formatDate(exitPartial55),
-        is_manually_unlocked: false
+        is_manually_unlocked: false,
+        assigned_to: []
       },
         {
           id: shipExited55TodayId,
@@ -201,7 +211,8 @@ const shipExited55TodayId = generateUUID()
           units_55: 0,
           exit_36: null,
           exit_55: formatDate(new Date()), // exited today
-          is_manually_unlocked: false
+          is_manually_unlocked: false,
+          assigned_to: []
         }
     ]
 

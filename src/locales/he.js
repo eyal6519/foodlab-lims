@@ -491,8 +491,20 @@ const he = {
   'incubation.empty': 'אין מוצרים באינקובציה כעת.',
   'incubation.incubator_36': 'אינקובטור 36°C',
   'incubation.incubator_55': 'אינקובטור 55°C',
-  'incubation.exit_date': 'תאריך יציאה:',
   'incubation.units': '{n} יחידות',
+
+  // Task/Mission Assignment & Manager Dashboard Layout Refactor
+  'mgr.dashboard.pending_shipments': 'משלוחים ממתינים ושיוך משימות',
+  'mgr.dashboard.assign_mission': 'שיוך משימה',
+  'mgr.dashboard.assign_to': 'שייך ל:',
+  'mgr.dashboard.select_techs': 'בחר לבורנטים',
+  'mgr.dashboard.save_assignment': 'שמור שיוך',
+  'mgr.dashboard.no_techs': 'לא נמצאו לבורנטים',
+  'mgr.toast.assignment_saved': 'השיוך עודכן בהצלחה.',
+  'tech.dashboard.my_missions': 'המשימות שלי בלבד',
+  'tech.dashboard.assigned_to_me': 'משויך אליי',
+  'tech.dashboard.assigned_to': 'משויך ל: {names}',
+  'tech.dashboard.unassigned': 'ללא שיוך',
 }
 
 export default he

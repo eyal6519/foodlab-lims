@@ -81,6 +81,7 @@ create table if not exists public.shipments (
     incubation_exited_at timestamp with time zone,
     incubation_removed_early_at timestamp with time zone,
     incubation_early_acknowledged_at timestamp with time zone,
+    assigned_to jsonb default '[]'::jsonb,
     created_at timestamp with time zone default now()
 );
 

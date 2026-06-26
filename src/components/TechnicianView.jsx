@@ -40,6 +40,8 @@ export default function TechnicianView() {
   const [results, setResults] = useState({}) // batchId:testId -> replicates list
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('pending') // 'pending' | 'due' | 'intake' | 'templates'
+  const [usersList, setUsersList] = useState([])
+  const [myMissionsOnly, setMyMissionsOnly] = useState(true)
   const [templateSearch, setTemplateSearch] = useState('')
   const [templateFilter, setTemplateFilter] = useState('all') // 'all' | 'incubation' | 'bypass'
 
@@ -156,6 +158,12 @@ export default function TechnicianView() {
         })
       }
       setResults(resultsMap)
+
+      // 4. Fetch profiles (users)
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('*')
+      setUsersList(profilesData || [])
     } catch (err) {
       console.error('Error fetching data:', err)
     } finally {
@@ -480,6 +488,14 @@ export default function TechnicianView() {
   // Filter shipments
   const filteredShipments = shipments.filter(shipment => {
     if (isShipmentArchived(shipment)) return false // Hide archived shipments from technician active view
+
+    // If 'My Missions Only' toggle is enabled, filter out shipments not assigned to current user
+    if (myMissionsOnly && activeTab === 'pending') {
+      const assignedIds = Array.isArray(shipment.assigned_to) ? shipment.assigned_to : []
+      if (assignedIds.length > 0 && !assignedIds.includes(user.id)) {
+        return false
+      }
+    }
 
     if (activeTab === 'pending') {
       return shipment.batches.some(b => !getIncubationStatus(b, shipment.template_id).locked)
@@ -1166,7 +1182,35 @@ export default function TechnicianView() {
           })()}
 
         {activeTab === 'pending' && (
-          filteredShipments.length === 0 ? (
+          <div className="space-y-6">
+            {/* Header with Assignment Toggle */}
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+              <h2 className="text-xl font-bold text-white">
+                {t('tech.tab.pending').replace(' ({n})', '').replace('({n})', '')}
+              </h2>
+              
+              {/* Toggle Switch */}
+              <label className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-2xl bg-slate-900 border border-slate-800 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={myMissionsOnly}
+                  onChange={() => setMyMissionsOnly(!myMissionsOnly)}
+                  className="sr-only"
+                />
+                <div className={`w-8 h-4.5 rounded-full p-0.5 transition-all duration-200 ${
+                  myMissionsOnly ? 'bg-teal-500' : 'bg-slate-800'
+                }`}>
+                  <div className={`w-3.5 h-3.5 rounded-full bg-white transition-all duration-200 ${
+                    myMissionsOnly ? 'translate-x-3.5' : 'translate-x-0'
+                  }`} />
+                </div>
+                <span className="text-xs font-bold text-slate-300">
+                  {t('tech.dashboard.my_missions')}
+                </span>
+              </label>
+            </div>
+
+            {filteredShipments.length === 0 ? (
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
               <FileSpreadsheet className="w-12 h-12 text-slate-600 mx-auto mb-4" />
               <h3 className="text-lg font-bold text-slate-300">{t('tech.batch.no_shipments')}</h3>
@@ -1205,6 +1249,40 @@ export default function TechnicianView() {
                     </div>
 
                     <div className="flex items-center gap-3">
+                      {/* Assignment Badge */}
+                      {(() => {
+                        const assignedIds = Array.isArray(shipment.assigned_to) ? shipment.assigned_to : []
+                        const isAssignedToMe = assignedIds.includes(user.id)
+                        
+                        if (isAssignedToMe) {
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-950 text-teal-400 border border-teal-500/20">
+                              <span>📋</span>
+                              <span>{t('tech.dashboard.assigned_to_me')}</span>
+                            </span>
+                          )
+                        }
+                        
+                        if (assignedIds.length > 0) {
+                          const names = assignedIds
+                            .map(id => usersList.find(u => u.id === id)?.name || usersList.find(u => u.id === id)?.email || id)
+                            .join(', ')
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                              <span>👥</span>
+                              <span>{t('tech.dashboard.assigned_to').replace('{names}', names)}</span>
+                            </span>
+                          )
+                        }
+                        
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/60 border-dashed">
+                            <span>⚪</span>
+                            <span>{t('tech.dashboard.unassigned')}</span>
+                          </span>
+                        )
+                      })()}
+
                       {lockedBatchesCount > 0 ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-950/40 border border-red-500/35 text-red-400 text-xs font-bold rounded-full">
                           <Lock className="w-3.5 h-3.5" />
@@ -1400,8 +1478,9 @@ export default function TechnicianView() {
               )
             })}
           </div>
-          )
-        )}
+          )}
+        </div>
+      )}
 
         {activeTab === 'in_incubation' && (
           filteredShipments.length === 0 ? (
