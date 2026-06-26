@@ -1,62 +1,181 @@
 @import "tailwindcss";
 
+:root {
+  /* Light Theme Variables (Sage/Earthy) */
+  --bg-app: #e3e7e4; /* Calmer, warm sage-gray background */
+  --bg-card: #ffffff; /* Card background (pure white) */
+  --bg-card-hover: #f4f6f4; /* Card hover background */
+  --border-card: #d0d7d2; /* Soft borders matching the sage theme */
+  --border-strong: #a2b0a6; /* Stronger borders/dividers */
+  --text-muted: #5c6c61; /* Secondary helper text */
+  --text-primary: #243027; /* Primary dark text */
+  --text-headings: #0d1610; /* Main titles */
+  
+  /* Sage Accent */
+  --accent-sage: #4e6e58; 
+  --accent-sage-dark: #3c5644;
+  --accent-sage-darker: #2d4133;
+  --accent-sage-light: #678b72;
+  --accent-sage-lighter: #8bb197;
+  
+  /* Brown Accent */
+  --accent-brown: #8c6f5a; 
+  --accent-brown-light: #a38570;
+  --accent-brown-dark: #735a49;
+  
+  /* Pill Statuses - Light Mode */
+  --badge-green-bg: #dbebe0;
+  --badge-green-text: #1b3d26;
+  --badge-green-border: #a3d2b3;
+  
+  --badge-red-bg: #fce8e6;
+  --badge-red-text: #7f1d1d;
+  --badge-red-border: #f8c4be;
+  
+  --badge-amber-bg: #fef3c7;
+  --badge-amber-text: #78350f;
+  --badge-amber-border: #fcd34d;
+  
+  --badge-gray-bg: #e2e8f0;
+  --badge-gray-text: #475569;
+  --badge-gray-border: #cbd5e1;
+}
+
+/* System Dark Mode preference (Sage/Earthy Dark Theme) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-app: #0c0f0d; /* Deep forest charcoal background */
+    --bg-card: #151916; /* Dark panel background */
+    --bg-card-hover: #1c221e;
+    --border-card: #272f2a;
+    --border-strong: #38433c;
+    --text-muted: #88978d; /* Soft grayish-green text */
+    --text-primary: #cbd5ce; /* Primary light text */
+    --text-headings: #ffffff; /* White headings */
+    
+    --accent-sage: #8bb197; /* Lighter sage accent for dark mode */
+    --accent-sage-dark: #a3c4ae;
+    --accent-sage-darker: #c6dfcf;
+    --accent-sage-light: #678b72;
+    --accent-sage-lighter: #4e6e58;
+    
+    --accent-brown: #b89c88; /* Lighter brown for dark mode */
+    --accent-brown-light: #d8c4b6;
+    --accent-brown-dark: #a38570;
+    
+    /* Pill Statuses - Dark Mode */
+    --badge-green-bg: #162a1e;
+    --badge-green-text: #8bb197;
+    --badge-green-border: #234731;
+    
+    --badge-red-bg: #351515;
+    --badge-red-text: #fca5a5;
+    --badge-red-border: #5c1d1d;
+    
+    --badge-amber-bg: #332009;
+    --badge-amber-text: #fcd34d;
+    --badge-amber-border: #52310a;
+    
+    --badge-gray-bg: #1e2621;
+    --badge-gray-text: #cbd5ce;
+    --badge-gray-border: #272f2a;
+  }
+}
+
+/* Explicit class-based dark mode overrides (for manual toggle) */
+:root.dark {
+  --bg-app: #0c0f0d;
+  --bg-card: #151916;
+  --bg-card-hover: #1c221e;
+  --border-card: #272f2a;
+  --border-strong: #38433c;
+  --text-muted: #88978d;
+  --text-primary: #cbd5ce;
+  --text-headings: #ffffff;
+  
+  --accent-sage: #8bb197;
+  --accent-sage-dark: #a3c4ae;
+  --accent-sage-darker: #c6dfcf;
+  --accent-sage-light: #678b72;
+  --accent-sage-lighter: #4e6e58;
+  
+  --accent-brown: #b89c88;
+  --accent-brown-light: #d8c4b6;
+  --accent-brown-dark: #a38570;
+  
+  /* Pill Statuses - Dark Mode */
+  --badge-green-bg: #162a1e;
+  --badge-green-text: #8bb197;
+  --badge-green-border: #234731;
+  
+  --badge-red-bg: #351515;
+  --badge-red-text: #fca5a5;
+  --badge-red-border: #5c1d1d;
+  
+  --badge-amber-bg: #332009;
+  --badge-amber-text: #fcd34d;
+  --badge-amber-border: #52310a;
+  
+  --badge-gray-bg: #1e2621;
+  --badge-gray-text: #cbd5ce;
+  --badge-gray-border: #272f2a;
+}
+
 @theme {
-  /* Inverted Slate Scale (Earthy Theme) */
-  --color-slate-950: #e3e7e4; /* Calmer, warm sage-gray background */
-  --color-slate-900: #ffffff; /* Card/Panel background (pure white) */
-  --color-slate-850: #f4f6f4; /* Card hover background */
-  --color-slate-800: #d0d7d2; /* Soft borders matching the sage theme */
-  --color-slate-750: #b9c3bc;
-  --color-slate-700: #a2b0a6; /* Stronger borders/dividers */
-  --color-slate-650: #7c8d81;
-  --color-slate-600: #5c6c61; /* Secondary helper text */
-  --color-slate-500: #47554c; /* Regular text */
-  --color-slate-450: #334137;
-  --color-slate-400: #243027; /* Primary dark text */
-  --color-slate-350: #18221b; /* Heading text */
-  --color-slate-300: #0d1610; /* Main titles */
-  --color-slate-200: #0d1610; /* Highlighted text values (was light gray, now dark) */
-  --color-slate-100: #0d1610; /* Inverted highlighted text */
-  --color-slate-50: #050a06;
+  /* Mapping Tailwind utility colors to our CSS variables */
+  --color-slate-950: var(--bg-app);
+  --color-slate-900: var(--bg-card);
+  --color-slate-850: var(--bg-card-hover);
+  --color-slate-800: var(--border-card);
+  --color-slate-750: var(--border-card);
+  --color-slate-700: var(--border-strong);
   
-  /* Earthy Accent Colors */
-  --color-teal-500: #4e6e58; /* Soft sage green */
-  --color-teal-400: #3c5644;
-  --color-teal-600: #2d4133;
-  --color-teal-300: #678b72;
-  --color-teal-200: #8bb197;
-  --color-teal-100: #b9d3c2;
-  --color-teal-50: #eef4f0;
+  --color-slate-650: var(--text-muted);
+  --color-slate-600: var(--text-muted);
+  --color-slate-500: var(--text-muted);
+  --color-slate-450: var(--text-primary);
+  --color-slate-400: var(--text-primary);
+  --color-slate-350: var(--text-primary);
+  --color-slate-300: var(--text-headings);
+  --color-slate-200: var(--text-primary);
+  --color-slate-100: var(--text-primary);
+  --color-slate-50: var(--text-headings);
   
-  --color-emerald-600: #8c6f5a; /* Warm brown */
-  --color-emerald-500: #a38570;
-  --color-emerald-750: #735a49;
-  --color-emerald-400: #b89c88;
+  --color-teal-500: var(--accent-sage);
+  --color-teal-400: var(--accent-sage-dark);
+  --color-teal-600: var(--accent-sage-darker);
+  --color-teal-300: var(--accent-sage-light);
+  --color-teal-200: var(--accent-sage-lighter);
+  
+  --color-emerald-600: var(--accent-brown);
+  --color-emerald-500: var(--accent-brown-light);
+  --color-emerald-700: var(--accent-brown-dark);
 }
 
 /* Global Overrides */
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #e3e7e4 !important; /* Soft earthy background */
-  color: #243027 !important; /* High-contrast text */
+  background-color: var(--bg-app) !important;
+  color: var(--text-primary) !important;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Ensure text on cards uses the correct high-contrast color scale */
+/* Ensure text inside elements inherits custom colors */
 .bg-slate-950, .bg-slate-900 {
-  color: #243027;
+  color: var(--text-primary);
 }
 
-/* Titles and headings text contrast */
+/* Titles and headings contrast */
 .bg-slate-900 h1, .bg-slate-900 h2, .bg-slate-900 h3, .bg-slate-900 h4,
 .bg-slate-950 h1, .bg-slate-950 h2, .bg-slate-950 h3, .bg-slate-950 h4,
 h1.text-white, h2.text-white, h3.text-white, h4.text-white,
 .text-white {
-  color: #0d1610 !important;
+  color: var(--text-headings) !important;
 }
 
-/* Retain high-contrast white text ONLY for interactive buttons, badge fills, and gradient buttons */
+/* Retain white text specifically for solid action buttons and filled pills */
 .bg-gradient-to-r,
 .bg-gradient-to-r *,
 .bg-teal-600,
@@ -79,75 +198,70 @@ button.text-white *,
   color: #ffffff !important;
 }
 
-/* Sub-card backgrounds and input fields adjustments for light mode */
+/* Input fields overrides */
 input, select, textarea {
-  background-color: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  color: #243027 !important;
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-card) !important;
+  color: var(--text-primary) !important;
 }
 
 input::placeholder, textarea::placeholder {
-  color: #7c8d81 !important;
+  color: var(--text-muted) !important;
 }
 
 /* Navigation items hover states */
 .hover\:bg-slate-800\/60:hover {
-  background-color: #cbd5e1 !important;
+  background-color: var(--bg-card-hover) !important;
 }
 .hover\:bg-slate-800:hover {
-  background-color: #b9c3bc !important;
+  background-color: var(--border-card) !important;
 }
 
-/* Soft card shadows */
+/* Soft shadows */
 .shadow-xl {
-  box-shadow: 0 10px 25px -10px rgba(13, 22, 16, 0.06), 0 1px 2px rgba(13, 22, 16, 0.02) !important;
+  box-shadow: 0 10px 25px -10px rgba(13, 22, 16, 0.08), 0 1px 2px rgba(13, 22, 16, 0.03) !important;
 }
 
-/* Redefining status pills for light mode */
-
-/* 1. Teal/Green badges (Ready, Incubation Done) */
+/* Status pills overrides using CSS variables */
 .bg-teal-950,
 .bg-teal-950\/40,
 .bg-emerald-950,
 .bg-emerald-950\/40 {
-  background-color: #dbebe0 !important;
-  border-color: #a3d2b3 !important;
+  background-color: var(--badge-green-bg) !important;
+  border-color: var(--badge-green-border) !important;
 }
 .text-teal-400,
 .text-emerald-400 {
-  color: #1b3d26 !important;
+  color: var(--badge-green-text) !important;
 }
 
-/* 2. Red badges (Locked) */
 .bg-red-950,
 .bg-red-950\/40,
 .bg-red-500\/10 {
-  background-color: #fce8e6 !important;
-  border-color: #f8c4be !important;
+  background-color: var(--badge-red-bg) !important;
+  border-color: var(--badge-red-border) !important;
 }
 .text-red-400 {
-  color: #7f1d1d !important;
+  color: var(--badge-red-text) !important;
 }
 
-/* 3. Amber/Orange badges (Due, In Progress) */
 .bg-amber-950,
 .bg-amber-950\/40,
 .bg-amber-950\/20,
 .bg-amber-500\/10 {
-  background-color: #fef3c7 !important;
-  border-color: #fcd34d !important;
+  background-color: var(--badge-amber-bg) !important;
+  border-color: var(--badge-amber-border) !important;
 }
 .text-amber-400 {
-  color: #78350f !important;
+  color: var(--badge-amber-text) !important;
 }
 
-/* 4. Slate badges (Pending, Batches count) */
 .bg-slate-800 {
-  background-color: #e2e8f0 !important;
-  border-color: #cbd5e1 !important;
+  background-color: var(--badge-gray-bg) !important;
+  border-color: var(--badge-gray-border) !important;
 }
 .text-slate-400, .text-slate-350, .text-slate-200 {
-  color: #475569 !important;
+  color: var(--badge-gray-text) !important;
 }
 
 @media print {

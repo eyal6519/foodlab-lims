@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { Beaker, Lock, Mail, AlertCircle, AlertTriangle, Info } from 'lucide-react'
 import LanguageToggle from './LanguageToggle'
+import ThemeToggle from './ThemeToggle'
 
 export default function Login() {
   const { login } = useAuth()
@@ -79,9 +80,10 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 relative overflow-hidden">
-      {/* Language Toggle — top right */}
-      <div className="absolute top-4 right-4 z-20">
+      {/* Language Toggle & Theme Toggle — top right */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
         <LanguageToggle />
+        <ThemeToggle />
       </div>
 
       {/* Toast Notification Container */}

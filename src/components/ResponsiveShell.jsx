@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Menu, X, Bell, Settings, LogOut, Beaker } from 'lucide-react'
 import LanguageToggle from './LanguageToggle'
+import ThemeToggle from './ThemeToggle'
 import { useLanguage } from '../context/LanguageContext'
 
 export default function ResponsiveShell({
@@ -143,7 +144,10 @@ export default function ResponsiveShell({
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t('mgr.header.signed_in')}</p>
           <p className="text-xs font-semibold text-slate-350 truncate">{profileName}</p>
         </div>
-        <LanguageToggle />
+        <div className="flex items-center gap-2">
+          <LanguageToggle />
+          <ThemeToggle />
+        </div>
       </div>
       <div className="flex gap-2">
         <NotificationBell />
