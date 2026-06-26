@@ -279,6 +279,7 @@ const he = {
   'mgr.template_modal.max_threshold': 'סף מקסימום ({unit})',
   'mgr.template_modal.cancel': 'ביטול',
   'mgr.template_modal.save': 'שמור תבנית',
+  'mgr.template_modal.custom_label': 'הוספת בדיקה מותאמת אישית',
   'mgr.template_modal.custom_test_placeholder': 'שם בדיקה מותאמת...',
   'mgr.template_modal.custom_unit_placeholder': 'יחידה (למשל % או ppm)...',
   'mgr.template_modal.custom_ratio': 'בדיקת יחס',

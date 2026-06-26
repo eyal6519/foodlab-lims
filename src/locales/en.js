@@ -279,6 +279,7 @@ const en = {
   'mgr.template_modal.max_threshold': 'Max Threshold ({unit})',
   'mgr.template_modal.cancel': 'Cancel',
   'mgr.template_modal.save': 'Save Template',
+  'mgr.template_modal.custom_label': 'Create Custom Test',
   'mgr.template_modal.custom_test_placeholder': 'Custom test name...',
   'mgr.template_modal.custom_unit_placeholder': 'Unit (e.g. % or ppm)...',
   'mgr.template_modal.custom_ratio': 'Ratio Test',

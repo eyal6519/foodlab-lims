@@ -2251,7 +2251,7 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
             
             {/* Toggle Switch Component instead of native checkbox */}
             <div className="space-y-1 col-span-1 sm:col-span-2 flex items-center py-2">
-              <label htmlFor="requires_incubation" className="relative inline-flex items-center cursor-pointer select-none">
+              <label htmlFor="requires_incubation" className="relative inline-flex items-center gap-3 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   name="requires_incubation"
@@ -2261,7 +2261,7 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
                   className="sr-only peer"
                 />
                 <div className="w-9 h-5 bg-slate-850 border border-slate-800 rounded-full relative transition-all duration-200 peer peer-checked:bg-teal-500/20 peer-checked:border-teal-500 after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-slate-400 peer-checked:after:bg-teal-400 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
-                <span className="ml-3 text-xs font-bold text-slate-400">
+                <span className="text-xs font-bold text-slate-400">
                   {t('mgr.template_modal.incubation_toggle')}
                 </span>
               </label>
@@ -2322,9 +2322,9 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
                   />
                 </div>
 
-                <div className="flex items-center gap-4 py-1">
+                <div className="flex items-center gap-4 py-1 flex-row" dir="ltr">
                   <span className="text-[10px] text-slate-400 font-bold uppercase">{t('mgr.template_modal.custom_single')}</span>
-                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <label className="relative inline-flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={newCustomIsRatio}
