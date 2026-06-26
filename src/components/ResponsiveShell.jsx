@@ -14,6 +14,7 @@ export default function ResponsiveShell({
   onNotificationItemClick,
   logout,
   setSettingsModalOpen,
+  storageWarning = null,
   children
 }) {
   const { language, t } = useLanguage()
@@ -75,16 +76,16 @@ export default function ResponsiveShell({
       <button
         onClick={() => setBellOpen(!bellOpen)}
         className={`p-2.5 bg-slate-800 hover:bg-teal-950/40 border ${
-          dueBatches.length > 0
+          dueBatches.length > 0 || storageWarning
             ? 'border-amber-500 text-amber-400 bg-amber-950/10'
             : 'border-slate-700 text-slate-300 hover:text-teal-400'
         } rounded-xl transition-all duration-200 relative`}
         title={t('mgr.header.incubation_alerts')}
       >
         <Bell className="w-5 h-5" />
-        {dueBatches.length > 0 && (
+        {(dueBatches.length > 0 || storageWarning) && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-extrabold w-4.5 h-4.5 rounded-full flex items-center justify-center border border-slate-900 animate-pulse">
-            {dueBatches.length}
+            {dueBatches.length + (storageWarning ? 1 : 0)}
           </span>
         )}
       </button>
@@ -99,10 +100,21 @@ export default function ResponsiveShell({
               {t('mgr.bell.due_badge').replace('{n}', dueBatches.length)}
             </span>
           </div>
-          {dueBatches.length === 0 ? (
+          {dueBatches.length === 0 && !storageWarning ? (
             <p className="text-slate-500 italic text-center py-4">{t('mgr.bell.empty')}</p>
           ) : (
             <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+              {storageWarning && (
+                <div className={`p-2 rounded-xl border border-amber-500/20 bg-amber-500/5 flex items-start gap-2.5 ${
+                  isRtl ? 'flex-row-reverse text-right' : 'text-left'
+                }`}>
+                  <div className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-amber-300 text-[10px] uppercase tracking-wider">💾 {t('mgr.storage.title')}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{storageWarning}</p>
+                  </div>
+                </div>
+              )}
               {dueBatches.map(b => (
                 <div
                   key={b.id}

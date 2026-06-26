@@ -527,6 +527,15 @@ const en = {
   'tech.dashboard.assigned_to_me': 'Assigned to Me',
   'tech.dashboard.assigned_to': 'Assigned to: {names}',
   'tech.dashboard.unassigned': 'Unassigned',
+
+  // Storage Monitor
+  'mgr.storage.title': 'Database Storage',
+  'mgr.storage.usage': '{used} MB / {total} MB ({pct}%)',
+  'mgr.storage.warning_bell': 'Storage is at {pct}% — old COAs will be auto-deleted when 90% is reached.',
+  'mgr.storage.cleanup_toast': '{n} old COA(s) were automatically deleted to free up storage space.',
+  'mgr.storage.delete_btn': 'Delete COA',
+  'mgr.storage.purged': 'Purged',
+  'mgr.storage.delete_confirm': 'This will permanently delete all test data and the COA for "{product}" Batch {batch}. This cannot be undone. Continue?',
 }
 
 export default en

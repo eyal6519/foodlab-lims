@@ -527,6 +527,15 @@ const he = {
   'tech.dashboard.assigned_to_me': 'משויך אליי',
   'tech.dashboard.assigned_to': 'משויך ל: {names}',
   'tech.dashboard.unassigned': 'ללא שיוך',
+
+  // Storage Monitor
+  'mgr.storage.title': 'אחסון מסד נתונים',
+  'mgr.storage.usage': '{used} MB / {total} MB ({pct}%)',
+  'mgr.storage.warning_bell': 'האחסון עומד על {pct}% — תעודות אנליזה ישנות יימחקו אוטומטית כשיגיע ל-90%.',
+  'mgr.storage.cleanup_toast': '{n} תעודות אנליזה ישנות נמחקו אוטומטית לפינוי שטח אחסון.',
+  'mgr.storage.delete_btn': 'מחק COA',
+  'mgr.storage.purged': 'נמחק',
+  'mgr.storage.delete_confirm': 'פעולה זו תמחק לצמיתות את כל נתוני הבדיקה ותעודת האנליזה עבור "{product}" אצווה {batch}. לא ניתן לשחזר. האם להמשיך?',
 }
 
 export default he

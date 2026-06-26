@@ -32,7 +32,8 @@ import {
   X,
   Archive,
   Bell,
-  MoreVertical
+  MoreVertical,
+  Database
 } from 'lucide-react'
 import html2pdf from 'html2pdf.js'
 
@@ -100,6 +101,10 @@ export default function ManagerView() {
   const [expandedShipmentId, setExpandedShipmentId] = useState(null)
   const [expandedIntakeShipmentId, setExpandedIntakeShipmentId] = useState(null)
 
+  // Storage Monitor state
+  const [dbSizeBytes, setDbSizeBytes] = useState(null)
+  const DB_LIMIT_BYTES = 500 * 1024 * 1024 // 500 MB
+
   // Request notification permissions on mount
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -154,6 +159,59 @@ export default function ManagerView() {
 
   useEffect(() => {
     fetchData()
+  }, [])
+
+  // Storage check + auto-cleanup on mount
+  useEffect(() => {
+    async function checkAndCleanStorage() {
+      try {
+        const { data: sizeData, error } = await supabase.rpc('get_db_size_bytes')
+        if (error || sizeData == null) return
+        const sizeBytes = Number(sizeData)
+        setDbSizeBytes(sizeBytes)
+
+        const pct = (sizeBytes / DB_LIMIT_BYTES) * 100
+        if (pct < 90) return // Nothing to do
+
+        // Find all fully-approved shipments sorted by oldest approved_at
+        const { data: allShipments } = await supabase
+          .from('shipments')
+          .select('id, batches(*)')
+        if (!allShipments) return
+
+        const fullyApproved = allShipments
+          .filter(s => s.batches?.length > 0 && s.batches.every(b => b.approved_at))
+          .sort((a, b) => {
+            const aOldest = Math.min(...a.batches.map(b => new Date(b.approved_at).getTime()))
+            const bOldest = Math.min(...b.batches.map(b => new Date(b.approved_at).getTime()))
+            return aOldest - bOldest
+          })
+
+        if (fullyApproved.length === 0) return
+
+        // Delete oldest 30%
+        const deleteCount = Math.max(1, Math.ceil(fullyApproved.length * 0.3))
+        const toDelete = fullyApproved.slice(0, deleteCount)
+        const batchIds = toDelete.flatMap(s => s.batches.map(b => b.id))
+        const shipmentIds = toDelete.map(s => s.id)
+
+        await supabase.from('test_results').delete().in('batch_id', batchIds)
+        await supabase.from('batches').delete().in('id', batchIds)
+        await supabase.from('shipments').delete().in('id', shipmentIds)
+
+        showToast(t('mgr.storage.cleanup_toast').replace('{n}', toDelete.length), 'warning')
+
+        // Re-check size after cleanup
+        const { data: newSize } = await supabase.rpc('get_db_size_bytes')
+        if (newSize != null) setDbSizeBytes(Number(newSize))
+
+        // Refresh data
+        await fetchData()
+      } catch (err) {
+        console.error('Storage check error:', err)
+      }
+    }
+    checkAndCleanStorage()
   }, [])
 
   async function fetchData() {
@@ -731,6 +789,13 @@ export default function ManagerView() {
       }}
       logout={logout}
       setSettingsModalOpen={setSettingsModalOpen}
+      storageWarning={dbSizeBytes != null && (() => {
+        const pct = Math.round((dbSizeBytes / DB_LIMIT_BYTES) * 100)
+        if (pct >= 75 && pct < 90) {
+          return t('mgr.storage.warning_bell').replace('{pct}', pct)
+        }
+        return null
+      })()}
     >
       <div className="p-4 lg:p-8 w-full min-w-0">
           {/* OVERVIEW METRICS */}
@@ -773,6 +838,33 @@ export default function ManagerView() {
                   </div>
                 </button>
               </div>
+
+              {/* Storage Usage Widget */}
+              {dbSizeBytes != null && (() => {
+                const usedMB = (dbSizeBytes / (1024 * 1024)).toFixed(1)
+                const pct = Math.min(100, Math.round((dbSizeBytes / DB_LIMIT_BYTES) * 100))
+                const barColor = pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-amber-400' : 'bg-emerald-500'
+                const textColor = pct >= 90 ? 'text-red-400' : pct >= 75 ? 'text-amber-400' : 'text-emerald-400'
+                return (
+                  <div className="max-w-2xl p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-4">
+                    <div className={`p-2 rounded-xl ${pct >= 90 ? 'bg-red-500/10 text-red-400' : pct >= 75 ? 'bg-amber-400/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'} shrink-0`}>
+                      <Database className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.storage.title')}</span>
+                        <span className={`text-xs font-bold ${textColor}`}>
+                          {t('mgr.storage.usage').replace('{used}', usedMB).replace('{total}', '500').replace('{pct}', pct)}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Pending Shipments & Assignments */}
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
                 <h3 className="text-sm font-bold text-white mb-4">{t('mgr.dashboard.pending_shipments')}</h3>
@@ -1834,13 +1926,46 @@ export default function ManagerView() {
                                           {t('mgr.review.prod')} {b.production_date || '-'} • {t('mgr.review.approved_badge')}: {formattedAppDate}
                                         </p>
                                       </div>
-                                      <button
-                                        onClick={() => setCoaSelectedBatchId(b.id)}
-                                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-[10px] font-bold rounded-lg active:scale-[0.98] transition-all cursor-pointer font-sans"
-                                      >
-                                        <FileText className="w-3.5 h-3.5 text-slate-955" />
-                                        <span>{t('mgr.archive.generate_coa')}</span>
-                                      </button>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => setCoaSelectedBatchId(b.id)}
+                                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-[10px] font-bold rounded-lg active:scale-[0.98] transition-all cursor-pointer font-sans"
+                                        >
+                                          <FileText className="w-3.5 h-3.5 text-slate-955" />
+                                          <span>{t('mgr.archive.generate_coa')}</span>
+                                        </button>
+                                        <button
+                                          onClick={async () => {
+                                            const confirmed = window.confirm(
+                                              t('mgr.storage.delete_confirm')
+                                                .replace('{product}', temp?.name || '')
+                                                .replace('{batch}', b.number || t('common.unnamed_batch'))
+                                            )
+                                            if (!confirmed) return
+                                            try {
+                                              await supabase.from('test_results').delete().eq('batch_id', b.id)
+                                              await supabase.from('batches').delete().eq('id', b.id)
+                                              // Delete shipment if this was its last batch
+                                              const { data: remainingBatches } = await supabase
+                                                .from('batches').select('id').eq('shipment_id', shipment.id)
+                                              if (!remainingBatches || remainingBatches.length === 0) {
+                                                await supabase.from('shipments').delete().eq('id', shipment.id)
+                                              }
+                                              showToast(t('mgr.storage.cleanup_toast').replace('{n}', 1))
+                                              // Refresh size
+                                              const { data: newSize } = await supabase.rpc('get_db_size_bytes')
+                                              if (newSize != null) setDbSizeBytes(Number(newSize))
+                                              await fetchData()
+                                            } catch (err) {
+                                              alert(`Error deleting COA: ${err.message}`)
+                                            }
+                                          }}
+                                          className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 text-red-400 text-[10px] font-bold rounded-lg active:scale-[0.98] transition-all cursor-pointer font-sans"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                          <span>{t('mgr.storage.delete_btn')}</span>
+                                        </button>
+                                      </div>
                                     </div>
                                   )
                                 })}
