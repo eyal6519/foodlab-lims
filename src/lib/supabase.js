@@ -32,7 +32,8 @@ if (!globalRef.__supabaseAdminClient) {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
-          detectSessionInUrl: false
+          detectSessionInUrl: false,
+          storageKey: 'sb-admin-override-token'
         }
       })
     : globalRef.__supabaseClient
