@@ -4,9 +4,10 @@ This backlog file contains the planned features, user interface changes, and bug
 
 ## Current Task List
 
-### 1. Flag Swap on Language Selector
+### 1. [COMPLETED] Flag Swap on Language Selector
 *   **Description**: Currently, selecting English (EN) displays the Israeli flag, and selecting Hebrew (HE) displays the US flag.
-*   **Fix**: Swap the flags so that English (EN) displays the US/UK flag and Hebrew (HE) displays the Israeli flag.
+*   **Status**: Done. Swapped the flags in LanguageToggle.jsx.
+
 
 ### 2. Task/Mission Assignment ("Assign Mission")
 *   **Description**: Enable the Manager to assign specific batches or shipments to one or more technicians.
