@@ -494,9 +494,56 @@ export const TESTS = [
 
 export const testMap = Object.fromEntries(TESTS.map(t => [t.id, t]))
 
+export function getTestDefinition(testId, template = null) {
+  if (!testId) return null
+  if (testId.startsWith('custom_')) {
+    const customTests = template?.standards?._customTests || []
+    const ct = customTests.find(x => x.id === testId)
+    if (ct) {
+      const isRatio = ct.type === 'ratio'
+      return {
+        id: ct.id,
+        name: ct.name,
+        unit: ct.unit || (isRatio ? '%' : ''),
+        standardsType: ct.standardsType || 'range',
+        fields: isRatio
+          ? [
+              { id: 'numerator_value', label: ct.numeratorLabel || 'Numerator Value', labelHe: ct.numeratorLabel || 'ערך מונה', type: 'number' },
+              { id: 'denominator_value', label: ct.denominatorLabel || 'Denominator Value', labelHe: ct.denominatorLabel || 'ערך מכנה', type: 'number' }
+            ]
+          : [
+              { id: 'value', label: ct.valueLabel || 'Measured Value', labelHe: ct.valueLabel || 'ערך נמדד', type: 'number' }
+            ],
+        calc: r => {
+          if (isRatio) {
+            const numVal = num(r.numerator_value)
+            const denVal = num(r.denominator_value)
+            if (denVal > 0 && Number.isFinite(numVal)) {
+              return (numVal / denVal) * 100
+            }
+            return NaN
+          } else {
+            return num(r.value)
+          }
+        }
+      }
+    }
+    // Fallback if custom test config not loaded
+    return {
+      id: testId,
+      name: testId.replace('custom_', ''),
+      unit: '',
+      standardsType: 'range',
+      fields: [{ id: 'value', label: 'Measured Value', type: 'number' }],
+      calc: r => num(r.value)
+    }
+  }
+  return testMap[testId]
+}
+
 // Master calculation runner
-export function calculateTest(testId, rows = [], batchResults = {}) {
-  const test = testMap[testId]
+export function calculateTest(testId, rows = [], batchResults = {}, testDef = null) {
+  const test = testDef || getTestDefinition(testId, null)
   if (!test) return { label: '-', average: NaN, complete: false, values: [] }
 
   // Special Volume derived calculation
@@ -618,8 +665,8 @@ export function calculateTest(testId, rows = [], batchResults = {}) {
 }
 
 // Shareable helper to determine if a test's data exists or is fully calculated
-export function isTestEntered(testId, batchId, resultsMap) {
-  const test = testMap[testId]
+export function isTestEntered(testId, batchId, resultsMap, template = null) {
+  const test = getTestDefinition(testId, template)
   if (!test) return false
   if (test.isCalculated) {
     if (testId === 'volume') {

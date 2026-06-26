@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
-import { TESTS, testMap, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg, isTestLocked } from '../utils/calculations'
+import { TESTS, testMap, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg, isTestLocked, getTestDefinition } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import ShipmentModal from './ShipmentModal'
 import LanguageToggle from './LanguageToggle'
@@ -410,6 +410,10 @@ export default function ManagerView() {
       }
     })
 
+    // Save custom tests list
+    const customTests = data.customTestsJson ? JSON.parse(data.customTestsJson) : []
+    standards._customTests = customTests
+
     const requiresInc = form.querySelector('[name="requires_incubation"]').checked
 
     try {
@@ -691,10 +695,10 @@ export default function ManagerView() {
       if (getIncubationStatus(b, b.template_id).locked) return false
       
       const pendingTests = (temp?.tests || []).filter(testId => {
-        const test = testMap[testId]
+        const test = getTestDefinition(testId, temp)
         if (!test || test.isCalculated) return false
         if (isTestLocked(testId, b, temp)) return false
-        return !isTestEntered(testId, b.id, results)
+        return !isTestEntered(testId, b.id, results, temp)
       })
       return pendingTests.length > 0
     })
@@ -783,10 +787,10 @@ export default function ManagerView() {
                       if (getIncubationStatus(b, s.template_id).locked) return false
                       
                       const pendingTests = (temp?.tests || []).filter(testId => {
-                        const test = testMap[testId]
+                        const test = getTestDefinition(testId, temp)
                         if (!test || test.isCalculated) return false
                         if (isTestLocked(testId, b, temp)) return false
-                        return !isTestEntered(testId, b.id, results)
+                        return !isTestEntered(testId, b.id, results, temp)
                       })
                       return pendingTests.length > 0
                     })
@@ -1237,7 +1241,7 @@ export default function ManagerView() {
                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">{t('mgr.templates.enabled_tests').replace('{n}', template.tests.length)}</p>
                               <div className="flex flex-wrap gap-1.5">
                               {template.tests.map(tid => {
-                                  const test = testMap[tid]
+                                  const test = getTestDefinition(tid, template)
                                   return (
                                     <span key={tid} className="px-2 py-0.5 bg-slate-950 border border-slate-850 rounded text-[9px] font-semibold text-slate-400">
                                       {test?.name || tid}
@@ -1385,10 +1389,10 @@ export default function ManagerView() {
                                       batchResults[tid] = results[`${batch.id}:${tid}`] || []
                                     })
                                     return totalTests.map(tid => {
-                                      const test = testMap[tid]
+                                      const test = getTestDefinition(tid, temp)
                                       if (!test) return null
                                       const repData = results[`${batch.id}:${tid}`] || []
-                                      const calc = calculateTest(tid, repData, batchResults)
+                                      const calc = calculateTest(tid, repData, batchResults, test)
                                       const inStd = checkWithinStandard(temp, tid, calc)
 
                                       const std = temp?.standards?.[tid]
@@ -1712,10 +1716,10 @@ export default function ManagerView() {
                             }
 
                             return temp?.tests.map(tid => {
-                              const test = testMap[tid]
+                              const test = getTestDefinition(tid, temp)
                               if (!test) return null
                               const repData = results[`${batch.id}:${tid}`] || []
-                              const calc = calculateTest(tid, repData, batchResults)
+                              const calc = calculateTest(tid, repData, batchResults, test)
 
                               if (tid === 'weight') {
                                 const avgGross = avg(repData.map(r => num(r.gross)))
@@ -2127,11 +2131,20 @@ export default function ManagerView() {
 
 
 function TemplateModal({ initialTemplate, onSave, onClose }) {
-  const { t } = useLanguage()
+  const { t, isRtl } = useLanguage()
   const [selectedTests, setSelectedTests] = useState([])
   const [requiresIncubation, setRequiresIncubation] = useState(initialTemplate ? (initialTemplate.requires_incubation !== false) : true)
   const [incubation36, setIncubation36] = useState(initialTemplate?.incubation_36 || 0)
   const [incubation55, setIncubation55] = useState(initialTemplate?.incubation_55 || 0)
+
+  // Custom Tests States
+  const [customTests, setCustomTests] = useState([])
+  const [newCustomName, setNewCustomName] = useState('')
+  const [newCustomUnit, setNewCustomUnit] = useState('')
+  const [newCustomIsRatio, setNewCustomIsRatio] = useState(false)
+  const [newCustomNumeratorLabel, setNewCustomNumeratorLabel] = useState('')
+  const [newCustomDenominatorLabel, setNewCustomDenominatorLabel] = useState('')
+  const [newCustomValueLabel, setNewCustomValueLabel] = useState('')
 
   useEffect(() => {
     if (initialTemplate && initialTemplate.tests) {
@@ -2141,6 +2154,13 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
       setRequiresIncubation(initialTemplate.requires_incubation !== false)
       setIncubation36(initialTemplate.incubation_36 || 0)
       setIncubation55(initialTemplate.incubation_55 || 0)
+      setCustomTests(initialTemplate.standards?._customTests || [])
+    } else {
+      setRequiresIncubation(true)
+      setIncubation36(0)
+      setIncubation55(0)
+      setSelectedTests([])
+      setCustomTests([])
     }
   }, [initialTemplate])
 
@@ -2152,12 +2172,48 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
     }
   }
 
+  const handleAddCustomTest = () => {
+    if (!newCustomName.trim()) return
+    const newId = `custom_${Date.now()}`
+    const newTest = {
+      id: newId,
+      name: newCustomName.trim(),
+      unit: newCustomUnit.trim() || null,
+      type: newCustomIsRatio ? 'ratio' : 'single',
+      numeratorLabel: newCustomIsRatio ? (newCustomNumeratorLabel.trim() || null) : null,
+      denominatorLabel: newCustomIsRatio ? (newCustomDenominatorLabel.trim() || null) : null,
+      valueLabel: !newCustomIsRatio ? (newCustomValueLabel.trim() || null) : null,
+      standardsType: 'range'
+    }
+    setCustomTests([...customTests, newTest])
+    setSelectedTests([...selectedTests, newId])
+    setNewCustomName('')
+    setNewCustomUnit('')
+    setNewCustomNumeratorLabel('')
+    setNewCustomDenominatorLabel('')
+    setNewCustomValueLabel('')
+  }
+
+  // Combine standard TESTS with customTests for rendering
+  const allTestsList = [
+    ...TESTS,
+    ...customTests.map(ct => ({
+      id: ct.id,
+      name: ct.name,
+      standardsType: 'range',
+      unit: ct.unit || (ct.type === 'ratio' ? '%' : '')
+    }))
+  ]
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm">
       <form
         onSubmit={onSave}
         className="bg-slate-900 border-0 sm:border border-slate-800 rounded-none sm:rounded-3xl w-full max-w-3xl h-full sm:h-auto sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
       >
+        {/* Pass customTests to form submission via hidden input */}
+        <input type="hidden" name="customTestsJson" value={JSON.stringify(customTests)} />
+
         <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
           <h2 className="text-lg font-bold text-white">{initialTemplate ? t('mgr.template_modal.title_edit') : t('mgr.template_modal.title_new')}</h2>
           <button
@@ -2240,12 +2296,91 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
           </div>
 
           <div className="border-t border-slate-800 pt-6 space-y-4">
-            <h3 className="text-xs font-bold text-slate-350 uppercase tracking-widest">{t('mgr.template_modal.tests_heading')}</h3>
+            <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/50 pb-4 ${isRtl ? 'md:flex-row-reverse' : ''}`}>
+              <h3 className="text-xs font-bold text-slate-350 uppercase tracking-widest">{t('mgr.template_modal.tests_heading')}</h3>
+              
+              {/* Dynamic Creator form for custom tests */}
+              <div className={`p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex flex-col gap-3 w-full md:w-auto md:min-w-[450px] ${isRtl ? 'text-right' : 'text-left'}`}>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {t('mgr.template_modal.custom_label') || 'Create Custom Test'}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder={t('mgr.template_modal.custom_test_placeholder')}
+                    value={newCustomName}
+                    onChange={(e) => setNewCustomName(e.target.value)}
+                    className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none w-full"
+                  />
+                  <input
+                    type="text"
+                    placeholder={t('mgr.template_modal.custom_unit_placeholder')}
+                    value={newCustomUnit}
+                    onChange={(e) => setNewCustomUnit(e.target.value)}
+                    className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none w-full"
+                  />
+                </div>
+
+                <div className="flex items-center gap-4 py-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">{t('mgr.template_modal.custom_single')}</span>
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={newCustomIsRatio}
+                      onChange={(e) => setNewCustomIsRatio(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-8 h-4.5 bg-slate-850 border border-slate-700 rounded-full relative transition-all duration-200 peer peer-checked:bg-teal-500/20 peer-checked:border-teal-500 after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-slate-400 peer-checked:after:bg-teal-400 after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5"></div>
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">{t('mgr.template_modal.custom_ratio')}</span>
+                </div>
+
+                {newCustomIsRatio ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder={t('mgr.template_modal.numerator_label_placeholder')}
+                      value={newCustomNumeratorLabel}
+                      onChange={(e) => setNewCustomNumeratorLabel(e.target.value)}
+                      className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none w-full"
+                    />
+                    <input
+                      type="text"
+                      placeholder={t('mgr.template_modal.denominator_label_placeholder')}
+                      value={newCustomDenominatorLabel}
+                      onChange={(e) => setNewCustomDenominatorLabel(e.target.value)}
+                      className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none w-full"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder={t('mgr.template_modal.value_label_placeholder')}
+                      value={newCustomValueLabel}
+                      onChange={(e) => setNewCustomValueLabel(e.target.value)}
+                      className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none w-full"
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleAddCustomTest}
+                  className="px-4 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer self-end"
+                >
+                  <Plus className="w-3.5 h-3.5 shrink-0" />
+                  <span>{t('mgr.template_modal.add_custom_btn')}</span>
+                </button>
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {TESTS.map(test => {
+              {allTestsList.map(test => {
                 const isChecked = selectedTests.includes(test.id)
                 const std = initialTemplate?.standards?.[test.id] || {}
+                const isCustom = test.id.startsWith('custom_')
 
                 return (
                   <div
@@ -2256,24 +2391,47 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
                         : 'bg-slate-950/10 border-slate-850 text-slate-500'
                     }`}
                   >
-                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        name="tests"
-                        value={test.id}
-                        checked={isChecked}
-                        onChange={() => toggleTest(test.id)}
-                        className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-teal-600 focus:ring-teal-500/50"
-                      />
-                      <span className="text-xs font-bold">{test.name}</span>
-                    </label>
+                    <div className="flex justify-between items-center w-full gap-2">
+                      <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          name="tests"
+                          value={test.id}
+                          checked={isChecked}
+                          onChange={() => toggleTest(test.id)}
+                          className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-teal-600 focus:ring-teal-500/50"
+                        />
+                        <span className="text-xs font-bold">
+                          {test.name}
+                          {isCustom && (
+                            <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-teal-500/10 text-teal-400 font-extrabold uppercase scale-90">
+                              {test.unit === '%' ? 'Ratio' : 'Single'}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                      
+                      {isCustom && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomTests(customTests.filter(ct => ct.id !== test.id))
+                            setSelectedTests(selectedTests.filter(tid => tid !== test.id))
+                          }}
+                          className="p-1 text-red-400 hover:text-red-300 hover:bg-slate-800/40 rounded transition-all cursor-pointer shrink-0"
+                          title="Delete custom test"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
 
                     {isChecked && test.standardsType !== 'none' && (
                       <div className="mt-3 grid grid-cols-2 gap-3 pt-3 border-t border-slate-800/40">
                         {(test.standardsType === 'min' || test.standardsType === 'range') ? (
                           <div className="space-y-1">
                             <label className="text-[8px] font-bold text-slate-450 uppercase block">
-                              {t('mgr.template_modal.min_threshold').replace('{unit}', test.unit || '')}
+                              {test.unit ? t('mgr.template_modal.min_threshold').replace('{unit}', test.unit) : 'Min'}
                             </label>
                             <input
                               type="number"
@@ -2290,7 +2448,7 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
                         {(test.standardsType === 'max' || test.standardsType === 'range') ? (
                           <div className="space-y-1">
                             <label className="text-[8px] font-bold text-slate-450 uppercase block">
-                              {t('mgr.template_modal.max_threshold').replace('{unit}', test.unit || '')}
+                              {test.unit ? t('mgr.template_modal.max_threshold').replace('{unit}', test.unit) : 'Max'}
                             </label>
                             <input
                               type="number"

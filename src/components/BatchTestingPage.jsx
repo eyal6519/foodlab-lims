@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Trash2, AlertTriangle, Check, Info, Lock } from 'lucide-react'
-import { TESTS, testMap, calculateTest, num, isTestLocked } from '../utils/calculations'
+import { TESTS, testMap, calculateTest, num, isTestLocked, getTestDefinition } from '../utils/calculations'
 import { useLanguage } from '../context/LanguageContext'
 
 const TEST_FORMULAS = {
@@ -50,9 +50,46 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
   const [subtractTare, setSubtractTare] = useState(true)
 
   const template = templates.find(t => t.id === shipment.template_id)
+
+  const customTests = template?.standards?._customTests || []
+  const formattedCustomTests = customTests.map(ct => {
+    const isRatio = ct.type === 'ratio'
+    return {
+      id: ct.id,
+      name: ct.name,
+      unit: ct.unit || (isRatio ? '%' : ''),
+      standardsType: ct.standardsType || 'range',
+      customFormula: isRatio
+        ? t('batch.custom.formula_ratio')
+        : null,
+      fields: isRatio
+        ? [
+            { id: 'numerator_value', label: ct.numeratorLabel || t('batch.custom.sample_weight'), type: 'number' },
+            { id: 'denominator_value', label: ct.denominatorLabel || t('batch.custom.measured_weight'), type: 'number' }
+          ]
+        : [
+            { id: 'value', label: ct.valueLabel || t('batch.custom.value'), type: 'number' }
+          ],
+      calc: r => {
+        if (isRatio) {
+          const numVal = num(r.numerator_value)
+          const denVal = num(r.denominator_value)
+          if (denVal > 0 && Number.isFinite(numVal)) {
+            return (numVal / denVal) * 100
+          }
+          return NaN
+        } else {
+          return num(r.value)
+        }
+      }
+    }
+  })
+
+  const allTests = [...TESTS, ...formattedCustomTests]
+
   const enabledTests = template
     ? template.tests.filter(tid => {
-        const t = TESTS.find(x => x.id === tid)
+        const t = allTests.find(x => x.id === tid)
         return t && !t.isCalculated
       })
     : []
@@ -63,7 +100,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
     const initialWarnings = {}
 
     enabledTests.forEach(testId => {
-      const test = TESTS.find(t => t.id === testId)
+      const test = allTests.find(t => t.id === testId)
       if (!test) return
 
       const existing = initialResults[`${batch.id}:${testId}`]
@@ -209,6 +246,17 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
           }
         }
       }
+
+      // Custom ratio test validation
+      if (test.id.startsWith('custom_') && test.fields.some(f => f.id === 'numerator_value')) {
+        const numVal = num(row.numerator_value)
+        const denVal = num(row.denominator_value)
+        if (Number.isFinite(numVal) && Number.isFinite(denVal)) {
+          if (numVal > denVal) {
+            list.push(t('batch.validation.custom_ratio').replace('{n}', repNum))
+          }
+        }
+      }
     })
 
     // Replicate count validations
@@ -271,7 +319,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
       }
       setTestData(updatedTestData)
 
-      const test = TESTS.find(t => t.id === 'weight')
+      const test = allTests.find(t => t.id === 'weight')
       if (test) {
         const testWarnings = validateTestRows(test, updatedRows)
         setWarnings(prev => ({
@@ -293,7 +341,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
       }
       setTestData(updatedTestData)
 
-      const test = TESTS.find(t => t.id === 'weight')
+      const test = allTests.find(t => t.id === 'weight')
       if (test) {
         const testWarnings = validateTestRows(test, updatedRows)
         setWarnings(prev => ({
@@ -305,7 +353,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
   }
 
   const handleAddFieldVal = (testId, index, fieldId, value) => {
-    const test = TESTS.find(t => t.id === testId)
+    const test = allTests.find(t => t.id === testId)
     if (!test) return
 
     setIsDirty(true)
@@ -381,14 +429,21 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
   }
 
   const removeReplicate = (testId, index) => {
-    const test = TESTS.find(t => t.id === testId)
+    const test = allTests.find(t => t.id === testId)
     if (!test) return
 
     const currentRows = testData[testId] || []
     if (currentRows.length <= 1) return
 
     setIsDirty(true)
-    const updatedRows = currentRows.filter((_, i) => i !== index)
+    const newRows = currentRows.filter((_, i) => i !== index)
+
+    // Re-verify tare subtraction on all weight replicates to maintain consistency
+    let updatedRows = newRows
+    if (testId === 'weight') {
+      updatedRows = recalculateWeightNets(newRows, batchTare, subtractTare)
+    }
+
     const updatedTestData = {
       ...testData,
       [testId]: updatedRows
@@ -402,16 +457,65 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
     }))
   }
 
+  const handlePassFailChange = (testId, fieldId, value) => {
+    const test = allTests.find(t => t.id === testId)
+    if (!test) return
+
+    setIsDirty(true)
+    const newRows = [...(testData[testId] || [])]
+    const updatedRow = {
+      ...newRows[0],
+      [fieldId]: value
+    }
+    newRows[0] = updatedRow
+
+    const updatedTestData = {
+      ...testData,
+      [testId]: newRows
+    }
+    setTestData(updatedTestData)
+
+    const testWarnings = validateTestRows(test, newRows)
+    setWarnings(prev => ({
+      ...prev,
+      [testId]: testWarnings
+    }))
+  }
+
+  const handleCheckboxChange = (testId, fieldId, value) => {
+    const test = allTests.find(t => t.id === testId)
+    if (!test) return
+
+    setIsDirty(true)
+    const newRows = [...(testData[testId] || [])]
+    const updatedRow = {
+      ...newRows[0],
+      [fieldId]: value
+    }
+    newRows[0] = updatedRow
+
+    const updatedTestData = {
+      ...testData,
+      [testId]: newRows
+    }
+    setTestData(updatedTestData)
+
+    const testWarnings = validateTestRows(test, newRows)
+    setWarnings(prev => ({
+      ...prev,
+      [testId]: testWarnings
+    }))
+  }
+
   const handleSave = () => {
-    // Perform validation across all tests
     const allWarnings = {}
     let hasBlockingError = false
 
     enabledTests.forEach(testId => {
-      const test = TESTS.find(t => t.id === testId)
+      const rows = testData[testId] || []
+      const test = allTests.find(t => t.id === testId)
       if (!test) return
 
-      const rows = testData[testId] || []
       const testWarnings = validateTestRows(test, rows)
       if (testWarnings.length > 0) {
         allWarnings[testId] = testWarnings
@@ -432,7 +536,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
     const upsertPayload = []
 
     enabledTests.forEach(testId => {
-      const test = TESTS.find(t => t.id === testId)
+      const test = allTests.find(t => t.id === testId)
       if (!test) return
 
       const rows = testData[testId] || []
@@ -486,9 +590,9 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
   // Count progress
   const enteredTestsCount = enabledTests.filter(testId => {
     const rows = testData[testId] || []
-    const test = TESTS.find(t => t.id === testId)
+    const test = allTests.find(t => t.id === testId)
     if (!test) return false
-    
+
     // Check if the rows contain actual entered data
     const isTestEmpty = (rList, tDef) => {
       return rList.every(row => {
@@ -518,33 +622,33 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
           <div>
             <h1 className="text-lg font-bold tracking-tight">{t('batch.page.title')}</h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              {t('batch.page.batch_label')} <span className="font-semibold text-teal-400">{batch.number || t('common.unnamed_batch')}</span> {t('batch.page.spec_label')} <span className="font-semibold text-slate-200">{template?.name}</span>
+              {t('batch.page.sub')
+                .replace('{batch}', batch.number || t('common.unnamed_batch'))
+                .replace('{product}', template?.name || t('tech.batch.unknown_product'))}
             </p>
           </div>
         </div>
-
-        <div className="flex items-center gap-4">
-          <div className="bg-slate-950/60 px-4 py-2 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300">
-            {t('batch.page.progress')} <span className="text-teal-400 font-bold">{enteredTestsCount}</span> / {enabledTests.length} {t('batch.page.tests_entered')}
-          </div>
+        <div className="flex gap-3">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-5 py-2.5 bg-teal-500 hover:bg-teal-400 active:scale-[0.98] text-xs font-bold text-slate-950 rounded-xl transition-all duration-200 cursor-pointer"
+            className="px-6 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-teal-500/10 transition-all duration-250 cursor-pointer"
           >
-            <Check className="w-4 h-4" />
-            <span>{t('batch.btn.save')}</span>
+            {t('batch.page.save')}
           </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 mt-8 space-y-8">
-        {/* Batch Info Card */}
-        <section className="p-6 bg-slate-900 border border-slate-800 rounded-3xl grid grid-cols-1 md:grid-cols-3 gap-6 shadow-xl">
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Batch Metadata Header info */}
+        <section className="bg-slate-900 border border-slate-800 rounded-3xl p-6 grid grid-cols-1 sm:grid-cols-3 gap-6 shadow-lg">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('batch.info.product_supplier')}</span>
-            <p className="text-sm font-semibold text-white">{template?.name || t('tech.batch.unknown_product')}</p>
-            <p className="text-xs text-slate-400">{t('batch.info.supplier')} {shipment.supplier}</p>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('batch.info.supplier')}</span>
+            <p className="text-sm font-bold text-white">{shipment.supplier}</p>
+            {shipment.size && (
+              <p className="text-xs text-slate-400 mt-0.5">
+                {t('tech.batch.size').replace('{s}', shipment.size)}
+              </p>
+            )}
           </div>
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('batch.info.dates')}</span>
@@ -569,7 +673,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
         {/* Tests List */}
         <div className="space-y-6">
           {enabledTests.map(testId => {
-            const test = TESTS.find(t => t.id === testId)
+            const test = allTests.find(t => t.id === testId)
             if (!test) return null
 
             const isLocked = isTestLocked(testId, batch, template)
@@ -591,7 +695,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
             enabledTests.forEach(tid => {
               batchResults[tid] = testData[tid] || []
             })
-            const calcPreview = calculateTest(testId, rows, batchResults)
+            const calcPreview = calculateTest(testId, rows, batchResults, test)
 
             return (
               <section
@@ -616,9 +720,9 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                         {test.min && ` ${t('batch.test.min').replace('{n}', test.min)}`}
                         {test.max && ` ${t('batch.test.max').replace('{n}', test.max)}`}
                       </span>
-                      {TEST_FORMULAS[testId] && (
+                      {(TEST_FORMULAS[testId] || test.customFormula) && (
                         <span className="text-[10px] text-slate-450 font-semibold tracking-wide mt-0.5">
-                          {t('batch.test.formula_label')} <span className="font-mono text-slate-350">{TEST_FORMULAS[testId]}</span>
+                          {t('batch.test.formula_label')} <span className="font-mono text-slate-350">{TEST_FORMULAS[testId] || test.customFormula}</span>
                         </span>
                       )}
                       {isLocked && (
@@ -873,7 +977,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
             )
           })}
         </div>
-      </main>
+      </div>
 
       {/* Sticky Bottom Actions Bar */}
       <footer className="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur border-t border-slate-800 py-4 px-4 sm:px-6 flex sm:justify-end gap-3 z-20">

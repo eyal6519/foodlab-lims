@@ -279,6 +279,19 @@ const he = {
   'mgr.template_modal.max_threshold': 'סף מקסימום ({unit})',
   'mgr.template_modal.cancel': 'ביטול',
   'mgr.template_modal.save': 'שמור תבנית',
+  'mgr.template_modal.custom_test_placeholder': 'שם בדיקה מותאמת...',
+  'mgr.template_modal.custom_unit_placeholder': 'יחידה (למשל % או ppm)...',
+  'mgr.template_modal.custom_ratio': 'בדיקת יחס',
+  'mgr.template_modal.custom_single': 'ערך בודד',
+  'mgr.template_modal.numerator_label_placeholder': 'תווית מונה (אופציונלי)',
+  'mgr.template_modal.denominator_label_placeholder': 'תווית מכנה (אופציונלי)',
+  'mgr.template_modal.value_label_placeholder': 'תווית ערך (אופציונלי)',
+  'mgr.template_modal.add_custom_btn': 'הוסף בדיקה',
+  'batch.custom.sample_weight': 'ערך מונה',
+  'batch.custom.measured_weight': 'ערך מכנה',
+  'batch.custom.value': 'ערך נמדד',
+  'batch.validation.custom_ratio': 'ערך המונה לא יכול לעלות על ערך המכנה ברפליקציה {n}',
+  'batch.custom.formula_ratio': 'יחס = (מונה / מכנה) * 100',
 
   // Manager View — Account Settings
   'mgr.settings.title': 'הגדרות חשבון',
@@ -504,7 +517,7 @@ const he = {
   // Task/Mission Assignment & Manager Dashboard Layout Refactor
   'mgr.dashboard.pending_shipments': 'משלוחים ממתינים ושיוך משימות',
   'mgr.dashboard.assign_mission': 'שיוך משימה',
-  'mgr.dashboard.assign_to': 'שייך ל:',
+  'mgr.dashboard.assign_to': 'משוייך ל:',
   'mgr.dashboard.select_techs': 'בחר לבורנטים',
   'mgr.dashboard.save_assignment': 'שמור שיוך',
   'mgr.dashboard.no_techs': 'לא נמצאו לבורנטים',

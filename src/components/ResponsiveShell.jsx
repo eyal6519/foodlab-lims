@@ -44,7 +44,7 @@ export default function ResponsiveShell({
   }
 
   // Shared Sidebar & Drawer Links Component
-  const NavigationLinks = () => (
+  const renderNavigationLinks = () => (
     <div className="space-y-1.5 py-4">
       {tabs.map(tab => {
         const Icon = tab.icon
@@ -70,7 +70,7 @@ export default function ResponsiveShell({
   )
 
   // Shared Notification Bell Component
-  const NotificationBell = () => (
+  const renderNotificationBell = () => (
     <div className="relative" ref={bellRef}>
       <button
         onClick={() => setBellOpen(!bellOpen)}
@@ -135,7 +135,7 @@ export default function ResponsiveShell({
   )
 
   // Shared Bottom Profile & Actions
-  const BottomActions = () => (
+  const renderBottomActions = () => (
     <div className="border-t border-slate-800 pt-4 mt-auto space-y-4">
       <div className={`flex items-center justify-between gap-3 px-1 ${
         isRtl ? 'flex-row-reverse' : ''
@@ -150,7 +150,7 @@ export default function ResponsiveShell({
         </div>
       </div>
       <div className="flex gap-2">
-        <NotificationBell />
+        {renderNotificationBell()}
         <button
           onClick={() => {
             setSettingsModalOpen(true)
@@ -197,11 +197,11 @@ export default function ResponsiveShell({
             </div>
           </div>
           {/* Nav Links */}
-          <NavigationLinks />
+          {renderNavigationLinks()}
         </div>
 
         {/* Profile, Settings, Notifications, Lang, Logout */}
-        <BottomActions />
+        {renderBottomActions()}
       </aside>
 
       {/* 2. MOBILE TOP STICKY HEADER */}
@@ -253,11 +253,11 @@ export default function ResponsiveShell({
             </div>
 
             {/* Nav Links */}
-            <NavigationLinks />
+            {renderNavigationLinks()}
           </div>
 
           {/* Bottom Actions */}
-          <BottomActions />
+          {renderBottomActions()}
         </div>
       </div>
 

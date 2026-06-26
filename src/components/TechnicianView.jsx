@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
-import { TESTS, testMap, calculateTest, isTestEntered, isShipmentArchived, fmt, num, avg, isTestLocked } from '../utils/calculations'
+import { TESTS, testMap, calculateTest, isTestEntered, isShipmentArchived, fmt, num, avg, isTestLocked, getTestDefinition } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import BatchTestingPage from './BatchTestingPage'
 import LanguageToggle from './LanguageToggle'
@@ -504,10 +504,10 @@ export default function TechnicianView() {
         if (getIncubationStatus(b, shipment.template_id).locked) return false
         
         const pendingTests = (temp?.tests || []).filter(testId => {
-          const test = testMap[testId]
+          const test = getTestDefinition(testId, temp)
           if (!test || test.isCalculated) return false
           if (isTestLocked(testId, b, temp)) return false
-          return !isTestEntered(testId, b.id, results)
+          return !isTestEntered(testId, b.id, results, temp)
         })
         return pendingTests.length > 0
       })
@@ -557,10 +557,10 @@ export default function TechnicianView() {
       if (getIncubationStatus(b, s.template_id).locked) return false
       
       const pendingTests = (temp?.tests || []).filter(testId => {
-        const test = testMap[testId]
+        const test = getTestDefinition(testId, temp)
         if (!test || test.isCalculated) return false
         if (isTestLocked(testId, b, temp)) return false
-        return !isTestEntered(testId, b.id, results)
+        return !isTestEntered(testId, b.id, results, temp)
       })
       return pendingTests.length > 0
     })
@@ -811,13 +811,13 @@ export default function TechnicianView() {
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">{t('tech.templates.enabled_tests').replace('{n}', template.tests.length)}</p>
                             <div className="flex flex-wrap gap-1.5">
                               {template.tests.map(tid => {
-                                const test = testMap[tid]
-                                return (
-                                  <span key={tid} className="px-2 py-0.5 bg-slate-950 border border-slate-850 rounded text-[9px] font-semibold text-slate-400">
-                                    {test?.name || tid}
-                                  </span>
-                                )
-                              })}
+                                 const test = getTestDefinition(tid, template)
+                                 return (
+                                   <span key={tid} className="px-2 py-0.5 bg-slate-950 border border-slate-850 rounded text-[9px] font-semibold text-slate-400">
+                                     {test?.name || tid}
+                                   </span>
+                                 )
+                               })}
                             </div>
                           </div>
                         </div>
@@ -1081,10 +1081,10 @@ export default function TechnicianView() {
                           }
 
                           return temp?.tests.map(tid => {
-                            const test = testMap[tid]
+                            const test = getTestDefinition(tid, temp)
                             if (!test) return null
                             const repData = results[`${batch.id}:${tid}`] || []
-                            const calc = calculateTest(tid, repData, batchResults)
+                            const calc = calculateTest(tid, repData, batchResults, test)
 
                             if (tid === 'weight') {
                               const avgGross = avg(repData.map(r => num(r.gross)))
@@ -1355,7 +1355,7 @@ export default function TechnicianView() {
                         <div className="space-y-3">
                           {readyBatches.map(batch => {
                             const isBatchExpanded = expandedBatchId === batch.id
-                            const batchResultsCount = template?.tests.filter(tid => isTestEntered(tid, batch.id, results)).length || 0
+                            const batchResultsCount = template?.tests.filter(tid => isTestEntered(tid, batch.id, results, template)).length || 0
                             const totalTestsCount = template?.tests.length || 0
                             const bStatus = getIncubationStatus(batch, shipment.template_id)
 
@@ -1464,11 +1464,11 @@ export default function TechnicianView() {
 
                                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                         {template?.tests.map(testId => {
-                                          const test = TESTS.find(t => t.id === testId)
+                                          const test = getTestDefinition(testId, template)
                                           if (!test) return null
 
                                           const repData = results[`${batch.id}:${testId}`] || []
-                                          const isEntered = isTestEntered(testId, batch.id, results)
+                                          const isEntered = isTestEntered(testId, batch.id, results, template)
 
                                           const batchResults = {}
                                           if (template?.tests) {
@@ -1476,7 +1476,7 @@ export default function TechnicianView() {
                                               batchResults[tid] = results[`${batch.id}:${tid}`] || []
                                             })
                                           }
-                                          const calc = calculateTest(testId, repData, batchResults)
+                                          const calc = calculateTest(testId, repData, batchResults, test)
 
                                           return (
                                             <div

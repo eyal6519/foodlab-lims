@@ -68,7 +68,7 @@ export async function seedMockData() {
           'brix', 'acidity', 'ash', 'acid_insoluble_ash', 'sieving_size', 'salt', 'specific_gravity',
           'aqueous_layer', 'organoleptic', 'peroxides', 'drip_loss', 'water_activity', 'paprika_asta',
           'fat_separation', 'oxygen_analyzer', 'filling_coating', 'salt_auto', 'acidity_auto',
-          'tuna_chunk', 'foreign_matter', 'general_ratio'
+          'tuna_chunk', 'foreign_matter', 'general_ratio', 'custom_ratio_chalk', 'custom_single_cucumbers'
         ],
         standards: {
           weight: { min: 100, max: 200 },
@@ -102,7 +102,28 @@ export async function seedMockData() {
           salt_auto: { min: 0.5, max: 3.0 },
           acidity_auto: { min: 0.1, max: 2.0 },
           tuna_chunk: { min: 50, max: 95 },
-          general_ratio: { min: 10, max: 90 }
+          general_ratio: { min: 10, max: 90 },
+          custom_ratio_chalk: { min: 0, max: 5 },
+          custom_single_cucumbers: { min: 8, max: 12 },
+          _customTests: [
+            {
+              id: 'custom_ratio_chalk',
+              name: 'Chalk defects % (Custom)',
+              unit: '%',
+              type: 'ratio',
+              numeratorLabel: 'Chalk defects weight (g)',
+              denominatorLabel: 'Average grain sample weight (g)',
+              standardsType: 'range'
+            },
+            {
+              id: 'custom_single_cucumbers',
+              name: 'Cucumbers Count (Custom)',
+              unit: 'units',
+              type: 'single',
+              valueLabel: 'Count of cucumbers in jar',
+              standardsType: 'range'
+            }
+          ]
         }
       }
     ]
