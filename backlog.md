@@ -7,8 +7,8 @@ This document tracks all planned, in-progress, and completed features for the LI
 ## 📋 Planned / Proposed Features
 
 ### Short-Term & User Interface
-- [ ] **Test Inputs & Result Matching Mockups**
-  - *Description:* Create mockups and verify the entry form for all test types in the LIMS.
+- [x] **Test Inputs & Result Matching Mockups**
+  - *Description:* Created mockups and verified the entry form for all test types in the LIMS.
   - *Goal:* Ensure intuitive data entry for technicians and confirm output results map to specifications correctly.
 
 ### Long-Term / Complex Features
