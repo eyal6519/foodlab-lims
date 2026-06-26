@@ -16,7 +16,7 @@ This document tracks all planned, in-progress, and completed features for the LI
   - *Reason:* Automatically or manually purge or archive historical records to remain within free-tier Supabase and Vercel storage limits.
 - [ ] **Specialized Quality Assurance Mock Testing**
   - *Reason:* Ensure that chemical equations and other testing methodologies are mathematically verified against benchmark standard values.
-- [ ] **Ratio and Composite Parameter Equations**
+- [x] **Ratio and Composite Parameter Equations**
   - *Reason:* Automatically calculate parameters that depend on the mathematical relationship between different test results (e.g. moisture-to-protein ratio).
 
 ---
@@ -29,6 +29,8 @@ This document tracks all planned, in-progress, and completed features for the LI
 
 ## ✅ Completed Features
 
+- [x] **Full Hebrew UI Localization**
+  - *Description:* Translated all user-facing strings across the entire application (login, shipment modal, batch testing page, replicate modal, manager view, technician view, COA document, toasts, and all test names) into Hebrew. Implemented a language switcher with flag toggle persisted to localStorage.
 - [x] **Task/Mission Assignment & Manager Dashboard Refactor**
   - *Description:* Allow managers to assign shipments to specific technicians. Cleaned up the manager overview to show pending assignments, and added a "My Missions Only" toggle to the technician workspace.
 - [x] **Language Flag Fix (Flag Swap)**
