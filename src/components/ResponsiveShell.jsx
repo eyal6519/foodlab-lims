@@ -20,6 +20,7 @@ export default function ResponsiveShell({
   const { language, t } = useLanguage()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [bellOpen, setBellOpen] = useState(false)
+  const [dismissedIds, setDismissedIds] = useState([])
   const bellRef = useRef(null)
 
   // Determine language direction (reactive to state)
@@ -76,16 +77,16 @@ export default function ResponsiveShell({
       <button
         onClick={() => setBellOpen(!bellOpen)}
         className={`p-2.5 bg-slate-800 hover:bg-teal-950/40 border ${
-          dueBatches.length > 0 || storageWarning
+          (dueBatches.filter(b => !dismissedIds.includes(b.id)).length > 0) || storageWarning
             ? 'border-amber-500 text-amber-400 bg-amber-950/10'
             : 'border-slate-700 text-slate-300 hover:text-teal-400'
         } rounded-xl transition-all duration-200 relative`}
         title={t('mgr.header.incubation_alerts')}
       >
         <Bell className="w-5 h-5" />
-        {(dueBatches.length > 0 || storageWarning) && (
+        {(dueBatches.filter(b => !dismissedIds.includes(b.id)).length > 0 || storageWarning) && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-extrabold w-4.5 h-4.5 rounded-full flex items-center justify-center border border-slate-900 animate-pulse">
-            {dueBatches.length + (storageWarning ? 1 : 0)}
+            {dueBatches.filter(b => !dismissedIds.includes(b.id)).length + (storageWarning ? 1 : 0)}
           </span>
         )}
       </button>
@@ -97,10 +98,10 @@ export default function ResponsiveShell({
           <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
             <span className="font-bold text-white">{t('tech.header.incubation_alerts')}</span>
             <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-bold">
-              {t('mgr.bell.due_badge').replace('{n}', dueBatches.length)}
+              {t('mgr.bell.due_badge').replace('{n}', dueBatches.filter(b => !dismissedIds.includes(b.id)).length)}
             </span>
           </div>
-          {dueBatches.length === 0 && !storageWarning ? (
+          {dueBatches.filter(b => !dismissedIds.includes(b.id)).length === 0 && !storageWarning ? (
             <p className="text-slate-500 italic text-center py-4">{t('mgr.bell.empty')}</p>
           ) : (
             <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
@@ -115,10 +116,11 @@ export default function ResponsiveShell({
                   </div>
                 </div>
               )}
-              {dueBatches.map(b => (
+              {dueBatches.filter(b => !dismissedIds.includes(b.id)).map(b => (
                 <div
                   key={b.id}
                   onClick={() => {
+                    setDismissedIds(prev => [...prev, b.id])
                     onNotificationItemClick(b)
                     setBellOpen(false)
                     setDrawerOpen(false)
