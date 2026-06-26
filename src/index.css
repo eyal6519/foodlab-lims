@@ -1,19 +1,25 @@
 @import "tailwindcss";
 
 @theme {
-  --color-slate-950: #f1f5f9;
-  --color-slate-900: #ffffff;
-  --color-slate-850: #f8fafc;
-  --color-slate-800: #e2e8f0;
-  --color-slate-750: #cbd5e1;
-  --color-slate-700: #cbd5e1;
-  --color-slate-600: #94a3b8;
-  --color-slate-500: #64748b;
-  --color-slate-450: #475569;
-  --color-slate-400: #334155;
-  --color-slate-350: #1e293b;
-  --color-slate-300: #0f172a;
+  /* Inverted Slate Scale (Earthy Theme) */
+  --color-slate-950: #e3e7e4; /* Calmer, warm sage-gray background */
+  --color-slate-900: #ffffff; /* Card/Panel background (pure white) */
+  --color-slate-850: #f4f6f4; /* Card hover background */
+  --color-slate-800: #d0d7d2; /* Soft borders matching the sage theme */
+  --color-slate-750: #b9c3bc;
+  --color-slate-700: #a2b0a6; /* Stronger borders/dividers */
+  --color-slate-650: #7c8d81;
+  --color-slate-600: #5c6c61; /* Secondary helper text */
+  --color-slate-500: #47554c; /* Regular text */
+  --color-slate-450: #334137;
+  --color-slate-400: #243027; /* Primary dark text */
+  --color-slate-350: #18221b; /* Heading text */
+  --color-slate-300: #0d1610; /* Main titles */
+  --color-slate-200: #0d1610; /* Highlighted text values (was light gray, now dark) */
+  --color-slate-100: #0d1610; /* Inverted highlighted text */
+  --color-slate-50: #050a06;
   
+  /* Earthy Accent Colors */
   --color-teal-500: #4e6e58; /* Soft sage green */
   --color-teal-400: #3c5644;
   --color-teal-600: #2d4133;
@@ -24,33 +30,33 @@
   
   --color-emerald-600: #8c6f5a; /* Warm brown */
   --color-emerald-500: #a38570;
-  --color-emerald-700: #735a49;
+  --color-emerald-750: #735a49;
   --color-emerald-400: #b89c88;
 }
 
-/* Additional global overrides */
+/* Global Overrides */
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #f1f5f9 !important;
-  color: #1e293b !important;
+  background-color: #e3e7e4 !important; /* Soft earthy background */
+  color: #243027 !important; /* High-contrast text */
   overflow-x: hidden;
 }
 
-/* Force dark text color for contrast on the new light background */
+/* Ensure text on cards uses the correct high-contrast color scale */
 .bg-slate-950, .bg-slate-900 {
-  color: #334155;
+  color: #243027;
 }
 
-/* Headings and labels text overrides for light cards */
+/* Titles and headings text contrast */
 .bg-slate-900 h1, .bg-slate-900 h2, .bg-slate-900 h3, .bg-slate-900 h4,
 .bg-slate-950 h1, .bg-slate-950 h2, .bg-slate-950 h3, .bg-slate-950 h4,
 h1.text-white, h2.text-white, h3.text-white, h4.text-white,
 .text-white {
-  color: #1e293b !important;
+  color: #0d1610 !important;
 }
 
-/* Restore white text for buttons, pills, gradients and badges for proper readability */
+/* Retain high-contrast white text ONLY for interactive buttons, badge fills, and gradient buttons */
 .bg-gradient-to-r,
 .bg-gradient-to-r *,
 .bg-teal-600,
@@ -76,25 +82,72 @@ button.text-white *,
 /* Sub-card backgrounds and input fields adjustments for light mode */
 input, select, textarea {
   background-color: #ffffff !important;
-  border-color: #ced4da !important;
-  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+  color: #243027 !important;
 }
 
 input::placeholder, textarea::placeholder {
-  color: #94a3b8 !important;
+  color: #7c8d81 !important;
 }
 
 /* Navigation items hover states */
 .hover\:bg-slate-800\/60:hover {
-  background-color: #e2e8f0 !important;
-}
-.hover\:bg-slate-800:hover {
   background-color: #cbd5e1 !important;
 }
+.hover\:bg-slate-800:hover {
+  background-color: #b9c3bc !important;
+}
 
-/* Custom shadow for premium paper-like depth */
-.shadow-2xl {
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+/* Soft card shadows */
+.shadow-xl {
+  box-shadow: 0 10px 25px -10px rgba(13, 22, 16, 0.06), 0 1px 2px rgba(13, 22, 16, 0.02) !important;
+}
+
+/* Redefining status pills for light mode */
+
+/* 1. Teal/Green badges (Ready, Incubation Done) */
+.bg-teal-950,
+.bg-teal-950\/40,
+.bg-emerald-950,
+.bg-emerald-950\/40 {
+  background-color: #dbebe0 !important;
+  border-color: #a3d2b3 !important;
+}
+.text-teal-400,
+.text-emerald-400 {
+  color: #1b3d26 !important;
+}
+
+/* 2. Red badges (Locked) */
+.bg-red-950,
+.bg-red-950\/40,
+.bg-red-500\/10 {
+  background-color: #fce8e6 !important;
+  border-color: #f8c4be !important;
+}
+.text-red-400 {
+  color: #7f1d1d !important;
+}
+
+/* 3. Amber/Orange badges (Due, In Progress) */
+.bg-amber-950,
+.bg-amber-950\/40,
+.bg-amber-950\/20,
+.bg-amber-500\/10 {
+  background-color: #fef3c7 !important;
+  border-color: #fcd34d !important;
+}
+.text-amber-400 {
+  color: #78350f !important;
+}
+
+/* 4. Slate badges (Pending, Batches count) */
+.bg-slate-800 {
+  background-color: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+}
+.text-slate-400, .text-slate-350, .text-slate-200 {
+  color: #475569 !important;
 }
 
 @media print {
