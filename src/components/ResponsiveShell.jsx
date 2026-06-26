@@ -16,13 +16,13 @@ export default function ResponsiveShell({
   setSettingsModalOpen,
   children
 }) {
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [bellOpen, setBellOpen] = useState(false)
   const bellRef = useRef(null)
 
-  // Determine language direction
-  const isRtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl'
+  // Determine language direction (reactive to state)
+  const isRtl = language === 'he'
 
   // Close notifications popover on click outside
   useEffect(() => {

@@ -48,9 +48,9 @@ function uuidv4() {
 
 export default function ManagerView() {
   const { user, profile, logout, createTechnician, updateAccount } = useAuth()
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'intake' | 'templates' | 'review' | 'fresh_coas' | 'archive' | 'users'
-  const isRtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl'
+  const isRtl = language === 'he'
 
   // Global State
   const [shipments, setShipments] = useState([])
