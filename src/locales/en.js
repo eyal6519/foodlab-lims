@@ -61,6 +61,8 @@ const en = {
   'batch.page.spec_label': '• Spec Template:',
   'batch.page.progress': 'Progress:',
   'batch.page.tests_entered': '/ Tests Entered',
+  'batch.page.sub': 'Entering test results for batch {batch} of product {product}',
+  'batch.page.save': 'Save Results',
   'batch.info.product_supplier': 'Product & Supplier',
   'batch.info.supplier': 'Supplier:',
   'batch.info.dates': 'Dates',
@@ -523,6 +525,7 @@ const en = {
   'incubation.incubator_36': 'Incubator 36°C',
   'incubation.incubator_55': 'Incubator 55°C',
   'incubation.units': '{n} units',
+  'incubation.exit_date': 'Exit Date:',
 
   // Task/Mission Assignment & Manager Dashboard Layout Refactor
   'mgr.dashboard.pending_shipments': 'Pending Shipments & Assignments',
