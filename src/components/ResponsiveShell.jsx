@@ -208,7 +208,7 @@ export default function ResponsiveShell({
               <Beaker className="w-6 h-6" />
             </div>
             <div className={isRtl ? 'text-right' : 'text-left'}>
-              <h2 className="text-sm font-black tracking-widest text-white uppercase">FoodLab LIMS</h2>
+              <h2 className="text-sm font-black tracking-widest text-white uppercase">FoodLab BhinaLIMS</h2>
               <span className="text-[9px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider block mt-0.5 w-fit">
                 {role === 'manager' ? t('mgr.header.badge') : 'Technician'}
               </span>
@@ -260,7 +260,7 @@ export default function ResponsiveShell({
                 <div className="p-2 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400">
                   <Beaker className="w-5 h-5" />
                 </div>
-                <span className="text-sm font-black tracking-widest text-white uppercase">LIMS</span>
+                <span className="text-sm font-black tracking-widest text-white uppercase">BhinaLIMS</span>
               </div>
               <button
                 onClick={() => setDrawerOpen(false)}

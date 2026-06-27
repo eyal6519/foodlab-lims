@@ -1,7 +1,7 @@
 {
-  "name": "LIMS Portal",
-  "short_name": "LIMS",
-  "description": "LIMS Portal for Food Lab Quality Control",
+  "name": "BhinaLIMS Portal",
+  "short_name": "BhinaLIMS",
+  "description": "BhinaLIMS Portal for Food Lab Quality Control",
   "start_url": "/?qa=true",
   "display": "standalone",
   "background_color": "#090d16",

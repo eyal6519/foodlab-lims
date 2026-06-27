@@ -1,14 +1,14 @@
 // Hebrew (he) locale strings — approved by lab owner
 const he = {
   // App Shell
-  'app.loading': 'טוען מערכת LIMS...',
+  'app.loading': 'טוען מערכת BhinaLIMS...',
   'app.access_pending.title': 'ממתין לגישה',
   'app.access_pending.body': 'החשבון שלך אומת בהצלחה, אך מפקד.ת המעבדה טרם הקצה לך תפקיד.',
   'app.access_pending.contact': 'אנא פנה למפקד.ת המעבדה שלך.',
 
   // Login
   'login.subtitle': 'בקרת איכות המזון',
-  'login.title': 'מערכת LIMS למעבדה',
+  'login.title': 'מערכת BhinaLIMS למעבדה',
   'login.heading': 'התחבר',
   'login.email_label': 'כתובת דואר אלקטרוני',
   'login.email_placeholder': 'technician@foodlab.com',
@@ -18,14 +18,14 @@ const he = {
   'login.submitting': 'מאמת...',
   'login.footer': 'לצוות מורשה בלבד. כל גישה מתועדת ומפוקחת.',
   'login.toast.offline.title': 'אין חיבור לרשת',
-  'login.toast.offline.body': 'חיבור מסד הנתונים של LIMS אינו מוגדר. לא ניתן לאמת.',
+  'login.toast.offline.body': 'חיבור מסד הנתונים של BhinaLIMS אינו מוגדר. לא ניתן לאמת.',
   'login.toast.config_missing.title': 'הגדרות חסרות',
-  'login.toast.config_missing.body': 'הגדרות שרת LIMS אינן שלמות.',
+  'login.toast.config_missing.body': 'הגדרות שרת BhinaLIMS אינן שלמות.',
   'login.toast.auth_failed.title': 'אימות נכשל',
   'login.toast.auth_failed.body': 'אירעה שגיאה בלתי צפויה. אנא נסה שנית.',
   'login.toast.bad_credentials.title': 'פרטי כניסה שגויים',
   'login.toast.bad_credentials.body': 'כתובת הדואר האלקטרוני או הסיסמה שגויים.',
-  'login.toast.server_error.title': 'שגיאת שרת LIMS (500)',
+  'login.toast.server_error.title': 'שגיאת שרת BhinaLIMS (500)',
   'login.toast.server_error.body': 'השרת החזיר שגיאת מסד נתונים פנימית. פנה למפקד.ת המעבדה.',
   'login.toast.network.title': 'בעיית חיבור רשת',
   'login.toast.network.body': 'לא ניתן לגשת למסד הנתונים. בדוק את חיבור האינטרנט.',

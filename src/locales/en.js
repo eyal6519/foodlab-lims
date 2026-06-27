@@ -1,14 +1,14 @@
 // English (en) locale strings — fallback
 const en = {
   // App Shell
-  'app.loading': 'Loading LIMS Portal...',
+  'app.loading': 'Loading BhinaLIMS Portal...',
   'app.access_pending.title': 'Access Pending',
   'app.access_pending.body': 'Your account ({email}) has been authenticated successfully, but a Lab Manager has not yet assigned you a role.',
   'app.access_pending.contact': 'Please contact your Laboratory Administrator.',
 
   // Login
   'login.subtitle': 'Food Quality Control',
-  'login.title': 'Laboratory LIMS',
+  'login.title': 'Laboratory BhinaLIMS',
   'login.heading': 'Sign in to start tracking quality batches',
   'login.email_label': 'Email Address',
   'login.email_placeholder': 'technician@foodlab.com',
@@ -18,17 +18,17 @@ const en = {
   'login.submitting': 'Authenticating...',
   'login.footer': 'Authorized personnel only. All access is logged and monitored.',
   'login.toast.offline.title': 'Connection Offline',
-  'login.toast.offline.body': 'The LIMS database connection is not configured. The application cannot authenticate with the system.',
+  'login.toast.offline.body': 'The BhinaLIMS database connection is not configured. The application cannot authenticate with the system.',
   'login.toast.config_missing.title': 'Configuration Missing',
-  'login.toast.config_missing.body': 'LIMS server configuration is incomplete. The application cannot establish a secure link to the database.',
+  'login.toast.config_missing.body': 'BhinaLIMS server configuration is incomplete. The application cannot establish a secure link to the database.',
   'login.toast.auth_failed.title': 'Authentication Failed',
   'login.toast.auth_failed.body': 'An unexpected error occurred. Please try again.',
   'login.toast.bad_credentials.title': 'Incorrect Credentials',
   'login.toast.bad_credentials.body': 'The email address or password you entered is incorrect. Please check your spelling and try again.',
-  'login.toast.server_error.title': 'LIMS Server Error (500)',
-  'login.toast.server_error.body': 'The LIMS server returned an internal database error. This usually indicates a system configuration issue. Please contact your Laboratory Administrator if this persists.',
+  'login.toast.server_error.title': 'BhinaLIMS Server Error (500)',
+  'login.toast.server_error.body': 'The BhinaLIMS server returned an internal database error. This usually indicates a system configuration issue. Please contact your Laboratory Administrator if this persists.',
   'login.toast.network.title': 'Network Connection Issue',
-  'login.toast.network.body': 'Could not reach the database. Please check your internet connection or verify that the LIMS database server is online.',
+  'login.toast.network.body': 'Could not reach the database. Please check your internet connection or verify that the BhinaLIMS database server is online.',
   'login.toast.generic.title': 'Application Error',
   'login.toast.generic.body': 'A script or connection error occurred during authorization.',
 
