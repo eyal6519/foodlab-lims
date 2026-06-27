@@ -1,16 +1,32 @@
-# React + Vite
+# 🧪 Food Laboratory LIMS Portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, mobile-responsive **Laboratory Information Management System (LIMS)** designed specifically for food quality control laboratories (Food Examination & Stock Quality מדור בחינת מזון וטיב המלאי).
 
-Currently, two official plugins are available:
+The system enables real-time tracking of incoming shipments, batch testing calculations, quality spec verification, incubation period management, automatic COA signing, and database storage tracking.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🎯 Application Goals
+- **Eliminate Paperwork**: Transition lab records from manual logs to a secure, digital portal.
+- **Automate Calculations**: Perform complex food safety formulas automatically (e.g. logarithmic pH averaging, moisture, acidity, ash, peroxide values, specific gravity, and tare subtractions) to eliminate human error.
+- **Ensure Quality Standard Compliance**: Automatically validate test values against product-specific limits and flag out-of-spec parameters visually.
+- **Manage Incubation Cycles**: Track active incubation runs (36°C & 55°C) with automated timers, alerts, and access guards.
+- **Deploy Certificates Instantly**: Generate signed Certificate of Analysis (COA) sheets immediately upon batch approval, ready for printing or downloading.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 📖 User Guides & Documentation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+To learn how to operate the portal under different roles, refer to the step-by-step user guides:
+- [**מדריך למשתמש בעברית (Hebrew User Guide)**](file:///c:/Users/eyalh/Documents/LIMS(May)/USER_GUIDE_HE.md)
+- [**English User Guide**](file:///c:/Users/eyalh/Documents/LIMS(May)/USER_GUIDE_EN.md)
+
+---
+
+## 🛠️ Tech Stack & Database Schema
+
+- **Frontend**: React + Vite + Vanilla CSS (Sage Green & Warm Clay earthy theme) + Lucide Icons.
+- **Backend/DB**: Supabase (PostgreSQL with RLS policy guards).
+
+### Database Initialization
+The database table structures, triggers, security functions, and RLS policies are documented in [**schema.sql**](file:///c:/Users/eyalh/Documents/LIMS(May)/schema.sql). When setting up a new environment, copy and execute the SQL script in your Supabase SQL Editor.
