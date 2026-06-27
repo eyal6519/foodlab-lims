@@ -22,8 +22,7 @@ This document tracks all planned, in-progress, and completed features for the LI
 ---
 
 ## ⚙️ Features Under Discussion / Refining
-- [ ] **Mobile APK Build Setup (Capacitor) & Mobile QA Panel**
-  - *Reason:* Compile the web application into a mobile Android APK for on-phone demos, and support URL parameter overrides (e.g. `?qa=true`) to force-enable the QA Panel on mobile devices.
+
 
 ---
 
@@ -77,3 +76,5 @@ This document tracks all planned, in-progress, and completed features for the LI
   - *Description:* Upgraded the incubation notification bell into a comprehensive notification center, adding alerts for retest requests, active assignments, and database storage warnings.
 - [x] **Tare Registry (Saved Tares)**
   - *Description:* Added a Saved Tares database table (`tare_registry`) and modals (📋 for Load, 💾 for Save) next to the weight test input. Supports real-time text searching, matching supplier indicators, and Base64 device camera capture and file uploads for visual comparison.
+- [x] **Mobile PWA & Mobile QA Panel Override**
+  - *Description:* Enabled force-rendering the QA control panel on production/mobile environments using the `?qa=true` query parameter, facilitating live mobile demo setups using Progressive Web App (PWA) "Add to Home Screen" behaviors.

@@ -9,9 +9,14 @@ export default function QADashboard() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ text: '', type: '' })
 
-  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  const urlParams = new URLSearchParams(window.location.search)
+  const forceQA = urlParams.get('qa') === 'true'
+  const isDev = import.meta.env.DEV || 
+                window.location.hostname === 'localhost' || 
+                window.location.hostname === '127.0.0.1' ||
+                forceQA
 
-  // Do not render if not in local development environment
+  // Do not render if not in local dev environment and not forced via ?qa=true
   if (!isDev) return null
 
   const showMsg = (text, type = 'success') => {
