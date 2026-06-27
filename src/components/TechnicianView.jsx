@@ -543,6 +543,68 @@ export default function TechnicianView() {
     .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
     .filter(b => getIncubationStatus(b, b.template_id).due)
 
+  const assignedShipments = shipments.filter(s => {
+    if (isShipmentArchived(s)) return false
+    const assignedIds = Array.isArray(s.assigned_to) ? s.assigned_to : []
+    if (!assignedIds.includes(user.id)) return false
+    
+    const temp = getTemplate(s.template_id)
+    return (s.batches || []).some(b => {
+      if (b.approved_at) return false
+      if (getIncubationStatus(b, s.template_id).locked) return false
+      
+      const pendingTests = (temp?.tests || []).filter(testId => {
+        const test = getTestDefinition(testId, temp)
+        if (!test || test.isCalculated) return false
+        if (isTestLocked(testId, b, temp)) return false
+        return !isTestEntered(testId, b.id, results, temp)
+      })
+      return pendingTests.length > 0
+    })
+  })
+
+  const retestBatches = shipments
+    .filter(s => {
+      if (isShipmentArchived(s)) return false
+      const assignedIds = Array.isArray(s.assigned_to) ? s.assigned_to : []
+      return assignedIds.includes(user.id)
+    })
+    .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
+    .filter(b => b.retest_requested_at)
+
+  const notifications = [
+    ...dueBatches.map(b => ({
+      id: `incubation:${b.id}`,
+      type: 'incubation',
+      title: b.template_name || t('common.product'),
+      subtitle: `${t('mgr.archive.batch_label').replace('{n}', b.number || t('common.unnamed_batch'))} • ${t('mgr.archive.supplier')} ${b.supplier}`,
+      badgeText: t('tech.bell.ready_badge') || t('mgr.bell.ready_badge'),
+      badgeColor: 'text-amber-400 bg-amber-950/20 border border-amber-900/30',
+      ping: true,
+      actionData: { tab: 'pending', batchId: b.id }
+    })),
+    ...assignedShipments.map(s => ({
+      id: `assignment:${s.id}`,
+      type: 'assignment',
+      title: getTemplate(s.template_id)?.name || t('common.product'),
+      subtitle: `${t('mgr.intake.supplier')} ${s.supplier} • ${t('mgr.intake.arrived')} ${s.intake_date}`,
+      badgeText: t('tech.dashboard.assigned_to_me'),
+      badgeColor: 'text-teal-400 bg-teal-950/20 border border-teal-900/30',
+      ping: false,
+      actionData: { tab: 'pending', shipmentId: s.id }
+    })),
+    ...retestBatches.map(b => ({
+      id: `retest:${b.id}`,
+      type: 'retest',
+      title: `${t('tech.bell.retest_title') || 'Retest Required'}: ${b.template_name || t('common.product')}`,
+      subtitle: `${t('mgr.archive.batch_label').replace('{n}', b.number || t('common.unnamed_batch'))}\n${t('mgr.review.retest_label')}: ${b.retest_reason}`,
+      badgeText: t('tech.bell.retest_badge') || 'Retest',
+      badgeColor: 'text-red-400 bg-red-950/20 border border-red-900/30',
+      ping: true,
+      actionData: { tab: 'pending', batchId: b.id }
+    }))
+  ]
+
   const pendingShipmentsCount = shipments.filter(s => {
     if (isShipmentArchived(s)) return false
     
@@ -589,9 +651,13 @@ export default function TechnicianView() {
         setCoaSelectedBatchId('')
       }}
       tabs={technicianTabs}
-      dueBatches={dueBatches}
-      onNotificationItemClick={(b) => {
-        setActiveTab('pending')
+      notifications={notifications}
+      onNotificationItemClick={(n) => {
+        if (n.actionData?.tab) {
+          setActiveTab(n.actionData.tab)
+        } else {
+          setActiveTab('pending')
+        }
       }}
       logout={logout}
       setSettingsModalOpen={setSettingsModalOpen}

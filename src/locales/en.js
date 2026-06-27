@@ -145,10 +145,12 @@ const en = {
   'mgr.header.logout': 'Log Out',
 
   // Manager View — Bell
-  'mgr.bell.title': 'Incubation Alerts',
-  'mgr.bell.empty': 'No batches awaiting exit.',
+  'mgr.bell.title': 'Notifications',
+  'mgr.bell.empty': 'No active notifications.',
   'mgr.bell.ready_badge': 'Ready to Exit',
-  'mgr.bell.due_badge': '{n} Due',
+  'mgr.bell.due_badge': '{n} alerts',
+  'mgr.bell.review_title': 'Pending Review',
+  'mgr.bell.review_badge': 'To Review',
   'mgr.notif.title': 'Incubation Completed',
   'mgr.notif.body': '{product} (Batch {n}) has finished incubation and is ready to exit!',
   'mgr.toast.incubation_ready': '{product} (Batch {n}) is ready to exit incubation!',
@@ -378,10 +380,12 @@ const en = {
   'tech.header.logout': 'Log Out',
 
   // Technician View — Bell
-  'tech.bell.title': 'Incubation Alerts',
-  'tech.bell.empty': 'No batches awaiting exit.',
+  'tech.bell.title': 'Notifications',
+  'tech.bell.empty': 'No active notifications.',
   'tech.bell.ready_badge': 'Ready to Exit',
-  'tech.bell.due_badge': '{n} Due',
+  'tech.bell.due_badge': '{n} alerts',
+  'tech.bell.retest_title': 'Retest Requested',
+  'tech.bell.retest_badge': 'Retest',
   'tech.notif.title': 'Incubation Completed',
   'tech.notif.body': '{product} (Batch {n}) has finished incubation and is ready to exit!',
   'tech.toast.incubation_ready': '{product} (Batch {n}) is ready to exit incubation!',

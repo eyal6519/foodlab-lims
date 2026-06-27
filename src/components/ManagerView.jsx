@@ -756,6 +756,44 @@ export default function ManagerView() {
     .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
     .filter(b => getIncubationStatus(b, b.template_id).due)
 
+  const reviewNotifications = shipments
+    .filter(s => !isShipmentArchived(s))
+    .flatMap(s => {
+      const temp = getTemplate(s.template_id)
+      return (s.batches || []).map(b => ({ ...b, shipment: s, temp }))
+    })
+    .filter(item => {
+      if (item.approved_at || item.retest_requested_at) return false
+      const totalTests = item.temp?.tests || []
+      if (totalTests.length === 0) return false
+      const enteredTests = totalTests.filter(tid => isTestEntered(tid, item.id, results, item.temp))
+      return enteredTests.length === totalTests.length
+    })
+    .map(item => ({
+      id: `review:${item.id}`,
+      type: 'review',
+      title: `${t('mgr.bell.review_title') || 'Ready for Review'}: ${item.temp?.name || t('common.product')}`,
+      subtitle: `${t('mgr.archive.batch_label').replace('{n}', item.number || t('common.unnamed_batch'))} • ${t('mgr.archive.supplier')} ${item.shipment.supplier}`,
+      badgeText: t('mgr.bell.review_badge') || 'To Review',
+      badgeColor: 'text-teal-400 bg-teal-950/20 border border-teal-900/30',
+      ping: false,
+      actionData: { tab: 'review', batchId: item.id }
+    }))
+
+  const notifications = [
+    ...dueBatches.map(b => ({
+      id: `incubation:${b.id}`,
+      type: 'incubation',
+      title: b.template_name || t('common.product'),
+      subtitle: `${t('mgr.archive.batch_label').replace('{n}', b.number || t('common.unnamed_batch'))} • ${t('mgr.archive.supplier')} ${b.supplier}`,
+      badgeText: t('mgr.bell.ready_badge'),
+      badgeColor: 'text-amber-400 bg-amber-950/20 border border-amber-900/30',
+      ping: true,
+      actionData: { tab: 'dashboard', batchId: b.id }
+    })),
+    ...reviewNotifications
+  ]
+
   const freshCoasCount = shipments
     .flatMap(s => s.batches || [])
     .filter(b => {
@@ -809,9 +847,13 @@ export default function ManagerView() {
         setCoaSelectedBatchId('')
       }}
       tabs={managerTabs}
-      dueBatches={dueBatches}
-      onNotificationItemClick={(b) => {
-        setActiveTab('dashboard')
+      notifications={notifications}
+      onNotificationItemClick={(n) => {
+        if (n.actionData?.tab) {
+          setActiveTab(n.actionData.tab)
+        } else {
+          setActiveTab('dashboard')
+        }
       }}
       logout={logout}
       setSettingsModalOpen={setSettingsModalOpen}

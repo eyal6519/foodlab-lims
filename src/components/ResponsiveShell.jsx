@@ -10,7 +10,7 @@ export default function ResponsiveShell({
   activeTab,
   onTabChange,
   tabs = [],
-  dueBatches = [],
+  notifications = [],
   onNotificationItemClick,
   logout,
   setSettingsModalOpen,
@@ -77,16 +77,16 @@ export default function ResponsiveShell({
       <button
         onClick={() => setBellOpen(!bellOpen)}
         className={`p-2.5 bg-slate-800 hover:bg-teal-950/40 border ${
-          (dueBatches.filter(b => !dismissedIds.includes(b.id)).length > 0) || storageWarning
+          (notifications.filter(n => !dismissedIds.includes(n.id)).length > 0) || storageWarning
             ? 'border-amber-500 text-amber-400 bg-amber-950/10'
             : 'border-slate-700 text-slate-300 hover:text-teal-400'
         } rounded-xl transition-all duration-200 relative`}
-        title={t('mgr.header.incubation_alerts')}
+        title={role === 'manager' ? t('mgr.bell.title') : t('tech.bell.title')}
       >
         <Bell className="w-5 h-5" />
-        {(dueBatches.filter(b => !dismissedIds.includes(b.id)).length > 0 || storageWarning) && (
+        {(notifications.filter(n => !dismissedIds.includes(n.id)).length > 0 || storageWarning) && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-extrabold w-4.5 h-4.5 rounded-full flex items-center justify-center border border-slate-900 animate-pulse">
-            {dueBatches.filter(b => !dismissedIds.includes(b.id)).length + (storageWarning ? 1 : 0)}
+            {notifications.filter(n => !dismissedIds.includes(n.id)).length + (storageWarning ? 1 : 0)}
           </span>
         )}
       </button>
@@ -96,13 +96,13 @@ export default function ResponsiveShell({
           isRtl ? 'right-0' : 'left-0'
         }`}>
           <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
-            <span className="font-bold text-white">{t('tech.header.incubation_alerts')}</span>
+            <span className="font-bold text-white">{role === 'manager' ? t('mgr.bell.title') : t('tech.bell.title')}</span>
             <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-bold">
-              {t('mgr.bell.due_badge').replace('{n}', dueBatches.filter(b => !dismissedIds.includes(b.id)).length)}
+              {t('mgr.bell.due_badge').replace('{n}', notifications.filter(n => !dismissedIds.includes(n.id)).length)}
             </span>
           </div>
-          {dueBatches.filter(b => !dismissedIds.includes(b.id)).length === 0 && !storageWarning ? (
-            <p className="text-slate-500 italic text-center py-4">{t('mgr.bell.empty')}</p>
+          {notifications.filter(n => !dismissedIds.includes(n.id)).length === 0 && !storageWarning ? (
+            <p className="text-slate-500 italic text-center py-4">{role === 'manager' ? t('mgr.bell.empty') : t('tech.bell.empty')}</p>
           ) : (
             <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
               {storageWarning && (
@@ -116,12 +116,12 @@ export default function ResponsiveShell({
                   </div>
                 </div>
               )}
-              {dueBatches.filter(b => !dismissedIds.includes(b.id)).map(b => (
+              {notifications.filter(n => !dismissedIds.includes(n.id)).map(n => (
                 <div
-                  key={b.id}
+                  key={n.id}
                   onClick={() => {
-                    setDismissedIds(prev => [...prev, b.id])
-                    onNotificationItemClick(b)
+                    setDismissedIds(prev => [...prev, n.id])
+                    onNotificationItemClick(n)
                     setBellOpen(false)
                     setDrawerOpen(false)
                   }}
@@ -129,15 +129,19 @@ export default function ResponsiveShell({
                     isRtl ? 'flex-row-reverse text-right' : 'text-left'
                   }`}
                 >
-                  <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0 animate-ping" />
+                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.ping ? 'animate-ping' : ''} ${
+                    n.type === 'retest' ? 'bg-red-500' : n.type === 'assignment' ? 'bg-teal-400' : 'bg-amber-500'
+                  }`} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-slate-100 truncate">{b.template_name}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                      {t('mgr.archive.batch_label').replace('{n}', b.number || t('common.unnamed_batch'))} • {t('mgr.archive.supplier')} <span>{b.supplier}</span>
+                    <p className="font-bold text-slate-100 truncate">{n.title}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 whitespace-normal">
+                      {n.subtitle}
                     </p>
-                    <p className="text-[9px] text-amber-400 font-bold uppercase mt-1">
-                      {t('mgr.bell.ready_badge')}
-                    </p>
+                    {n.badgeText && (
+                      <p className={`text-[9px] font-extrabold uppercase mt-1 w-fit px-1.5 py-0.5 rounded ${n.badgeColor || 'text-amber-400 bg-amber-950/20'}`}>
+                        {n.badgeText}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

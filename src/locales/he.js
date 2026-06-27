@@ -145,10 +145,12 @@ const he = {
   'mgr.header.logout': 'יציאה',
 
   // Manager View — Bell
-  'mgr.bell.title': 'התראות אינקובציה',
-  'mgr.bell.empty': 'אין אצוות הממתינות ליציאה.',
+  'mgr.bell.title': 'התראות',
+  'mgr.bell.empty': 'אין התראות פעילות.',
   'mgr.bell.ready_badge': 'מוכן ליציאה',
-  'mgr.bell.due_badge': '{n} ממתינות',
+  'mgr.bell.due_badge': '{n} התראות',
+  'mgr.bell.review_title': 'ממתין לאישור',
+  'mgr.bell.review_badge': 'לאישור',
   'mgr.notif.title': 'אינקובציה הושלמה',
   'mgr.notif.body': '{product} (אצווה {n}) סיימה אינקובציה ומוכנה ליציאה!',
   'mgr.toast.incubation_ready': '{product} (אצווה {n}) מוכנה ליציאה מאינקובציה!',
@@ -378,10 +380,12 @@ const he = {
   'tech.header.logout': 'יציאה',
 
   // Technician View — Bell (same as manager)
-  'tech.bell.title': 'התראות אינקובציה',
-  'tech.bell.empty': 'אין אצוות הממתינות ליציאה.',
+  'tech.bell.title': 'התראות',
+  'tech.bell.empty': 'אין התראות פעילות.',
   'tech.bell.ready_badge': 'מוכן ליציאה',
-  'tech.bell.due_badge': '{n} ממתינות',
+  'tech.bell.due_badge': '{n} התראות',
+  'tech.bell.retest_title': 'נדרשת בדיקה חוזרת',
+  'tech.bell.retest_badge': 'חוזרת',
   'tech.notif.title': 'אינקובציה הושלמה',
   'tech.notif.body': '{product} (אצווה {n}) סיימה אינקובציה ומוכנה ליציאה!',
   'tech.toast.incubation_ready': '{product} (אצווה {n}) מוכנה ליציאה מאינקובציה!',
