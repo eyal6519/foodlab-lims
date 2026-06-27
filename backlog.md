@@ -12,7 +12,7 @@ This document tracks all planned, in-progress, and completed features for the LI
   - *Goal:* Ensure intuitive data entry for technicians and confirm output results map to specifications correctly.
 
 ### Long-Term / Complex Features
-- [ ] **Database Cleanup and Data Archiving Tool**
+- [x] **Database Cleanup and Data Archiving Tool**
   - *Reason:* Automatically or manually purge or archive historical records to remain within free-tier Supabase and Vercel storage limits.
 - [ ] **Specialized Quality Assurance Mock Testing**
   - *Reason:* Ensure that chemical equations and other testing methodologies are mathematically verified against benchmark standard values.
@@ -69,3 +69,11 @@ This document tracks all planned, in-progress, and completed features for the LI
   - *Description:* Displays all entered replicate values centered on the COA sheet with the final average highlighted in bold on the right.
 - [x] **COA Search and Filtering**
   - *Description:* Filter certificates by template name, batch number, production date range, or approval date range.
+- [x] **Database Cleanup and Data Archiving Tool**
+  - *Description:* Implemented manual COA deletion from the Archive and automatic background database size monitoring. The system alerts managers when storage usage exceeds 75% and automatically purges the oldest 30% of signed COAs when usage reaches 90% to stay within the free-tier Supabase limit.
+- [x] **Delete Product Template**
+  - *Description:* Enabled managers to delete product templates from the template list, preventing deletion if active shipments rely on that template.
+- [x] **General Notifications Center**
+  - *Description:* Upgraded the incubation notification bell into a comprehensive notification center, adding alerts for retest requests, active assignments, and database storage warnings.
+- [x] **Tare Registry (Saved Tares)**
+  - *Description:* Added a Saved Tares database table (`tare_registry`) and modals (📋 for Load, 💾 for Save) next to the weight test input. Supports real-time text searching, matching supplier indicators, and Base64 device camera capture and file uploads for visual comparison.
