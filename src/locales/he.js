@@ -199,6 +199,11 @@ const he = {
   'mgr.templates.incubation_no': 'אינקובציה נדרשת: לא',
   'mgr.templates.enabled_tests': 'בדיקות פעילות ({n})',
   'mgr.templates.days': '{n} ימים',
+  'mgr.templates.delete_btn': 'מחק תבנית',
+  'mgr.templates.delete_confirm': 'האם אתה בטוח שברצונך למחוק את התבנית "{name}"? פעולה זו אינה הפיכה ותיכשל אם ישנם משלוחים המשתמשים בתבנית זו.',
+  'mgr.templates.delete_success': 'התבנית נמחקה בהצלחה',
+  'mgr.templates.delete_error': 'שגיאה במחיקת תבנית:',
+  'mgr.templates.delete_error_in_use': 'לא ניתן למחוק את התבנית כיוון שהיא בשימוש על ידי משלוחים קיימים במערכת.',
 
   // Manager View — Review
   'mgr.review.title': 'לוח בדיקה ואישור',

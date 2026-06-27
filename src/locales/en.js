@@ -199,6 +199,11 @@ const en = {
   'mgr.templates.incubation_no': 'Requires Incubation: No',
   'mgr.templates.enabled_tests': 'Enabled Tests ({n})',
   'mgr.templates.days': '{n} days',
+  'mgr.templates.delete_btn': 'Delete Template',
+  'mgr.templates.delete_confirm': 'Are you sure you want to delete the template "{name}"? This action is irreversible and will fail if shipments are currently using this template.',
+  'mgr.templates.delete_success': 'Template deleted successfully',
+  'mgr.templates.delete_error': 'Error deleting template:',
+  'mgr.templates.delete_error_in_use': 'Cannot delete this template because it is currently in use by existing shipments.',
 
   // Manager View — Review
   'mgr.review.title': 'Review Dashboard',

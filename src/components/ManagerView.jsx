@@ -498,6 +498,32 @@ export default function ManagerView() {
     }
   }
 
+  // Delete Template
+  const handleDeleteTemplate = async (template) => {
+    if (!window.confirm(t('mgr.templates.delete_confirm').replace('{name}', template.name))) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('product_templates')
+        .delete()
+        .eq('id', template.id)
+
+      if (error) throw error
+
+      showToast(t('mgr.templates.delete_success'))
+      fetchData()
+    } catch (err) {
+      console.error('Error deleting template:', err)
+      if (err.code === '23503') {
+        alert(t('mgr.templates.delete_error_in_use'))
+      } else {
+        alert(`${t('mgr.templates.delete_error')} ${err.message}`)
+      }
+    }
+  }
+
   // Toggle incubation manually (Override Lock)
   const toggleIncubationUnlock = async (batchId, currentStatus) => {
     try {
@@ -1305,12 +1331,21 @@ export default function ManagerView() {
                             <div>
                               <div className="flex justify-between items-start gap-4">
                                 <h3 className="text-base font-bold text-white">{template.name}</h3>
-                                <button
-                                  onClick={() => setTemplateModal(template)}
-                                  className="p-1.5 bg-slate-850 border border-slate-800 hover:border-slate-750 text-slate-400 hover:text-white rounded-xl transition-all"
-                                >
-                                  <Edit className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex gap-1.5 shrink-0">
+                                  <button
+                                    onClick={() => setTemplateModal(template)}
+                                    className="p-1.5 bg-slate-850 border border-slate-800 hover:border-slate-750 text-slate-400 hover:text-white rounded-xl transition-all"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteTemplate(template)}
+                                    className="p-1.5 bg-red-500/10 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-red-300 rounded-xl transition-all active:scale-95"
+                                    title={t('mgr.templates.delete_btn')}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                               <p className="text-xs text-slate-500 mt-1">{template.packaging || t('mgr.templates.no_packaging')}</p>
                               
