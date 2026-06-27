@@ -300,3 +300,30 @@ begin
   delete from auth.users where id = target_user_id;
 end;
 $$ language plpgsql;
+
+-- 9. TARE REGISTRY TABLE
+create table if not exists public.tare_registry (
+    id uuid primary key default gen_random_uuid(),
+    product_template_id uuid references public.product_templates(id) on delete cascade not null,
+    supplier text not null,
+    declared_weight text not null,
+    short_description text not null,
+    tare_weight numeric not null,
+    manufacturer text,
+    image_url text, -- holds image base64 representation
+    created_at timestamp with time zone default now()
+);
+
+-- Enable RLS
+alter table public.tare_registry enable row level security;
+
+-- Policies (allow read & write for authenticated users)
+create policy "Authenticated users can read tare registry"
+    on public.tare_registry for select
+    to authenticated
+    using (true);
+
+create policy "Managers and technicians can manage tare registry"
+    on public.tare_registry for all
+    to authenticated
+    using (true);

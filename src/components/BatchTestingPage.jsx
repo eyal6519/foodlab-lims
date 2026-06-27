@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Trash2, AlertTriangle, Check, Info, Lock } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, AlertTriangle, Check, Info, Lock, Camera, Upload, Search, X } from 'lucide-react'
 import { TESTS, testMap, calculateTest, num, isTestLocked, getTestDefinition } from '../utils/calculations'
 import { useLanguage } from '../context/LanguageContext'
+import { supabase } from '../lib/supabase'
 
 const TEST_FORMULAS = {
   weight: 'Net = Gross - Tare',
@@ -48,6 +49,21 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
   const [isDirty, setIsDirty] = useState(false)
   const [batchTare, setBatchTare] = useState('')
   const [subtractTare, setSubtractTare] = useState(true)
+
+  // Tare registry states
+  const [tareRegistryOpen, setTareRegistryOpen] = useState(false)
+  const [saveTareModalOpen, setSaveTareModalOpen] = useState(false)
+  const [taresList, setTaresList] = useState([])
+  const [loadingTares, setLoadingTares] = useState(false)
+  const [taresSearch, setTaresSearch] = useState('')
+  const [activePreviewImage, setActivePreviewImage] = useState(null)
+
+  // Save tare modal form states
+  const [shortDesc, setShortDesc] = useState('')
+  const [declaredWeight, setDeclaredWeight] = useState('')
+  const [manufacturer, setManufacturer] = useState('')
+  const [imageFile, setImageFile] = useState(null)
+  const [savingTare, setSavingTare] = useState(false)
 
   const template = templates.find(t => t.id === shipment.template_id)
 
@@ -135,6 +151,61 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
       setSubtractTare(true)
     }
   }, [batch.id, templates, initialResults])
+
+  useEffect(() => {
+    if (tareRegistryOpen && shipment.template_id) {
+      const fetchTares = async () => {
+        setLoadingTares(true)
+        try {
+          const { data, error } = await supabase
+            .from('tare_registry')
+            .select('*')
+            .eq('product_template_id', shipment.template_id)
+            .order('created_at', { ascending: false })
+          if (error) throw error
+          setTaresList(data || [])
+        } catch (err) {
+          console.error('Error fetching tares:', err)
+        } finally {
+          setLoadingTares(false)
+        }
+      }
+      fetchTares()
+    }
+  }, [tareRegistryOpen, shipment.template_id])
+
+  const handleSaveTare = async () => {
+    if (!shortDesc.trim() || !declaredWeight.trim()) {
+      alert(t('tare.save.error_fields') || 'Please fill in description and declared weight.')
+      return
+    }
+    setSavingTare(true)
+    try {
+      const { error } = await supabase
+        .from('tare_registry')
+        .insert({
+          product_template_id: shipment.template_id,
+          supplier: shipment.supplier,
+          declared_weight: declaredWeight.trim(),
+          short_description: shortDesc.trim(),
+          tare_weight: Number(batchTare),
+          manufacturer: manufacturer.trim() || null,
+          image_url: imageFile || null
+        })
+      if (error) throw error
+      alert(t('tare.save.success') || 'Tare saved successfully to registry.')
+      setSaveTareModalOpen(false)
+      // Clear inputs
+      setShortDesc('')
+      setDeclaredWeight('')
+      setManufacturer('')
+      setImageFile(null)
+    } catch (err) {
+      alert('Error saving tare: ' + err.message)
+    } finally {
+      setSavingTare(false)
+    }
+  }
 
   function createEmptyRow(test) {
     const row = {}
@@ -768,15 +839,37 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                           {t('batch.weight.tare_label')}
                         </label>
-                        <input
-                          type="number"
-                          step="any"
-                          disabled={isLocked}
-                          value={batchTare}
-                          onChange={(e) => handleBatchTareChange(e.target.value)}
-                          placeholder={t('batch.weight.tare_placeholder')}
-                          className="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            step="any"
+                            disabled={isLocked}
+                            value={batchTare}
+                            onChange={(e) => handleBatchTareChange(e.target.value)}
+                            placeholder={t('batch.weight.tare_placeholder')}
+                            className="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50 min-w-0"
+                          />
+                          <button
+                            type="button"
+                            disabled={isLocked}
+                            onClick={() => setTareRegistryOpen(true)}
+                            className="p-2 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-teal-400 border border-slate-700 hover:border-slate-650 rounded-xl text-xs font-semibold cursor-pointer shrink-0 transition-all duration-200 flex items-center justify-center"
+                            title={t('batch.weight.load_tare_tooltip')}
+                          >
+                            📋
+                          </button>
+                          {batchTare && (
+                            <button
+                              type="button"
+                              disabled={isLocked}
+                              onClick={() => setSaveTareModalOpen(true)}
+                              className="p-2 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500/30 text-teal-400 rounded-xl text-xs font-semibold cursor-pointer shrink-0 transition-all duration-200 flex items-center justify-center"
+                              title={t('batch.weight.save_tare_tooltip')}
+                            >
+                              💾
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-3 pt-4 sm:pt-0">
@@ -995,6 +1088,267 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
           <span>{t('batch.btn.save')}</span>
         </button>
       </footer>
+
+      {/* Saved Tares Registry (Load modal) */}
+      {tareRegistryOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col p-6 shadow-2xl">
+            <div className="flex justify-between items-center pb-4 border-b border-slate-800">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <span>📋</span> {t('tare.registry.title')}
+              </h2>
+              <button
+                onClick={() => setTareRegistryOpen(false)}
+                className="p-1.5 hover:bg-slate-800 text-slate-450 hover:text-white rounded-xl transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="py-4 relative">
+              <input
+                type="text"
+                placeholder={t('tare.registry.search_placeholder')}
+                value={taresSearch}
+                onChange={(e) => setTaresSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500 transition-all duration-200"
+              />
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1">
+              {loadingTares ? (
+                <div className="py-8 text-center text-xs text-slate-500">{t('app.loading')}</div>
+              ) : taresList.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500 italic">{t('tare.registry.empty')}</div>
+              ) : (
+                (() => {
+                  const filtered = taresList.filter(item => {
+                    const search = taresSearch.toLowerCase().trim()
+                    if (!search) return true
+                    return (
+                      (item.supplier && item.supplier.toLowerCase().includes(search)) ||
+                      (item.short_description && item.short_description.toLowerCase().includes(search)) ||
+                      (item.manufacturer && item.manufacturer.toLowerCase().includes(search)) ||
+                      (item.declared_weight && item.declared_weight.toLowerCase().includes(search))
+                    )
+                  })
+
+                  if (filtered.length === 0) {
+                    return <div className="py-8 text-center text-xs text-slate-500 italic">{t('common.filter.no_results') || 'No results found.'}</div>
+                  }
+
+                  return filtered.map(item => {
+                    const isCurrentSupplier = item.supplier === shipment.supplier
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row justify-between gap-4 ${
+                          isCurrentSupplier
+                            ? 'bg-teal-50/5 border-teal-500/30 hover:border-teal-500/50'
+                            : 'bg-slate-950/40 border-slate-850 hover:border-slate-800'
+                        }`}
+                      >
+                        <div className="flex gap-3">
+                          {item.image_url && (
+                            <img
+                              src={item.image_url}
+                              alt="Tare"
+                              onClick={() => setActivePreviewImage(item.image_url)}
+                              className="w-16 h-16 object-cover rounded-xl border border-slate-800 shrink-0 cursor-zoom-in hover:opacity-90 transition-all"
+                            />
+                          )}
+                          <div className="space-y-1 text-xs">
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <span className="font-bold text-white text-sm">{item.tare_weight}g</span>
+                              {isCurrentSupplier && (
+                                <span className="px-2 py-0.5 bg-teal-500/10 text-teal-400 rounded-md text-[9px] font-bold">
+                                  {t('tech.dashboard.assigned_to_me') || 'Matched Supplier'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-slate-350"><strong className="text-slate-400 font-medium">{t('tare.registry.supplier')}</strong> {item.supplier}</p>
+                            <p className="text-slate-355"><strong className="text-slate-400 font-medium">{t('tare.registry.declared_weight')}</strong> {item.declared_weight}</p>
+                            {item.manufacturer && (
+                              <p className="text-slate-360"><strong className="text-slate-400 font-medium">{t('tare.registry.manufacturer')}</strong> {item.manufacturer}</p>
+                            )}
+                            <p className="text-slate-400 italic bg-slate-900/50 p-2 rounded-lg mt-1 border border-slate-850/50 leading-relaxed">
+                              {item.short_description}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex sm:flex-col justify-end items-end shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleBatchTareChange(String(item.tare_weight))
+                              setTareRegistryOpen(false)
+                            }}
+                            className="w-full sm:w-auto px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl active:scale-[0.98] transition-all cursor-pointer"
+                          >
+                            {t('tare.registry.select_btn')}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })
+                })()
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Tare to Registry Modal */}
+      {saveTareModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md flex flex-col p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-4 border-b border-slate-800">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <span>💾</span> {t('tare.save.title')}
+              </h2>
+              <button
+                onClick={() => setSaveTareModalOpen(false)}
+                className="p-1.5 hover:bg-slate-800 text-slate-450 hover:text-white rounded-xl transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 py-4 text-xs">
+              <div className="grid grid-cols-2 gap-4 p-3 bg-slate-950/50 rounded-2xl border border-slate-850">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t('tare.save.product')}</span>
+                  <span className="text-white font-medium block truncate mt-0.5">{template?.name}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t('tare.save.supplier')}</span>
+                  <span className="text-white font-medium block truncate mt-0.5">{shipment.supplier}</span>
+                </div>
+                <div className="col-span-2 pt-2 border-t border-slate-900">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t('tare.save.weight')}</span>
+                  <span className="text-teal-400 font-bold text-sm block mt-0.5">{batchTare}g</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('tare.save.description_label')}</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={shortDesc}
+                  onChange={(e) => setShortDesc(e.target.value)}
+                  placeholder={t('tare.save.description_placeholder')}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500 transition-all duration-200 resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('tare.save.declared_label')}</label>
+                <input
+                  type="text"
+                  required
+                  value={declaredWeight}
+                  onChange={(e) => setDeclaredWeight(e.target.value)}
+                  placeholder={t('tare.save.declared_placeholder')}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500 transition-all duration-200"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('tare.save.manufacturer_label')}</label>
+                <input
+                  type="text"
+                  value={manufacturer}
+                  onChange={(e) => setManufacturer(e.target.value)}
+                  placeholder={t('tare.save.manufacturer_placeholder')}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500 transition-all duration-200"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t('tare.save.photo_btn')}</label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onloadend = () => {
+                          setImageFile(reader.result)
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                    className="hidden"
+                    id="tare-camera-input"
+                  />
+                  <label
+                    htmlFor="tare-camera-input"
+                    className="flex items-center gap-2 px-4 py-2 border border-slate-800 bg-slate-950 hover:bg-slate-900 text-slate-350 hover:text-white rounded-xl cursor-pointer transition-all duration-200"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>{t('tare.save.photo_btn')}</span>
+                  </label>
+                  {imageFile && (
+                    <button
+                      type="button"
+                      onClick={() => setImageFile(null)}
+                      className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl transition-all text-xs font-semibold cursor-pointer"
+                    >
+                      {t('tare.save.photo_remove')}
+                    </button>
+                  )}
+                </div>
+                {imageFile && (
+                  <img
+                    src={imageFile}
+                    alt="Preview"
+                    className="w-full h-32 object-cover rounded-xl border border-slate-800 mt-2"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-4 border-t border-slate-800 pt-4 text-xs">
+              <button
+                type="button"
+                onClick={() => setSaveTareModalOpen(false)}
+                className="flex-1 px-4 py-2.5 border border-slate-850 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={savingTare}
+                onClick={handleSaveTare}
+                className="flex-1 px-4 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                <span>{savingTare ? t('tare.save.saving') : t('tare.save.submit_btn')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Large Image Preview Overlay */}
+      {activePreviewImage && (
+        <div
+          onClick={() => setActivePreviewImage(null)}
+          className="fixed inset-0 bg-slate-950/90 z-[60] flex items-center justify-center p-4 cursor-zoom-out no-print animate-fade-in"
+        >
+          <img
+            src={activePreviewImage}
+            alt="Full size tare preview"
+            className="max-w-full max-h-[90vh] object-contain rounded-3xl border border-slate-800 shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   )
 }
