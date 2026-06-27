@@ -856,7 +856,6 @@ export default function TechnicianView() {
                             <div className="flex justify-between items-start gap-4">
                               <h3 className="text-base font-bold text-white">{template.name}</h3>
                             </div>
-                            <p className="text-xs text-slate-500 mt-1">{template.packaging || t('tech.templates.no_packaging')}</p>
                             
                             <div className="mt-4 space-y-2">
                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('tech.templates.incubation_cycles')}</p>

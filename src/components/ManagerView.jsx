@@ -1389,7 +1389,7 @@ export default function ManagerView() {
                                   </button>
                                 </div>
                               </div>
-                              <p className="text-xs text-slate-500 mt-1">{template.packaging || t('mgr.templates.no_packaging')}</p>
+
                               
                               <div className="mt-4 space-y-2">
                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('mgr.templates.incubation_cycles')}</p>
@@ -2440,16 +2440,7 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.template_modal.description_label')}</label>
-              <input
-                type="text"
-                name="packaging"
-                defaultValue={initialTemplate?.packaging || ''}
-                placeholder={t('mgr.template_modal.description_placeholder')}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
-              />
-            </div>
+
             
             {/* Toggle Switch Component instead of native checkbox */}
             <div className="space-y-1 col-span-1 sm:col-span-2 flex items-center py-2">
