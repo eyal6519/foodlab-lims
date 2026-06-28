@@ -578,7 +578,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
     }))
   }
 
-  const handleSave = () => {
+  const handleSave = (isSubmit = false) => {
     const allWarnings = {}
     let hasBlockingError = false
 
@@ -603,6 +603,39 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
       return
     }
 
+    // Helper to determine if a test is empty
+    const isTestEmpty = (rList, tDef) => {
+      if (rList.length === 0) return true
+      return rList.every(row => {
+        return tDef.fields.every(f => {
+          const val = row[f.id]
+          if (f.type === 'checkbox') return !val
+          if (f.type === 'select') return true // select option default doesn't count
+          return val === '' || val === null || val === undefined
+        })
+      })
+    }
+
+    if (isSubmit) {
+      const missingTests = []
+      enabledTests.forEach(testId => {
+        const rows = testData[testId] || []
+        const test = allTests.find(t => t.id === testId)
+        if (!test) return
+        if (isTestEmpty(rows, test)) {
+          missingTests.push(test.name)
+        }
+      })
+      if (missingTests.length > 0) {
+        alert(t('batch.alert.fill_all_tests').replace('{list}', missingTests.join(', ')))
+        return
+      }
+
+      if (!window.confirm(t('batch.alert.submit_confirm'))) {
+        return
+      }
+    }
+
     // Prepare array of test results to save
     const upsertPayload = []
 
@@ -621,18 +654,6 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
         return cleaned
       })
 
-      // Determine if the test actually has entered data or was already saved
-      const isTestEmpty = (rList, tDef) => {
-        return rList.every(row => {
-          return tDef.fields.every(f => {
-            const val = row[f.id]
-            if (f.type === 'checkbox') return !val
-            if (f.type === 'select') return true // select option default doesn't count
-            return val === '' || val === null || val === undefined
-          })
-        })
-      }
-
       const hasInitial = !!initialResults[`${batch.id}:${testId}`]
       const isEmpty = isTestEmpty(rows, test)
 
@@ -645,7 +666,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
       }
     })
 
-    onSave(upsertPayload)
+    onSave(upsertPayload, isSubmit)
   }
 
   const handleBackClick = () => {
@@ -747,7 +768,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
             const test = allTests.find(t => t.id === testId)
             if (!test) return null
 
-            const isLocked = isTestLocked(testId, batch, template)
+            const isLocked = isTestLocked(testId, batch, template) || !!batch.approved_at || !!batch.submitted_at
             const rows = testData[testId] || []
             const testWarnings = warnings[testId] || []
             const isAddDisabled = isLocked || test.single || (test.max && rows.length >= test.max)
@@ -1074,19 +1095,36 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
       {/* Sticky Bottom Actions Bar */}
       <footer className="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur border-t border-slate-800 py-4 px-4 sm:px-6 flex sm:justify-end gap-3 z-20">
-        <button
-          onClick={handleBackClick}
-          className="flex-1 sm:flex-none px-6 py-2.5 border border-slate-800 hover:border-slate-750 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all duration-200 cursor-pointer"
-        >
-          {t('batch.btn.cancel')}
-        </button>
-        <button
-          onClick={handleSave}
-          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-8 py-2.5 bg-teal-500 hover:bg-teal-400 active:scale-[0.98] text-xs font-bold text-slate-950 rounded-xl shadow-lg shadow-teal-500/10 transition-all duration-200 cursor-pointer"
-        >
-          <Check className="w-4 h-4" />
-          <span>{t('batch.btn.save')}</span>
-        </button>
+        {(batch.approved_at || batch.submitted_at) ? (
+          <button
+            onClick={handleBackClick}
+            className="flex-1 sm:flex-none px-8 py-2.5 bg-slate-800 hover:bg-slate-750 text-xs font-bold text-white rounded-xl transition-all duration-200 cursor-pointer"
+          >
+            {t('batch.page.back')}
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={handleBackClick}
+              className="flex-1 sm:flex-none px-6 py-2.5 border border-slate-800 hover:border-slate-750 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all duration-200 cursor-pointer"
+            >
+              {t('batch.btn.cancel')}
+            </button>
+            <button
+              onClick={() => handleSave(false)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-6 py-2.5 border border-teal-500/20 hover:border-teal-500/40 bg-teal-500/5 text-teal-400 active:scale-[0.98] text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer"
+            >
+              <span>{t('batch.btn.save_draft')}</span>
+            </button>
+            <button
+              onClick={() => handleSave(true)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-8 py-2.5 bg-teal-500 hover:bg-teal-400 active:scale-[0.98] text-xs font-bold text-slate-950 rounded-xl shadow-lg shadow-teal-500/10 transition-all duration-200 cursor-pointer"
+            >
+              <Check className="w-4 h-4" />
+              <span>{t('batch.btn.submit')}</span>
+            </button>
+          </>
+        )}
       </footer>
 
       {/* Saved Tares Registry (Load modal) */}

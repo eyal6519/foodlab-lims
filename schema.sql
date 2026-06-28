@@ -327,3 +327,6 @@ create policy "Managers and technicians can manage tare registry"
     on public.tare_registry for all
     to authenticated
     using (true);
+
+-- Alter table to add submitted_at column for batch submissions
+alter table public.batches add column if not exists submitted_at timestamp with time zone;

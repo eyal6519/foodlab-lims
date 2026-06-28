@@ -18,8 +18,8 @@ The system enables real-time tracking of incoming shipments, batch testing calcu
 ## 📖 User Guides & Documentation
 
 To learn how to operate the portal under different roles, refer to the step-by-step user guides:
-- [**מדריך למשתמש בעברית (Hebrew User Guide)**](file:///c:/Users/eyalh/Documents/LIMS(May)/USER_GUIDE_HE.md)
-- [**English User Guide**](file:///c:/Users/eyalh/Documents/LIMS(May)/USER_GUIDE_EN.md)
+- [**מדריך למשתמש בעברית (Hebrew User Guide)**](USER_GUIDE_HE.md)
+- [**English User Guide**](USER_GUIDE_EN.md)
 
 ---
 
@@ -29,4 +29,4 @@ To learn how to operate the portal under different roles, refer to the step-by-s
 - **Backend/DB**: Supabase (PostgreSQL with RLS policy guards).
 
 ### Database Initialization
-The database table structures, triggers, security functions, and RLS policies are documented in [**schema.sql**](file:///c:/Users/eyalh/Documents/LIMS(May)/schema.sql). When setting up a new environment, copy and execute the SQL script in your Supabase SQL Editor.
+The database table structures, triggers, security functions, and RLS policies are documented in [**schema.sql**](schema.sql). When setting up a new environment, copy and execute the SQL script in your Supabase SQL Editor.

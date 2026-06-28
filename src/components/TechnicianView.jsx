@@ -171,7 +171,7 @@ export default function TechnicianView() {
     }
   }
 
-  const handleSaveAllResults = async (upsertPayload) => {
+  const handleSaveAllResults = async (upsertPayload, isSubmit = false) => {
     if (!activeBatchTesting) return
     const { batch } = activeBatchTesting
 
@@ -188,22 +188,29 @@ export default function TechnicianView() {
 
       if (error) throw error
 
-      // Clear retest request if there was an active retest
+      const batchUpdates = {}
+      if (isSubmit) {
+        batchUpdates.submitted_at = new Date().toISOString()
+      }
       if (batch.retest_requested_at) {
-        const { error: clearRetestError } = await supabase
-          .from('batches')
-          .update({
-            retest_requested_at: null,
-            retest_reason: null
-          })
-          .eq('id', batch.id)
-        if (clearRetestError) throw clearRetestError
+        batchUpdates.retest_requested_at = null
+        batchUpdates.retest_reason = null
+      }
 
+      // Update batches table if there are field updates
+      if (Object.keys(batchUpdates).length > 0) {
+        const { error: batchError } = await supabase
+          .from('batches')
+          .update(batchUpdates)
+          .eq('id', batch.id)
+        if (batchError) throw batchError
+
+        // Update local shipments state
         setShipments(prev => prev.map(s => {
           if (s.id === batch.shipment_id) {
             return {
               ...s,
-              batches: s.batches.map(b => b.id === batch.id ? { ...b, retest_requested_at: null, retest_reason: null } : b)
+              batches: s.batches.map(b => b.id === batch.id ? { ...b, ...batchUpdates } : b)
             }
           }
           return s
@@ -220,7 +227,11 @@ export default function TechnicianView() {
       })
 
       setActiveBatchTesting(null)
-      showToast(t('tech.toast.results_saved'))
+      if (isSubmit) {
+        showToast(t('batch.alert.submit_success'))
+      } else {
+        showToast(t('tech.toast.results_saved'))
+      }
     } catch (err) {
       alert(`${t('tech.alert.results_save_error')} ${err.message}`)
     }
@@ -550,7 +561,7 @@ export default function TechnicianView() {
     
     const temp = getTemplate(s.template_id)
     return (s.batches || []).some(b => {
-      if (b.approved_at) return false
+      if (b.approved_at || b.submitted_at) return false
       if (getIncubationStatus(b, s.template_id).locked) return false
       
       const pendingTests = (temp?.tests || []).filter(testId => {

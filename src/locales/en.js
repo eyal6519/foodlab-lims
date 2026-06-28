@@ -106,6 +106,11 @@ const en = {
   'batch.hint.min': '• Minimum of {n} replicates required.',
   'batch.hint.max': '• Maximum of {n} replicates allowed.',
   'batch.btn.save': 'Save All Results',
+  'batch.btn.save_draft': 'Save as Draft',
+  'batch.btn.submit': 'Submit for Review',
+  'batch.alert.submit_confirm': 'Are you sure you want to submit this batch for manager review? Once submitted, results will be locked for editing.',
+  'batch.alert.submit_success': 'Batch submitted successfully for review.',
+  'batch.alert.fill_all_tests': 'Please fill in all tests before submitting. Missing: {list}',
   'batch.btn.cancel': 'Cancel',
   'batch.test.locked': 'Locked - Incubating ({temp} exits on {date} / in {days} days)',
   'batch.test.formula_label': 'Formula:',
@@ -165,6 +170,7 @@ const en = {
   'mgr.tab.templates': 'Product Templates',
   'mgr.tab.review': 'Review & Approval',
   'mgr.tab.recent_coas': 'Recent COAs',
+  'mgr.tab.coa_archive': 'COA Archive',
   'mgr.tab.users': 'User Accounts',
 
   // Manager View — Overview
@@ -212,8 +218,10 @@ const en = {
   'mgr.templates.delete_error_in_use': 'Cannot delete this template because it is currently in use by existing shipments.',
 
   // Manager View — Review
-  'mgr.review.title': 'Review Dashboard',
-  'mgr.review.empty': 'No batches recorded in the intake log.',
+  'mgr.review.title': 'Review & Approval Board',
+  'mgr.review.empty': 'No batches are currently awaiting approval.',
+  'mgr.review.quick_approve': 'Quick Approve (OK)',
+  'mgr.review.submitted_at': 'Submitted:',
   'mgr.review.unnamed': 'Unnamed Batch',
   'mgr.review.pending_retest': 'Pending Retest: {reason}',
   'mgr.review.approved_badge': 'Approved',

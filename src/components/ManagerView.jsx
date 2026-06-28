@@ -50,8 +50,12 @@ function uuidv4() {
 export default function ManagerView() {
   const { user, profile, logout, createTechnician, updateAccount } = useAuth()
   const { language, t } = useLanguage()
-  const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'intake' | 'templates' | 'review' | 'fresh_coas' | 'archive' | 'users'
+  const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'intake' | 'templates' | 'review' | 'coa_archive' | 'users'
   const isRtl = language === 'he'
+
+  // Accordion collapsible states
+  const [expandedShipments, setExpandedShipments] = useState({})
+  const [expandedBatches, setExpandedBatches] = useState({})
 
   // Global State
   const [shipments, setShipments] = useState([])
@@ -566,7 +570,7 @@ export default function ManagerView() {
       if (error) throw error
       showToast(t('mgr.toast.batch_approved'), 'success')
       await fetchData()
-      setActiveTab('fresh_coas')
+      setActiveTab('archive')
       setCoaSelectedBatchId(batchId)
     } catch (err) {
       alert(`${t('mgr.alert.approve_error')} ${err.message}`)
@@ -763,11 +767,8 @@ export default function ManagerView() {
       return (s.batches || []).map(b => ({ ...b, shipment: s, temp }))
     })
     .filter(item => {
-      if (item.approved_at || item.retest_requested_at) return false
-      const totalTests = item.temp?.tests || []
-      if (totalTests.length === 0) return false
-      const enteredTests = totalTests.filter(tid => isTestEntered(tid, item.id, results, item.temp))
-      return enteredTests.length === totalTests.length
+      if (item.approved_at || !item.submitted_at) return false
+      return true
     })
     .map(item => ({
       id: `review:${item.id}`,
@@ -832,8 +833,7 @@ export default function ManagerView() {
     { id: 'intake', label: t('mgr.tab.intake'), icon: Calendar },
     { id: 'templates', label: t('mgr.tab.templates'), icon: Settings },
     { id: 'review', label: t('mgr.tab.review'), icon: CheckCircle },
-    { id: 'fresh_coas', label: `${t('mgr.tab.recent_coas')}${freshCoasCount > 0 ? ` (${freshCoasCount})` : ''}`, icon: FileText },
-    { id: 'archive', label: t('mgr.header.archive'), icon: Archive },
+    { id: 'archive', label: t('mgr.tab.coa_archive'), icon: Archive },
     { id: 'users', label: t('mgr.tab.users'), icon: Users }
   ]
 
@@ -1430,78 +1430,121 @@ export default function ManagerView() {
           )}
 
           {/* REVIEW & APPROVAL */}
-          {activeTab === 'review' && (
-            <div className="space-y-6">
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className="flex items-center gap-1.5 text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors uppercase tracking-wider group cursor-pointer w-fit mb-2 focus:outline-none"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-                <span>{t('common.back_to_dashboard')}</span>
-              </button>
+          {activeTab === 'review' && (() => {
+            const reviewShipments = shipments
+              .filter(s => !isShipmentArchived(s))
+              .map(s => {
+                const pendingBatches = (s.batches || []).filter(b => {
+                  return !!b.submitted_at && !b.approved_at && !b.retest_requested_at
+                })
+                return { ...s, pendingBatches }
+              })
+              .filter(s => s.pendingBatches.length > 0)
 
-              <h2 className="text-xl font-bold text-white">{t('mgr.review.title')}</h2>
+            return (
+              <div className="space-y-6">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="flex items-center gap-1.5 text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors uppercase tracking-wider group cursor-pointer w-fit mb-2 focus:outline-none"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                  <span>{t('common.back_to_dashboard')}</span>
+                </button>
 
-              {shipments.filter(s => !isShipmentArchived(s)).flatMap(s => s.batches.map(b => ({ ...b, shipment: s }))).length === 0 ? (
-                <p className="text-sm text-slate-500 italic">{t('mgr.review.empty')}</p>
-              ) : (
-                <div className="space-y-6">
-                  {shipments.filter(s => !isShipmentArchived(s)).map(s => {
-                    const temp = getTemplate(s.template_id)
-                    const activeBatches = s.batches
-                    if (activeBatches.length === 0) return null
+                <h2 className="text-xl font-bold text-white">{t('mgr.review.title')}</h2>
 
-                    return (
-                      <div key={s.id} className="p-6 bg-slate-900 border border-slate-800 rounded-3xl space-y-6">
-                        <div>
-                          <h3 className="text-base font-bold text-teal-400">{temp?.name}</h3>
-                          <p className="text-xs text-slate-500">{t('mgr.review.supplier')} {s.supplier} • {t('mgr.review.arrived')} {s.intake_date}</p>
-                        </div>
+                {reviewShipments.length === 0 ? (
+                  <p className="text-sm text-slate-500 italic">{t('mgr.review.empty')}</p>
+                ) : (
+                  <div className="space-y-4">
+                    {reviewShipments.map(s => {
+                      const temp = getTemplate(s.template_id)
+                      const isShipmentExpanded = !!expandedShipments[s.id]
 
-                        <div className="space-y-4">
-                          {activeBatches.map(batch => {
-                            const isApproved = !!batch.approved_at
-                            
-                            // Check if all template tests are entered
-                            const totalTests = temp?.tests || []
-                            const enteredTests = totalTests.filter(tid => isTestEntered(tid, batch.id, results))
-                            const isReady = enteredTests.length === totalTests.length
+                      return (
+                        <div key={s.id} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-lg transition-all duration-300">
+                          {/* Shipment Collapsible Header */}
+                          <button
+                            onClick={() => setExpandedShipments(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
+                            className="w-full flex items-center justify-between p-6 bg-slate-900 hover:bg-slate-850/60 transition-all text-right focus:outline-none cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-teal-400 font-bold px-2.5 py-1 bg-teal-500/10 border border-teal-500/20 rounded-full">
+                                {s.pendingBatches.length} {language === 'he' ? 'אצוות ממתינות' : 'Pending'}
+                              </span>
+                              <div className="text-right">
+                                <h3 className="text-base font-black text-white">{temp?.name}</h3>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  {t('mgr.review.supplier')} {s.supplier} • {t('mgr.review.arrived')} {s.intake_date}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-slate-400">
+                              {isShipmentExpanded ? '▼' : '▲'}
+                            </span>
+                          </button>
 
-                            return (
-                              <div
-                                key={batch.id}
-                                className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-4"
-                              >
-                                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                                  <div>
-                                    <span className="text-sm font-bold text-white">{batch.number || t('mgr.review.unnamed')}</span>
-                                    <p className="text-[10px] text-slate-500 mt-0.5">
-                                      {t('mgr.review.prod')} {batch.production_date || '-'} {t('mgr.review.exp')} {batch.expiration_date || '-'}
-                                    </p>
-                                    {batch.retest_requested_at && (
-                                      <div className="mt-1 text-[10px] text-amber-400 bg-amber-950/20 border border-amber-500/20 px-2 py-0.5 rounded-lg w-fit">
-                                        {t('mgr.review.pending_retest').replace('{reason}', batch.retest_reason)}
-                                      </div>
-                                    )}
-                                  </div>
+                          {/* Nested Collapsible Batches */}
+                          {isShipmentExpanded && (
+                            <div className="p-6 border-t border-slate-800/60 bg-slate-950/20 space-y-4">
+                              {s.pendingBatches.map(batch => {
+                                const isBatchExpanded = !!expandedBatches[batch.id]
+                                const totalTests = temp?.tests || []
+                                
+                                // Calculate allGreen for Quick Approve
+                                const batchResults = {}
+                                totalTests.forEach(tid => {
+                                  batchResults[tid] = results[`${batch.id}:${tid}`] || []
+                                })
+                                const allGreen = totalTests.every(tid => {
+                                  const test = getTestDefinition(tid, temp)
+                                  if (!test) return true
+                                  const repData = results[`${batch.id}:${tid}`] || []
+                                  const calc = calculateTest(tid, repData, batchResults, test)
+                                  const inStd = checkWithinStandard(temp, tid, calc)
+                                  return inStd
+                                })
 
-                                  <div className="flex items-center gap-3">
-                                    {isApproved ? (
-                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-950 border border-emerald-500/20 text-emerald-400 text-xs font-bold rounded-full">
-                                        <CheckCircle className="w-3.5 h-3.5" />
-                                        <span>{t('mgr.review.approved_badge')}</span>
-                                      </span>
-                                    ) : (
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        {!isReady && (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-900 border border-slate-800 text-amber-400 text-[10px] font-bold rounded-full">
-                                            <AlertTriangle className="w-3 h-3 text-amber-500" />
-                                            <span>{t('mgr.review.in_progress')}</span>
+                                return (
+                                  <div
+                                    key={batch.id}
+                                    className="bg-slate-900/60 border border-slate-855 rounded-2xl overflow-hidden"
+                                  >
+                                    {/* Batch Collapsible Header */}
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-center p-4 gap-4 bg-slate-900/40 border-b border-slate-855/50">
+                                      <button
+                                        onClick={() => setExpandedBatches(prev => ({ ...prev, [batch.id]: !prev[batch.id] }))}
+                                        className="flex items-center justify-between flex-1 text-right focus:outline-none cursor-pointer animate-fade-in"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-slate-450 text-xs">
+                                            {isBatchExpanded ? '▼' : '▲'}
                                           </span>
+                                          <div>
+                                            <span className="text-sm font-bold text-white animate-fade-in">
+                                              {t('mgr.archive.batch_label').replace('{n}', batch.number || t('mgr.review.unnamed'))}
+                                            </span>
+                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                              {t('mgr.review.prod')} {batch.production_date || '-'} {t('mgr.review.exp')} {batch.expiration_date || '-'}
+                                              {batch.submitted_at && ` • ${t('mgr.review.submitted_at')} ${new Date(batch.submitted_at).toLocaleString()}`}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </button>
+
+                                      {/* Batch Approval Actions */}
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        {allGreen && (
+                                          <button
+                                            onClick={() => approveBatch(batch.id)}
+                                            className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-450 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+                                          >
+                                            {t('mgr.review.quick_approve')}
+                                          </button>
                                         )}
                                         <button
                                           onClick={() => approveBatch(batch.id)}
-                                          className="px-4 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
+                                          className="px-3.5 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all cursor-pointer"
                                         >
                                           {t('mgr.review.approve_btn')}
                                         </button>
@@ -1510,134 +1553,109 @@ export default function ManagerView() {
                                             setRetestInputBatchId(retestInputBatchId === batch.id ? null : batch.id)
                                             setRetestReason('')
                                           }}
-                                          className="px-4 py-1.5 bg-red-900/60 hover:bg-red-900 border border-red-700/30 text-red-200 text-xs font-bold rounded-xl transition-all"
+                                          className="px-3.5 py-1.5 bg-red-900/60 hover:bg-red-900 border border-red-700/30 text-red-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
                                         >
                                           {t('mgr.review.decline_btn')}
                                         </button>
                                       </div>
+                                    </div>
+
+                                    {/* Retest Input Form */}
+                                    {retestInputBatchId === batch.id && (
+                                      <div className="p-4 bg-slate-950/40 border-b border-slate-855 space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                          {t('mgr.review.retest_label')}
+                                        </label>
+                                        <textarea
+                                          value={retestReason}
+                                          onChange={(e) => setRetestReason(e.target.value)}
+                                          placeholder={t('mgr.review.retest_placeholder')}
+                                          className="w-full h-20 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none resize-none"
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                          <button
+                                            onClick={() => {
+                                              setRetestInputBatchId(null)
+                                              setRetestReason('')
+                                            }}
+                                            className="px-3 py-1 border border-slate-800 text-[10px] font-bold text-slate-400 hover:text-white rounded-lg transition-all"
+                                          >
+                                            {t('mgr.review.cancel')}
+                                          </button>
+                                          <button
+                                            onClick={() => submitRetestRequest(batch.id)}
+                                            className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold rounded-lg transition-all"
+                                          >
+                                            {t('mgr.review.submit')}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Batch Test Results Details */}
+                                    {isBatchExpanded && (
+                                      <div className="p-4 bg-slate-950/20">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                          {totalTests.map(tid => {
+                                            const test = getTestDefinition(tid, temp)
+                                            if (!test) return null
+                                            const repData = results[`${batch.id}:${tid}`] || []
+                                            const calc = calculateTest(tid, repData, batchResults, test)
+                                            const inStd = checkWithinStandard(temp, tid, calc)
+                                            const std = temp?.standards?.[tid]
+                                            const hasResults = !test.isCalculated ? repData.length > 0 : calc.complete
+
+                                            return (
+                                              <div
+                                                key={tid}
+                                                className={`p-3 border rounded-xl flex flex-col justify-between transition-all ${
+                                                  !hasResults
+                                                    ? 'bg-slate-950/10 border-slate-900 text-slate-600'
+                                                    : !inStd
+                                                    ? 'bg-red-950/20 border-red-500/35 text-red-200'
+                                                    : 'bg-slate-900 border-slate-800 text-slate-300'
+                                                }`}
+                                              >
+                                                <div>
+                                                  <p className="text-[10px] font-bold opacity-60">
+                                                    {test.name}
+                                                  </p>
+                                                  <p className="text-xs font-extrabold mt-1.5">
+                                                    {hasResults ? calc.label : t('mgr.review.pending_result')}
+                                                  </p>
+                                                </div>
+
+                                                {hasResults && std && test.standardsType !== 'none' && (
+                                                  <div className="mt-2 text-[9px] font-semibold opacity-60 pt-1.5 border-t border-slate-800/40">
+                                                    {test.standardsType === 'min' && std.min !== null && std.min !== undefined && t('mgr.review.min_std').replace('{n}', std.min)}
+                                                    {test.standardsType === 'max' && std.max !== null && std.max !== undefined && t('mgr.review.max_std').replace('{n}', std.max)}
+                                                    {test.standardsType === 'range' && t('mgr.review.range_std').replace('{min}', std.min ?? '-').replace('{max}', std.max ?? '-')}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
                                     )}
                                   </div>
-                                </div>
-
-                                {retestInputBatchId === batch.id && (
-                                  <div className="mt-3 p-3 bg-slate-950/80 border border-slate-850 rounded-xl space-y-2">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                      {t('mgr.review.retest_label')}
-                                    </label>
-                                    <textarea
-                                      value={retestReason}
-                                      onChange={(e) => setRetestReason(e.target.value)}
-                                      placeholder={t('mgr.review.retest_placeholder')}
-                                      className="w-full h-20 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none resize-none"
-                                    />
-                                    <div className="flex justify-end gap-2">
-                                      <button
-                                        onClick={() => {
-                                          setRetestInputBatchId(null)
-                                          setRetestReason('')
-                                        }}
-                                        className="px-3 py-1 border border-slate-850 text-[10px] font-bold text-slate-400 hover:text-white rounded-lg transition-all"
-                                      >
-                                        {t('mgr.review.cancel')}
-                                      </button>
-                                      <button
-                                        onClick={() => submitRetestRequest(batch.id)}
-                                        className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold rounded-lg transition-all"
-                                      >
-                                        {t('mgr.review.submit')}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Results Grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                                  {(() => {
-                                    const batchResults = {}
-                                    totalTests.forEach(tid => {
-                                      batchResults[tid] = results[`${batch.id}:${tid}`] || []
-                                    })
-                                    return totalTests.map(tid => {
-                                      const test = getTestDefinition(tid, temp)
-                                      if (!test) return null
-                                      const repData = results[`${batch.id}:${tid}`] || []
-                                      const calc = calculateTest(tid, repData, batchResults, test)
-                                      const inStd = checkWithinStandard(temp, tid, calc)
-
-                                      const std = temp?.standards?.[tid]
-                                      const hasResults = !test.isCalculated ? repData.length > 0 : calc.complete
-
-                                      return (
-                                        <div
-                                          key={tid}
-                                          className={`p-3 border rounded-xl flex flex-col justify-between transition-all ${
-                                            !hasResults
-                                              ? 'bg-slate-950/10 border-slate-900 text-slate-600'
-                                              : !inStd
-                                              ? 'bg-red-950/20 border-red-500/35 text-red-200'
-                                              : 'bg-slate-900 border-slate-800 text-slate-300'
-                                          }`}
-                                        >
-                                          <div>
-                                            <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">
-                                              {test.name}
-                                            </p>
-                                            <p className="text-xs font-extrabold mt-1.5">
-                                              {hasResults ? calc.label : t('mgr.review.pending_result')}
-                                            </p>
-                                          </div>
-
-                                          {hasResults && std && test.standardsType !== 'none' && (
-                                            <div className="mt-2 text-[9px] font-semibold opacity-60 pt-1.5 border-t border-slate-800/40">
-                                              {test.standardsType === 'min' && std.min !== null && std.min !== undefined && t('mgr.review.min_std').replace('{n}', std.min)}
-                                              {test.standardsType === 'max' && std.max !== null && std.max !== undefined && t('mgr.review.max_std').replace('{n}', std.max)}
-                                              {test.standardsType === 'range' && t('mgr.review.range_std').replace('{min}', std.min ?? '-').replace('{max}', std.max ?? '-')}
-                                            </div>
-                                          )}
-                                        </div>
-                                      )
-                                    })
-                                  })()}
-                                </div>
-                              </div>
-                            )
-                          })}
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* COA LIST & REPRINTS (FRESH & ARCHIVED) */}
-          {(activeTab === 'archive' || activeTab === 'fresh_coas') && (() => {
-            const timeWindowMs = 24 * 60 * 60 * 1000
-            const now = Date.now()
-
-            const filteredApprovedShipments = shipments.map(s => {
-              const matchingBatches = (s.batches || []).filter(b => {
-                // Must be approved
-                if (!b.approved_at) return false
-
-                // Age check
-                const approvedTime = new Date(b.approved_at).getTime()
-                const ageInMs = now - approvedTime
-                const isFresh = ageInMs <= timeWindowMs
-
-                if (activeTab === 'fresh_coas') {
-                  if (!isFresh) return false
-                } else {
-                  // activeTab === 'archive'
-                  if (isFresh) return false
-                }
+                      )
+                    })}
+                  </div>
+{(activeTab === 'archive' || activeTab === 'fresh_coas') && (() => {
+            const approvedBatches = shipments
+              .flatMap(s => (s.batches || []).map(b => ({ ...b, shipment: s, temp: getTemplate(s.template_id) })))
+              .filter(item => {
+                if (!item.approved_at) return false
 
                 // Search & Date filters
-                const temp = getTemplate(s.template_id)
-                const prodName = temp?.name || ''
-                const batchNum = b.number || 'Unnamed Batch'
-
+                const prodName = item.temp?.name || ''
+                const batchNum = item.number || 'Unnamed Batch'
                 const matchesSearch = 
                   prodName.toLowerCase().includes(coaSearch.toLowerCase()) ||
                   batchNum.toLowerCase().includes(coaSearch.toLowerCase())
@@ -1647,11 +1665,11 @@ export default function ManagerView() {
                 if (coaFilterDateType !== 'all' && (coaStartDate || coaEndDate)) {
                   let targetDateStr = null
                   if (coaFilterDateType === 'approved_at') {
-                    targetDateStr = b.approved_at ? b.approved_at.slice(0, 10) : null
+                    targetDateStr = item.approved_at ? item.approved_at.slice(0, 10) : null
                   } else if (coaFilterDateType === 'intake_date') {
-                    targetDateStr = s.intake_date
+                    targetDateStr = item.shipment.intake_date
                   } else if (coaFilterDateType === 'production_date') {
-                    targetDateStr = b.production_date
+                    targetDateStr = item.production_date
                   }
 
                   if (!targetDateStr) return false
@@ -1659,24 +1677,21 @@ export default function ManagerView() {
                   if (coaStartDate && targetDateStr < coaStartDate) return false
                   if (coaEndDate && targetDateStr > coaEndDate) return false
                 }
-
                 return true
               })
-
-              return { ...s, matchingBatches }
-            }).filter(s => s.matchingBatches.length > 0)
+              .sort((a, b) => new Date(b.approved_at).getTime() - new Date(a.approved_at).getTime())
 
             return (
               <div className="space-y-6">
                 <h2 className="text-xl font-bold text-white no-print">
-                  {activeTab === 'fresh_coas' ? t('mgr.coa.title') : t('mgr.archive.title')}
+                  {t('mgr.tab.coa_archive')}
                 </h2>
 
                 {/* Search & Filter Controls Panel */}
                 <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl space-y-4 no-print shadow-lg">
                   <div className="flex flex-col md:flex-row gap-4 justify-between md:items-center">
                     <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                      {activeTab === 'fresh_coas' ? t('mgr.coa.search_heading') : t('mgr.archive.search_heading')}
+                      {t('mgr.archive.search_heading')}
                     </h3>
                     {coaSelectedBatchId && (
                       <button
@@ -1698,20 +1713,13 @@ export default function ManagerView() {
                           value={coaSearch}
                           onChange={(e) => setCoaSearch(e.target.value)}
                           placeholder={t('mgr.filter.search_placeholder')}
-                          className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none"
+                          className="w-full px-3 py-2 pl-9 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-teal-500 transition-all"
                         />
-                        {coaSearch && (
-                          <button
-                            onClick={() => setCoaSearch('')}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs"
-                          >
-                            ×
-                          </button>
-                        )}
+                        <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
                       </div>
                     </div>
 
-                    {/* Date type filter */}
+                    {/* Date filter dropdown */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.filter.date_label')}</label>
                       <select
@@ -1723,12 +1731,12 @@ export default function ManagerView() {
                             setCoaEndDate('')
                           }
                         }}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500 transition-all"
                       >
-                        <option value="all">{t('mgr.filter.all_dates')}</option>
-                        <option value="approved_at">{t('mgr.filter.approval_date')}</option>
-                        <option value="intake_date">{t('mgr.filter.intake_date')}</option>
-                        <option value="production_date">{t('mgr.filter.prod_date')}</option>
+                        <option value="all">{t('mgr.filter.date_all') || 'All Time'}</option>
+                        <option value="approved_at">{t('mgr.filter.date_approved') || 'Approval Date'}</option>
+                        <option value="intake_date">{t('mgr.filter.date_intake') || 'Intake Date'}</option>
+                        <option value="production_date">{t('mgr.filter.date_production') || 'Production Date'}</option>
                       </select>
                     </div>
 
@@ -1740,7 +1748,7 @@ export default function ManagerView() {
                         value={coaStartDate}
                         disabled={coaFilterDateType === 'all'}
                         onChange={(e) => setCoaStartDate(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none disabled:opacity-50"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500 transition-all disabled:opacity-40"
                       />
                     </div>
 
@@ -1752,14 +1760,14 @@ export default function ManagerView() {
                         value={coaEndDate}
                         disabled={coaFilterDateType === 'all'}
                         onChange={(e) => setCoaEndDate(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none disabled:opacity-50"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-855 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500 transition-all disabled:opacity-40"
                       />
                     </div>
                   </div>
 
-                  {/* Active selectors list / quick clear */}
+                  {/* Clear filter button */}
                   {(coaSearch || coaFilterDateType !== 'all' || coaStartDate || coaEndDate) && (
-                    <div className="flex justify-end pt-1">
+                    <div className="flex justify-end pt-2">
                       <button
                         onClick={() => {
                           setCoaSearch('')
@@ -1780,7 +1788,7 @@ export default function ManagerView() {
                   <div className="p-4 bg-slate-900 border border-slate-800 rounded-3xl flex justify-end gap-3 no-print">
                     <button
                       onClick={() => window.print()}
-                      className="flex items-center gap-1.5 px-4 py-2 border border-slate-800 hover:border-slate-700 bg-slate-950 text-xs font-bold text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer"
+                      className="flex items-center gap-1.5 px-4 py-2 border border-slate-800 hover:border-slate-750 bg-slate-950 text-xs font-bold text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer"
                     >
                       <Printer className="w-4 h-4" />
                       <span>{t('mgr.coa.print_btn')}</span>
@@ -1809,29 +1817,6 @@ export default function ManagerView() {
                 {coaSelectedBatchId ? (
                   <div className="w-full overflow-x-auto no-scrollbar pb-6 no-print">
                     <div id="coa-report-view" className="p-8 bg-white text-slate-900 border border-slate-300 rounded-3xl w-[700px] sm:w-auto max-w-3xl mx-auto shadow-xl flex flex-col justify-between min-h-[9.2in] shrink-0">
-                    {/* COA Top Header */}
-                    <div>
-                      <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
-                        <div>
-                          <h1 className="text-2xl font-black uppercase text-slate-955">{t('coa.title')}</h1>
-                          <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mt-0.5">
-                            {t('coa.lab_name')}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="inline-block px-3 py-1 bg-slate-900 text-white text-[10px] font-bold uppercase rounded">
-                            {t('coa.approved_badge')}
-                          </div>
-                          <p className="text-[10px] text-slate-500 mt-2 font-medium">
-                            {t('coa.release_date').replace('{d}', new Date(shipments.flatMap(s => s.batches).find(b => b.id === coaSelectedBatchId)?.approved_at).toLocaleDateString())}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Metadata Table */}
-                      {(() => {
-                        const batch = shipments.flatMap(s => s.batches.map(b => ({ ...b, shipment: s }))).find(b => b.id === coaSelectedBatchId)
-                        const temp = getTemplate(batch?.shipment?.template_id)
                         return (
                           <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-xs mb-8 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                             <div>

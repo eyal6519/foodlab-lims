@@ -106,6 +106,11 @@ const he = {
   'batch.hint.min': '• נדרשים לפחות {n} רפליקטים.',
   'batch.hint.max': '• מותרים עד {n} רפליקטים.',
   'batch.btn.save': 'שמור את כל התוצאות',
+  'batch.btn.save_draft': 'שמירה כטיוטה',
+  'batch.btn.submit': 'שליחה לאישור מנהל',
+  'batch.alert.submit_confirm': 'האם אתם בטוחים שברצונכם לשלוח אצווה זו לאישור מנהל? לאחר השליחה, הבדיקות יינעלו לעריכה.',
+  'batch.alert.submit_success': 'האצווה נשלחה בהצלחה לאישור מנהל.',
+  'batch.alert.fill_all_tests': 'נא למלא את כל הבדיקות לפני שליחה לאישור. חסר: {list}',
   'batch.btn.cancel': 'ביטול',
   'batch.test.locked': 'נעול - באינקובציה ({temp} יוצא ב-{date} / בעוד {days} ימים)',
   'batch.test.formula_label': 'נוסחה:',
@@ -165,6 +170,7 @@ const he = {
   'mgr.tab.templates': 'תבניות מוצרים',
   'mgr.tab.review': 'בדיקה ואישור',
   'mgr.tab.recent_coas': 'תעודות אנליזה אחרונות',
+  'mgr.tab.coa_archive': 'ארכיון תעודות אנליזה',
   'mgr.tab.users': 'חשבונות משתמשים',
 
   // Manager View — Overview
@@ -213,7 +219,9 @@ const he = {
 
   // Manager View — Review
   'mgr.review.title': 'לוח בדיקה ואישור',
-  'mgr.review.empty': 'לא נרשמו אצוות ביומן הקבלה.',
+  'mgr.review.empty': 'אין אצוות הממתינות לאישור.',
+  'mgr.review.quick_approve': 'אישור מהיר (תקין)',
+  'mgr.review.submitted_at': 'נשלח לאישור:',
   'mgr.review.unnamed': 'אצווה ללא שם',
   'mgr.review.pending_retest': 'ממתין לבדיקה חוזרת: {reason}',
   'mgr.review.approved_badge': 'מאושר',
