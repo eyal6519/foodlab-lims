@@ -2623,7 +2623,7 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
                       <div className="mt-3 grid grid-cols-2 gap-3 pt-3 border-t border-slate-800/40">
                         {(test.standardsType === 'min' || test.standardsType === 'range') ? (
                           <div className="space-y-1">
-                            <label className="text-[8px] font-bold text-slate-450 uppercase block">
+                            <label className="text-[8px] font-bold text-slate-450 block">
                               {test.unit ? t('mgr.template_modal.min_threshold').replace('{unit}', test.unit) : 'Min'}
                             </label>
                             <input
@@ -2640,7 +2640,7 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
 
                         {(test.standardsType === 'max' || test.standardsType === 'range') ? (
                           <div className="space-y-1">
-                            <label className="text-[8px] font-bold text-slate-450 uppercase block">
+                            <label className="text-[8px] font-bold text-slate-450 block">
                               {test.unit ? t('mgr.template_modal.max_threshold').replace('{unit}', test.unit) : 'Max'}
                             </label>
                             <input

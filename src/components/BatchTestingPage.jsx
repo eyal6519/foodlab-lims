@@ -944,7 +944,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               if (field.type === 'select') {
                                 return (
                                   <div key={field.id} className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <label className="text-[10px] font-bold text-slate-400 tracking-wider">
                                       {formatLabelWithUnit(field.label)}
                                     </label>
                                     <select
@@ -966,7 +966,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               if (field.type === 'passfail') {
                                 return (
                                   <div key={field.id} className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <label className="text-[10px] font-bold text-slate-400 tracking-wider">
                                       {formatLabelWithUnit(field.label)}
                                     </label>
                                     <select
@@ -1002,7 +1002,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
                               return (
                                 <div key={field.id} className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                  <label className="text-[10px] font-bold text-slate-400 tracking-wider">
                                     {formatLabelWithUnit(field.label)}
                                   </label>
                                   <input
