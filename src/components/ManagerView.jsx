@@ -1653,14 +1653,31 @@ export default function ManagerView() {
           })()}
 
           {(activeTab === 'archive' || activeTab === 'fresh_coas') && (() => {
-            const approvedBatches = shipments
-              .flatMap(s => (s.batches || []).map(b => ({ ...b, shipment: s, temp: getTemplate(s.template_id) })))
-              .filter(item => {
-                if (!item.approved_at) return false
+            const timeWindowMs = 24 * 60 * 60 * 1000
+            const now = Date.now()
+
+            const filteredApprovedShipments = shipments.map(s => {
+              const matchingBatches = (s.batches || []).filter(b => {
+                // Must be approved
+                if (!b.approved_at) return false
+
+                // Age check
+                const approvedTime = new Date(b.approved_at).getTime()
+                const ageInMs = now - approvedTime
+                const isFresh = ageInMs <= timeWindowMs
+
+                if (activeTab === 'fresh_coas') {
+                  if (!isFresh) return false
+                } else {
+                  // activeTab === 'archive'
+                  if (isFresh) return false
+                }
 
                 // Search & Date filters
-                const prodName = item.temp?.name || ''
-                const batchNum = item.number || 'Unnamed Batch'
+                const temp = getTemplate(s.template_id)
+                const prodName = temp?.name || ''
+                const batchNum = b.number || 'Unnamed Batch'
+
                 const matchesSearch = 
                   prodName.toLowerCase().includes(coaSearch.toLowerCase()) ||
                   batchNum.toLowerCase().includes(coaSearch.toLowerCase())
@@ -1670,11 +1687,11 @@ export default function ManagerView() {
                 if (coaFilterDateType !== 'all' && (coaStartDate || coaEndDate)) {
                   let targetDateStr = null
                   if (coaFilterDateType === 'approved_at') {
-                    targetDateStr = item.approved_at ? item.approved_at.slice(0, 10) : null
+                    targetDateStr = b.approved_at ? b.approved_at.slice(0, 10) : null
                   } else if (coaFilterDateType === 'intake_date') {
-                    targetDateStr = item.shipment.intake_date
+                    targetDateStr = s.intake_date
                   } else if (coaFilterDateType === 'production_date') {
-                    targetDateStr = item.production_date
+                    targetDateStr = b.production_date
                   }
 
                   if (!targetDateStr) return false
@@ -1682,9 +1699,18 @@ export default function ManagerView() {
                   if (coaStartDate && targetDateStr < coaStartDate) return false
                   if (coaEndDate && targetDateStr > coaEndDate) return false
                 }
+
                 return true
               })
-              .sort((a, b) => new Date(b.approved_at).getTime() - new Date(a.approved_at).getTime())
+
+              return { ...s, matchingBatches }
+            })
+            .filter(s => s.matchingBatches.length > 0)
+            .sort((a, b) => {
+              const aLatest = Math.max(...a.matchingBatches.map(b => new Date(b.approved_at).getTime()))
+              const bLatest = Math.max(...b.matchingBatches.map(b => new Date(b.approved_at).getTime()))
+              return bLatest - aLatest
+            })
 
             return (
               <div className="space-y-6">
