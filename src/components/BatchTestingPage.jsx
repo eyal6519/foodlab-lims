@@ -734,7 +734,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
         {/* Batch Metadata Header info */}
         <section className="bg-slate-900 border border-slate-800 rounded-3xl p-6 grid grid-cols-1 sm:grid-cols-3 gap-6 shadow-lg">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('batch.info.supplier')}</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('batch.info.supplier')}</span>
             <p className="text-sm font-bold text-white">{shipment.supplier}</p>
             {shipment.size && (
               <p className="text-xs text-slate-400 mt-0.5">
@@ -743,19 +743,19 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
             )}
           </div>
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('batch.info.dates')}</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('batch.info.dates')}</span>
             <p className="text-xs text-slate-300">{t('batch.info.intake')} <strong className="text-white">{shipment.intake_date}</strong></p>
             <p className="text-xs text-slate-350">
               {t('batch.info.production')} <strong className="text-slate-200">{batch.production_date || '-'}</strong> {t('batch.info.expiration')} <strong className="text-slate-200">{batch.expiration_date || '-'}</strong>
             </p>
           </div>
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('batch.info.incubation')}</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('batch.info.incubation')}</span>
             <p className="text-xs text-slate-300">
               {t('batch.info.incubation_units')} <strong className="text-white">{batch.units_36 || 0}</strong> | 55°C: <strong className="text-white">{batch.units_55 || 0}</strong>
             </p>
             {(batch.exit_36 || batch.exit_55) && (
-              <p className="text-[10px] text-slate-450 mt-0.5">
+              <p className="text-xs text-slate-400 mt-0.5">
                 {t('batch.info.exits')} {batch.exit_36 || '-'} | 55°C: {batch.exit_55 || '-'}
               </p>
             )}
@@ -803,22 +803,22 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                       {isLocked && <Lock className="w-4 h-4 text-amber-500 shrink-0" />}
                       <span className={isLocked ? 'text-slate-400' : ''}>{test.name}</span>
                       {test.unit && (
-                        <span className="text-xs text-slate-400 font-normal">({test.unit})</span>
+                        <span className="text-sm text-slate-300 font-bold">({test.unit})</span>
                       )}
                     </h3>
                     <div className="flex flex-col gap-1 mt-1">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">
                         {t('batch.test.replicates_label')} {rows.length}
                         {test.min && ` ${t('batch.test.min').replace('{n}', test.min)}`}
                         {test.max && ` ${t('batch.test.max').replace('{n}', test.max)}`}
                       </span>
                       {(TEST_FORMULAS[testId] || test.customFormula) && (
-                        <span className="text-[10px] text-slate-450 font-semibold tracking-wide mt-0.5">
-                          {t('batch.test.formula_label')} <span className="font-mono text-slate-350">{TEST_FORMULAS[testId] || test.customFormula}</span>
+                        <span className="text-xs text-slate-400 font-semibold tracking-wide mt-0.5">
+                          {t('batch.test.formula_label')} <span className="font-mono text-slate-300">{TEST_FORMULAS[testId] || test.customFormula}</span>
                         </span>
                       )}
                       {isLocked && (
-                        <span className="text-[10px] text-amber-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span className="text-xs text-amber-500 font-bold uppercase tracking-wider flex items-center gap-1">
                           {t('batch.test.locked')
                             .replace('{temp}', testId.includes('36') ? '36°C' : '55°C')
                             .replace('{date}', exitDate || '')
@@ -830,7 +830,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
                   {/* Calculated Value Preview */}
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">{t('batch.test.calc_result')}</span>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('batch.test.calc_result')}</span>
                     <span className={`text-sm font-bold ${calcPreview.complete ? 'text-teal-400' : 'text-slate-400'}`}>
                       {calcPreview.label}
                     </span>
@@ -857,7 +857,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                   <div className="p-4 bg-slate-950/40 border border-slate-855 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-6 w-full md:w-auto">
                       <div className="flex flex-col gap-1.5 w-full sm:w-44">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">
                           {t('batch.weight.tare_label')}
                         </label>
                         <div className="flex gap-2">
@@ -935,7 +935,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                         {testId === 'weight' ? (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                             <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">
                                 {subtractTare ? t('batch.weight.gross_label') : t('batch.weight.net_label')}
                               </label>
                               <input
@@ -965,7 +965,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               if (field.type === 'select') {
                                 return (
                                   <div key={field.id} className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 tracking-wider">
+                                    <label className="text-xs font-bold text-slate-355 tracking-wider">
                                       {formatLabelWithUnit(field.label)}
                                     </label>
                                     <select
@@ -987,7 +987,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               if (field.type === 'passfail') {
                                 return (
                                   <div key={field.id} className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 tracking-wider">
+                                    <label className="text-xs font-bold text-slate-355 tracking-wider">
                                       {formatLabelWithUnit(field.label)}
                                     </label>
                                     <select
@@ -1023,7 +1023,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
                               return (
                                 <div key={field.id} className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 tracking-wider">
+                                  <label className="text-xs font-bold text-slate-355 tracking-wider">
                                     {formatLabelWithUnit(field.label)}
                                   </label>
                                   <input
@@ -1081,7 +1081,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                     <div />
                   )}
 
-                  <div className="text-[10px] text-slate-500 font-medium italic">
+                  <div className="text-xs text-slate-400 font-medium italic">
                     {test.single && t('batch.hint.single')}
                     {test.min && !isLocked && t('batch.hint.min').replace('{n}', test.min)}
                     {test.max && !isLocked && t('batch.hint.max').replace('{n}', test.max)}
