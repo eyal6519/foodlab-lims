@@ -53,6 +53,7 @@ const en = {
   'shipment.field.incubation_55': 'Units incubated at 55°C',
   'shipment.btn.cancel': 'Cancel',
   'shipment.btn.save': 'Save Log',
+  'shipment.combobox.no_results': 'No matching products found',
 
   // Batch Testing Page
   'batch.page.title': 'Enter Batch Results',

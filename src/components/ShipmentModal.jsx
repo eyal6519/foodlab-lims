@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, XCircle } from 'lucide-react'
+import { Plus, Trash2, XCircle, Search, ChevronDown, X } from 'lucide-react'
 import { parseBatchNumber } from '../utils/batchParser'
 import { useLanguage } from '../context/LanguageContext'
 
@@ -9,6 +9,10 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
   const [selectedTemplateId, setSelectedTemplateId] = useState(initialShipment?.template_id || '')
   const [latestAddedRowId, setLatestAddedRowId] = useState(null)
   const scrollRef = useRef(null)
+  const comboboxRef = useRef(null)
+
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     if (initialShipment) {
@@ -21,11 +25,30 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
         })))
       }
       setSelectedTemplateId(initialShipment.template_id || '')
+      const matched = templates.find(t => t.id === initialShipment.template_id)
+      setSearchQuery(matched ? matched.name : '')
     } else {
       setSelectedTemplateId('')
+      setSearchQuery('')
       setBatches([{ rowId: 'row-0', number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
     }
-  }, [initialShipment])
+  }, [initialShipment, templates])
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (comboboxRef.current && !comboboxRef.current.contains(event.target)) {
+        setIsOpen(false)
+        const matched = templates.find(t => t.id === selectedTemplateId)
+        if (matched) {
+          setSearchQuery(matched.name)
+        } else {
+          setSearchQuery('')
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [selectedTemplateId, templates])
 
   useEffect(() => {
     if (latestAddedRowId && scrollRef.current) {
@@ -45,6 +68,16 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
   const requiresInc = selectedTemplate ? (selectedTemplate.requires_incubation !== false) : true
   const hasInc36 = requiresInc && selectedTemplate && (selectedTemplate.incubation_36 || 0) > 0
   const hasInc55 = requiresInc && selectedTemplate && (selectedTemplate.incubation_55 || 0) > 0
+
+  const filteredTemplates = searchQuery && (!selectedTemplate || searchQuery !== selectedTemplate.name)
+    ? templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : templates
+
+  const handleSelectTemplate = (template) => {
+    setSelectedTemplateId(template.id)
+    setSearchQuery(template.name)
+    setIsOpen(false)
+  }
 
   const addBatchRow = () => {
     const newRowId = `row-${Date.now()}`
@@ -96,22 +129,88 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.product')}</label>
-              <select
-                name="template_id"
-                required
-                value={selectedTemplateId}
-                onChange={(e) => setSelectedTemplateId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
-              >
-                <option value="">{t('shipment.field.product_placeholder')}</option>
-                {templates.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-1 relative" ref={comboboxRef}>
+              <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">{t('shipment.field.product')}</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  disabled={isSaving}
+                  value={searchQuery}
+                  onFocus={() => setIsOpen(true)}
+                  onChange={(e) => {
+                    setIsOpen(true)
+                    setSearchQuery(e.target.value)
+                    if (selectedTemplateId) {
+                      setSelectedTemplateId('')
+                    }
+                  }}
+                  placeholder={t('shipment.field.product_placeholder')}
+                  className="w-full pl-8 pr-12 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500/50 transition-all"
+                />
+                {/* Search Icon (Left) */}
+                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500">
+                  <Search className="w-3.5 h-3.5 text-slate-500" />
+                </div>
+                {/* Action Icons (Right) */}
+                <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-0.5">
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => {
+                        setSelectedTemplateId('')
+                        setSearchQuery('')
+                        setIsOpen(true)
+                      }}
+                      className="p-1 hover:bg-slate-800 rounded text-slate-550 hover:text-slate-300 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="p-1 hover:bg-slate-800 rounded text-slate-550 hover:text-slate-300 transition-colors"
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Hidden Input for Form Submission */}
+              <input type="hidden" name="template_id" value={selectedTemplateId} required />
+
+              {/* Dropdown Options List */}
+              {isOpen && (
+                <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-slate-800 rounded-xl shadow-xl z-50 p-1 space-y-0.5 scrollbar-none">
+                  {filteredTemplates.length === 0 ? (
+                    <div className="p-3 text-xs text-slate-550 italic text-center">
+                      {t('shipment.combobox.no_results') || 'No products found'}
+                    </div>
+                  ) : (
+                    filteredTemplates.map(t => {
+                      const isSelected = t.id === selectedTemplateId
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleSelectTemplate(t)}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center justify-between ${
+                            isSelected
+                              ? 'bg-teal-500 text-slate-950'
+                              : 'text-slate-350 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          <span>{t.name}</span>
+                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-slate-950" />}
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.supplier')}</label>

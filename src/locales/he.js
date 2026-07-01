@@ -53,6 +53,7 @@ const he = {
   'shipment.field.incubation_55': 'יחידות באינקובציה 55°C',
   'shipment.btn.cancel': 'ביטול',
   'shipment.btn.save': 'שמור רישום',
+  'shipment.combobox.no_results': 'לא נמצאו מוצרים תואמים',
 
   // Batch Testing Page
   'batch.page.title': 'הזנת תוצאות אצווה',
