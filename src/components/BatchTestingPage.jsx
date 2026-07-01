@@ -803,18 +803,18 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                       {isLocked && <Lock className="w-4 h-4 text-amber-500 shrink-0" />}
                       <span className={isLocked ? 'text-slate-400' : ''}>{test.name}</span>
                       {test.unit && (
-                        <span className="text-sm text-slate-300 font-bold">({test.unit})</span>
+                        <span className="text-sm sm:text-base text-slate-200 font-extrabold">({test.unit})</span>
                       )}
                     </h3>
                     <div className="flex flex-col gap-1 mt-1">
-                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                      <span className="text-sm sm:text-base text-slate-200 font-bold uppercase tracking-wider">
                         {t('batch.test.replicates_label')} {rows.length}
                         {test.min && ` ${t('batch.test.min').replace('{n}', test.min)}`}
                         {test.max && ` ${t('batch.test.max').replace('{n}', test.max)}`}
                       </span>
                       {(TEST_FORMULAS[testId] || test.customFormula) && (
-                        <span className="text-xs text-slate-400 font-semibold tracking-wide mt-0.5">
-                          {t('batch.test.formula_label')} <span className="font-mono text-slate-300">{TEST_FORMULAS[testId] || test.customFormula}</span>
+                        <span className="text-sm sm:text-base text-slate-300 font-semibold tracking-wide mt-0.5">
+                          {t('batch.test.formula_label')} <span className="font-mono text-slate-200">{TEST_FORMULAS[testId] || test.customFormula}</span>
                         </span>
                       )}
                       {isLocked && (
@@ -830,8 +830,8 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
                   {/* Calculated Value Preview */}
                   <div className="text-right">
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('batch.test.calc_result')}</span>
-                    <span className={`text-sm font-bold ${calcPreview.complete ? 'text-teal-400' : 'text-slate-400'}`}>
+                    <span className="text-sm sm:text-base text-slate-300 font-bold uppercase tracking-wider block">{t('batch.test.calc_result')}</span>
+                    <span className={`text-base sm:text-lg font-black ${calcPreview.complete ? 'text-teal-400' : 'text-slate-400'}`}>
                       {calcPreview.label}
                     </span>
                   </div>
@@ -857,7 +857,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                   <div className="p-4 bg-slate-950/40 border border-slate-855 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-6 w-full md:w-auto">
                       <div className="flex flex-col gap-1.5 w-full sm:w-44">
-                        <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">
+                        <label className="text-sm sm:text-base font-bold text-slate-200 uppercase tracking-wider">
                           {t('batch.weight.tare_label')}
                         </label>
                         <div className="flex gap-2">
@@ -868,7 +868,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                             value={batchTare}
                             onChange={(e) => handleBatchTareChange(e.target.value)}
                             placeholder={t('batch.weight.tare_placeholder')}
-                            className="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50 min-w-0"
+                            className="flex-1 px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-base focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50 min-w-0"
                           />
                           <button
                             type="button"
@@ -916,7 +916,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                       key={idx}
                       className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl flex flex-col relative group hover:border-slate-800 transition-all duration-200 pt-8"
                     >
-                      <div className="absolute top-2 left-3 text-[9px] text-slate-600 font-bold tracking-wider">
+                      <div className="absolute top-2.5 left-4 text-xs sm:text-sm text-teal-400 font-extrabold uppercase tracking-wider">
                         {t('batch.replicate.label').replace('{n}', idx + 1)}
                       </div>
 
@@ -935,7 +935,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                         {testId === 'weight' ? (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                             <div className="space-y-1">
-                              <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">
+                              <label className="text-sm sm:text-base font-bold text-slate-200 uppercase tracking-wider">
                                 {subtractTare ? t('batch.weight.gross_label') : t('batch.weight.net_label')}
                               </label>
                               <input
@@ -945,12 +945,12 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                                 value={subtractTare ? (row.gross ?? '') : (row.net ?? '')}
                                 onChange={(e) => handleAddFieldVal(testId, idx, subtractTare ? 'gross' : 'net', e.target.value)}
                                 placeholder={subtractTare ? t('batch.weight.gross_placeholder') : t('batch.weight.net_placeholder')}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
+                                className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-base focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                               />
                             </div>
                             
                             <div className="h-10 flex items-center">
-                              <div className="px-4 py-2 bg-slate-900/60 border border-slate-800 rounded-xl text-[11px] font-mono text-slate-350 w-full select-none">
+                              <div className="px-4 py-3 bg-slate-900/60 border border-slate-800 rounded-xl text-xs sm:text-sm font-semibold font-mono text-slate-200 w-full select-none">
                                 {t('batch.weight.calc_gross')} <span className="text-white font-bold">{row.gross || '-'}</span>g | 
                                 {t('batch.weight.calc_tare')} <span className="text-amber-400/80 font-bold">{row.tare || '0'}</span>g | 
                                 {t('batch.weight.calc_net')} <span className="text-teal-400 font-bold">{row.net || '-'}</span>g
@@ -965,14 +965,14 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               if (field.type === 'select') {
                                 return (
                                   <div key={field.id} className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-355 tracking-wider">
+                                    <label className="text-sm sm:text-base font-bold text-slate-200 tracking-wider">
                                       {formatLabelWithUnit(field.label)}
                                     </label>
                                     <select
                                       value={value}
                                       disabled={isLocked}
                                       onChange={(e) => handleAddFieldVal(testId, idx, field.id, e.target.value)}
-                                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
+                                      className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-base focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                                     >
                                       {field.options.map(([optVal, optLabel]) => (
                                         <option key={optVal} value={optVal}>
@@ -987,14 +987,14 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               if (field.type === 'passfail') {
                                 return (
                                   <div key={field.id} className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-355 tracking-wider">
+                                    <label className="text-sm sm:text-base font-bold text-slate-200 tracking-wider">
                                       {formatLabelWithUnit(field.label)}
                                     </label>
                                     <select
                                       value={value}
                                       disabled={isLocked}
                                       onChange={(e) => handleAddFieldVal(testId, idx, field.id, e.target.value)}
-                                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
+                                      className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-base focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                                     >
                                       <option value="">{t('batch.select.default')}</option>
                                       <option value="Pass">{t('batch.select.pass')}</option>
@@ -1007,7 +1007,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               if (field.type === 'checkbox') {
                                 return (
                                   <div key={field.id} className="flex items-center h-10 pt-4">
-                                    <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-350 cursor-pointer">
+                                    <label className="inline-flex items-center gap-2 text-sm sm:text-base font-semibold text-slate-200 cursor-pointer select-none">
                                       <input
                                         type="checkbox"
                                         disabled={isLocked}
@@ -1023,7 +1023,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
                               return (
                                 <div key={field.id} className="space-y-1">
-                                  <label className="text-xs font-bold text-slate-355 tracking-wider">
+                                  <label className="text-sm sm:text-base font-bold text-slate-200 tracking-wider">
                                     {formatLabelWithUnit(field.label)}
                                   </label>
                                   <input
@@ -1055,7 +1055,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                                       }
                                       return 'e.g. 5.0'
                                     })()}
-                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
+                                    className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-base focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
                                   />
                                 </div>
                               )
