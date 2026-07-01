@@ -92,6 +92,8 @@ export default function ManagerView() {
   const [selectedTechs, setSelectedTechs] = useState([])
 
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
+  const [isSavingShipment, setIsSavingShipment] = useState(false)
+  const [newlyCreatedShipmentId, setNewlyCreatedShipmentId] = useState(null)
 
   const showToast = (message, type = 'success') => {
     setToast({ visible: true, message, type })
@@ -347,6 +349,9 @@ export default function ManagerView() {
   // Shipment Actions
   const handleSaveShipment = async (e) => {
     e.preventDefault()
+    if (isSavingShipment) return
+    setIsSavingShipment(true)
+
     const form = e.target
     const data = Object.fromEntries(new FormData(form))
     const isNew = shipmentModal === 'new'
@@ -443,8 +448,19 @@ export default function ManagerView() {
 
       setShipmentModal(null)
       fetchData()
+
+      if (isNew && shipmentId) {
+        setNewlyCreatedShipmentId(shipmentId)
+        setTimeout(() => {
+          setNewlyCreatedShipmentId(null)
+        }, 4000)
+      }
+
+      showToast(isNew ? t('tech.toast.shipment_logged') : t('tech.toast.shipment_updated'), 'success')
     } catch (err) {
       alert(`${t('mgr.alert.shipment_save_error')} ${err.message}`)
+    } finally {
+      setIsSavingShipment(false)
     }
   }
 
@@ -974,7 +990,9 @@ export default function ManagerView() {
                         return (
                           <div
                             key={s.id}
-                            className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                            className={`p-4 bg-slate-950/40 border border-slate-850 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+                              s.id === newlyCreatedShipmentId ? 'animate-flash-green' : ''
+                            }`}
                           >
                             <div className="flex-1 min-w-0">
                               <h4 className="text-sm font-bold text-teal-400">
@@ -1196,7 +1214,9 @@ export default function ManagerView() {
                   return (
                     <div
                       key={s.id}
-                      className="transition-colors hover:bg-slate-850/20"
+                      className={`transition-all hover:bg-slate-850/20 ${
+                        s.id === newlyCreatedShipmentId ? 'animate-flash-green' : ''
+                      }`}
                     >
                       {/* Summary Bar (Gmail Style - Compact, Thin) */}
                       <div
@@ -2225,6 +2245,7 @@ export default function ManagerView() {
           onSave={handleSaveShipment}
           onClose={() => setShipmentModal(null)}
           parseBatchNumber={parseBatchNumber}
+          isSaving={isSavingShipment}
         />
       )}
 

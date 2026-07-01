@@ -1,18 +1,21 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, XCircle } from 'lucide-react'
 import { parseBatchNumber } from '../utils/batchParser'
 import { useLanguage } from '../context/LanguageContext'
 
-export default function ShipmentModal({ templates, initialShipment, onSave, onClose }) {
+export default function ShipmentModal({ templates, initialShipment, onSave, onClose, isSaving }) {
   const { t } = useLanguage()
-  const [batches, setBatches] = useState([{ number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
+  const [batches, setBatches] = useState([{ rowId: 'row-0', number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
   const [selectedTemplateId, setSelectedTemplateId] = useState(initialShipment?.template_id || '')
+  const [latestAddedRowId, setLatestAddedRowId] = useState(null)
+  const scrollRef = useRef(null)
 
   useEffect(() => {
     if (initialShipment) {
       if (initialShipment.batches) {
-        setBatches(initialShipment.batches.map(b => ({
+        setBatches(initialShipment.batches.map((b, idx) => ({
           ...b,
+          rowId: b.id || `row-${idx}`,
           units_36: b.units_36 || 0,
           units_55: b.units_55 || 0
         })))
@@ -20,9 +23,23 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
       setSelectedTemplateId(initialShipment.template_id || '')
     } else {
       setSelectedTemplateId('')
-      setBatches([{ number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
+      setBatches([{ rowId: 'row-0', number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
     }
   }, [initialShipment])
+
+  useEffect(() => {
+    if (latestAddedRowId && scrollRef.current) {
+      // Small timeout to ensure DOM has rendered the new row
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: 'smooth'
+          })
+        }
+      }, 50)
+    }
+  }, [batches.length, latestAddedRowId])
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId)
   const requiresInc = selectedTemplate ? (selectedTemplate.requires_incubation !== false) : true
@@ -30,7 +47,9 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
   const hasInc55 = requiresInc && selectedTemplate && (selectedTemplate.incubation_55 || 0) > 0
 
   const addBatchRow = () => {
-    setBatches([...batches, { number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
+    const newRowId = `row-${Date.now()}`
+    setBatches([...batches, { rowId: newRowId, number: '', production_date: '', expiration_date: '', units_36: 0, units_55: 0 }])
+    setLatestAddedRowId(newRowId)
   }
 
   const removeBatchRow = (idx) => {
@@ -75,7 +94,7 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('shipment.field.product')}</label>
@@ -132,8 +151,11 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
               <h3 className="text-xs font-bold text-slate-350 uppercase tracking-widest">{t('shipment.batches.heading')}</h3>
               <button
                 type="button"
+                disabled={isSaving}
                 onClick={addBatchRow}
-                className="flex items-center gap-1 px-3 py-1 bg-slate-950 border border-slate-800 hover:border-slate-700 text-[10px] font-bold text-slate-300 hover:text-white rounded-lg transition-all"
+                className={`flex items-center gap-1 px-3 py-1 bg-slate-950 border border-slate-800 hover:border-slate-700 text-[10px] font-bold text-slate-300 hover:text-white rounded-lg transition-all ${
+                  isSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{t('shipment.batches.add')}</span>
@@ -142,21 +164,27 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
 
             <div className="space-y-3">
               {batches.map((batch, idx) => {
+                const isNewRow = batch.rowId === latestAddedRowId
                 return (
                   <div
-                    key={idx}
+                    key={batch.rowId || idx}
                     data-id={batch.id || ''}
-                    className="batch-form-row px-0 py-4 sm:p-4 bg-transparent sm:bg-slate-950/40 border-0 sm:border border-slate-800 rounded-none sm:rounded-2xl flex flex-col sm:flex-row gap-4 relative pt-8 sm:pt-6"
+                    className={`batch-form-row px-0 py-4 sm:p-4 bg-transparent sm:bg-slate-950/40 border-0 sm:border border-slate-800 rounded-none sm:rounded-2xl flex flex-col sm:flex-row gap-4 relative pt-8 sm:pt-6 transition-all ${
+                      isNewRow ? 'animate-flash-green' : ''
+                    }`}
                   >
-                    <div className="absolute top-2 left-3 text-[9px] text-slate-600 font-bold uppercase">
+                    <div className="absolute top-2 left-3 text-[9px] text-slate-650 font-bold uppercase">
                       {t('shipment.batch.label').replace('{n}', idx + 1)}
                     </div>
 
                     {batches.length > 1 && (
                       <button
                         type="button"
+                        disabled={isSaving}
                         onClick={() => removeBatchRow(idx)}
-                        className="absolute top-2 right-2 p-1.5 bg-slate-800/40 hover:bg-red-950/40 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-lg transition-all"
+                        className={`absolute top-2 right-2 p-1.5 bg-slate-800/40 hover:bg-red-950/40 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-lg transition-all ${
+                          isSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                        }`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -244,16 +272,29 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
         <div className="px-6 py-4 border-t border-slate-850 flex justify-end gap-3 bg-slate-900/95 backdrop-blur-md sticky bottom-0 z-10">
           <button
             type="button"
+            disabled={isSaving}
             onClick={onClose}
-            className="px-5 py-2 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all"
+            className={`px-5 py-2 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all ${
+              isSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+            }`}
           >
             {t('shipment.btn.cancel')}
           </button>
           <button
             type="submit"
-            className="px-6 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
+            disabled={isSaving}
+            className={`px-6 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 ${
+              isSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+            }`}
           >
-            {t('shipment.btn.save')}
+            {isSaving ? (
+              <>
+                <span className="w-3 h-3 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                <span>{t('mgr.settings.saving') || 'Saving...'}</span>
+              </>
+            ) : (
+              t('shipment.btn.save')
+            )}
           </button>
         </div>
       </form>

@@ -354,3 +354,20 @@ input::placeholder, textarea::placeholder {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+/* Custom animation to highlight newly created batch rows or cards */
+@keyframes flash-green {
+  0% {
+    background-color: rgba(20, 184, 166, 0.3) !important;
+    border-color: rgb(20, 184, 166) !important;
+    box-shadow: 0 0 15px rgba(20, 184, 166, 0.2) !important;
+  }
+  100% {
+    background-color: transparent;
+    border-color: var(--border-card);
+    box-shadow: none;
+  }
+}
+.animate-flash-green {
+  animation: flash-green 2.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
