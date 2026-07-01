@@ -10,7 +10,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
     'Supabase environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) are missing. Please configure them in your .env file.'
   )
 }
-if (!supabaseServiceKey) {
+if (import.meta.env.DEV && !supabaseServiceKey) {
   console.warn(
     'Supabase service role key (VITE_SUPABASE_SERVICE_ROLE_KEY) is missing. Seeding functions will fall back to anon client, which may fail due to RLS.'
   )
