@@ -1647,7 +1647,12 @@ export default function ManagerView() {
                       )
                     })}
                   </div>
-{(activeTab === 'archive' || activeTab === 'fresh_coas') && (() => {
+                )}
+              </div>
+            )
+          })()}
+
+          {(activeTab === 'archive' || activeTab === 'fresh_coas') && (() => {
             const approvedBatches = shipments
               .flatMap(s => (s.batches || []).map(b => ({ ...b, shipment: s, temp: getTemplate(s.template_id) })))
               .filter(item => {
@@ -1817,7 +1822,30 @@ export default function ManagerView() {
                 {coaSelectedBatchId ? (
                   <div className="w-full overflow-x-auto no-scrollbar pb-6 no-print">
                     <div id="coa-report-view" className="p-8 bg-white text-slate-900 border border-slate-300 rounded-3xl w-[700px] sm:w-auto max-w-3xl mx-auto shadow-xl flex flex-col justify-between min-h-[9.2in] shrink-0">
-                        return (
+                      {/* COA Top Header */}
+                      <div>
+                        <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
+                          <div>
+                            <h1 className="text-2xl font-black uppercase text-slate-950">{t('coa.title')}</h1>
+                            <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mt-0.5">
+                              {t('coa.lab_name')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className="inline-block px-3 py-1 bg-slate-900 text-white text-[10px] font-bold uppercase rounded">
+                              {t('coa.approved_badge')}
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-2 font-medium">
+                              {t('coa.release_date').replace('{d}', new Date(shipments.flatMap(s => s.batches).find(b => b.id === coaSelectedBatchId)?.approved_at).toLocaleDateString())}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Metadata Table */}
+                        {(() => {
+                          const batch = shipments.flatMap(s => s.batches.map(b => ({ ...b, shipment: s }))).find(b => b.id === coaSelectedBatchId)
+                          const temp = getTemplate(batch?.shipment?.template_id)
+                          return (
                           <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-xs mb-8 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                             <div>
                               <span className="text-[9px] font-bold text-slate-455 uppercase block">{t('coa.field.product')}</span>
