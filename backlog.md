@@ -10,10 +10,22 @@ This document tracks all planned, in-progress, and completed features for the LI
 - [x] **Test Inputs & Result Matching Mockups**
   - *Description:* Created mockups and verified the entry form for all test types in the LIMS.
   - *Goal:* Ensure intuitive data entry for technicians and confirm output results map to specifications correctly.
+- [ ] **Smart Numeric Keypad for Mobile**
+  - *Description:* Force numeric keypads with `inputMode="decimal"` for gloved technicians entering numbers on mobile.
+- [ ] **Auto-Select Input Text on Focus**
+  - *Description:* Automatically select the entire text when a number input is focused, preventing cursor misalignment and trailing zeros (e.g., typing '5' over '0' creating '50').
+- [ ] **Unsaved Changes Warning Modal**
+  - *Description:* Prompt technicians with a confirmation check if they try to leave the entry page with unsaved replicates.
+- [ ] **Higher Contrast Compliance Badges**
+  - *Description:* Make status indicators larger with distinct symbols ($\checkmark$ / $\times$) for better readability under bright lab lights.
+- [ ] **Quick-Access Draft Banner**
+  - *Description:* Display a dashboard shortcut for technicians to quickly resume active test entry drafts.
 
 ### Long-Term / Complex Features
 - [x] **Database Cleanup and Data Archiving Tool**
   - *Reason:* Automatically or manually purge or archive historical records to remain within free-tier Supabase and Vercel storage limits.
+- [ ] **Retest Audit Trail & History Log**
+  - *Reason:* Keep a permanent record of previous retest reasons and rejection dates for audit compliance.
 - [ ] **Specialized Quality Assurance Mock Testing**
   - *Reason:* Ensure that chemical equations and other testing methodologies are mathematically verified against benchmark standard values.
 - [x] **Ratio and Composite Parameter Equations**
