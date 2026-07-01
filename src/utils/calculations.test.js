@@ -167,7 +167,7 @@ describe('Math and Calculations Utilities', () => {
       expect(isShipmentArchived(shipment)).toBe(false)
     })
 
-    it('returns false if all batches approved but within 24-hour grace period', () => {
+    it('returns true if all batches approved (regardless of approval age)', () => {
       const now = new Date()
       // approved 12 hours ago
       const recentApproval = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString()
@@ -175,22 +175,6 @@ describe('Math and Calculations Utilities', () => {
       const shipment = {
         batches: [
           { id: 'b1', approved_at: recentApproval }
-        ]
-      }
-      expect(isShipmentArchived(shipment)).toBe(false)
-    })
-
-    it('returns true if all batches approved and latest approval is older than 24 hours', () => {
-      const now = new Date()
-      // approved 25 hours ago
-      const oldApproval = new Date(now.getTime() - 25 * 60 * 60 * 1000).toISOString()
-      // approved 30 hours ago
-      const olderApproval = new Date(now.getTime() - 30 * 60 * 60 * 1000).toISOString()
-
-      const shipment = {
-        batches: [
-          { id: 'b1', approved_at: olderApproval },
-          { id: 'b2', approved_at: oldApproval }
         ]
       }
       expect(isShipmentArchived(shipment)).toBe(true)

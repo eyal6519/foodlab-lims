@@ -1653,25 +1653,10 @@ export default function ManagerView() {
           })()}
 
           {(activeTab === 'archive' || activeTab === 'fresh_coas') && (() => {
-            const timeWindowMs = 24 * 60 * 60 * 1000
-            const now = Date.now()
-
             const filteredApprovedShipments = shipments.map(s => {
               const matchingBatches = (s.batches || []).filter(b => {
                 // Must be approved
                 if (!b.approved_at) return false
-
-                // Age check
-                const approvedTime = new Date(b.approved_at).getTime()
-                const ageInMs = now - approvedTime
-                const isFresh = ageInMs <= timeWindowMs
-
-                if (activeTab === 'fresh_coas') {
-                  if (!isFresh) return false
-                } else {
-                  // activeTab === 'archive'
-                  if (isFresh) return false
-                }
 
                 // Search & Date filters
                 const temp = getTemplate(s.template_id)
@@ -2004,9 +1989,7 @@ export default function ManagerView() {
                 ) : (
                   filteredApprovedShipments.length === 0 ? (
                     <div className="p-12 text-center text-slate-500 border border-dashed border-slate-800 rounded-3xl">
-                      {activeTab === 'fresh_coas' 
-                        ? t('mgr.coa.empty_recent') 
-                        : t('mgr.archive.empty')}
+                      {t('mgr.archive.empty')}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
