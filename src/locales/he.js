@@ -264,6 +264,7 @@ const he = {
   'mgr.archive.empty': 'לא נמצאו אצוות מארכיון התואמות לחיפוש.',
   'mgr.archive.approved_count': 'אצוות מאושרות ({n})',
   'mgr.archive.generate_coa': 'הפק תעודת אנליזה',
+  'mgr.archive.view_raw_btn': 'צפייה בנתונים גולמיים',
   'mgr.archive.batch_label': 'אצווה: {n}',
   'mgr.archive.supplier': 'ספק:',
   'mgr.archive.arrived': 'הגיע:',
@@ -443,6 +444,7 @@ const he = {
   'tech.archive.empty': 'לא נמצאו אצוות מאושרות התואמות לחיפוש.',
   'tech.archive.approved_count': 'אצוות מאושרות ({n})',
   'tech.archive.generate_coa': 'הפק תעודת אנליזה',
+  'tech.archive.view_raw_btn': 'צפייה בנתונים גולמיים',
   'tech.archive.batch_label': 'אצווה: {n}',
 
   // Technician View — Batch List

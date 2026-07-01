@@ -1273,13 +1273,22 @@ export default function TechnicianView() {
                                         {t('tech.batch.prod')} {b.production_date || '-'} • {t('tech.batch.approved_label')} {formattedAppDate}
                                       </p>
                                     </div>
-                                    <button
-                                      onClick={() => setCoaSelectedBatchId(b.id)}
-                                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-955 text-[10px] font-bold rounded-lg active:scale-[0.98] transition-all cursor-pointer font-sans"
-                                    >
-                                      <FileText className="w-3.5 h-3.5 text-slate-955" />
-                                      <span>{t('tech.archive.generate_coa')}</span>
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => setActiveBatchTesting({ batch: b, shipment })}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-teal-400 text-[10px] font-bold rounded-lg active:scale-[0.98] transition-all cursor-pointer font-sans"
+                                      >
+                                        <FileSpreadsheet className="w-3.5 h-3.5 text-teal-400" />
+                                        <span>{t('tech.archive.view_raw_btn')}</span>
+                                      </button>
+                                      <button
+                                        onClick={() => setCoaSelectedBatchId(b.id)}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-955 text-[10px] font-bold rounded-lg active:scale-[0.98] transition-all cursor-pointer font-sans"
+                                      >
+                                        <FileText className="w-3.5 h-3.5 text-slate-955" />
+                                        <span>{t('tech.archive.generate_coa')}</span>
+                                      </button>
+                                    </div>
                                   </div>
                                 )
                               })}

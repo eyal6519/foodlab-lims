@@ -264,6 +264,7 @@ const en = {
   'mgr.archive.empty': 'No archived batches found matching your search or date filter criteria.',
   'mgr.archive.approved_count': 'Approved Batches ({n})',
   'mgr.archive.generate_coa': 'Generate COA',
+  'mgr.archive.view_raw_btn': 'View Raw Inputs',
   'mgr.archive.batch_label': 'Batch: {n}',
   'mgr.archive.supplier': 'Supplier:',
   'mgr.archive.arrived': 'Arrived:',
@@ -443,6 +444,7 @@ const en = {
   'tech.archive.empty': 'No approved batches found matching your search or date filter criteria.',
   'tech.archive.approved_count': 'Approved Batches ({n})',
   'tech.archive.generate_coa': 'Generate COA',
+  'tech.archive.view_raw_btn': 'View Raw Inputs',
   'tech.archive.batch_label': 'Batch: {n}',
 
   // Technician View — Batch List

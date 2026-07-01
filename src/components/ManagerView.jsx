@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { TESTS, testMap, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg, isTestLocked, getTestDefinition } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import ShipmentModal from './ShipmentModal'
+import BatchTestingPage from './BatchTestingPage'
 import LanguageToggle from './LanguageToggle'
 import ResponsiveShell from './ResponsiveShell'
 import {
@@ -75,6 +76,7 @@ export default function ManagerView() {
 
   // COA print select
   const [coaSelectedBatchId, setCoaSelectedBatchId] = useState('')
+  const [activeBatchTesting, setActiveBatchTesting] = useState(null) // { batch, shipment }
   const [coaSearch, setCoaSearch] = useState('')
   const [coaFilterDateType, setCoaFilterDateType] = useState('all') // 'all' | 'approved_at' | 'intake_date' | 'production_date'
   const [coaStartDate, setCoaStartDate] = useState('')
@@ -769,6 +771,19 @@ export default function ManagerView() {
       <div className="min-h-screen bg-slate-950 flex justify-center items-center">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-teal-500" />
       </div>
+    )
+  }
+
+  if (activeBatchTesting) {
+    return (
+      <BatchTestingPage
+        batch={activeBatchTesting.batch}
+        shipment={activeBatchTesting.shipment}
+        templates={templates}
+        initialResults={results}
+        onSave={() => {}}
+        onClose={() => setActiveBatchTesting(null)}
+      />
     )
   }
 
@@ -2046,6 +2061,13 @@ export default function ManagerView() {
                                         </p>
                                       </div>
                                       <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => setActiveBatchTesting({ batch: b, shipment })}
+                                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-teal-400 text-[10px] font-bold rounded-lg active:scale-[0.98] transition-all cursor-pointer font-sans"
+                                        >
+                                          <FileSpreadsheet className="w-3.5 h-3.5 text-teal-400" />
+                                          <span>{t('mgr.archive.view_raw_btn')}</span>
+                                        </button>
                                         <button
                                           onClick={() => setCoaSelectedBatchId(b.id)}
                                           className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-[10px] font-bold rounded-lg active:scale-[0.98] transition-all cursor-pointer font-sans"
