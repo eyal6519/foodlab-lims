@@ -17,10 +17,18 @@ alter table public.profiles add column if not exists name text;
 alter table public.profiles enable row level security;
 
 -- Policies for profiles
-create policy "Users can read all profiles"
+drop policy if exists "Users can read all profiles" on public.profiles;
+create policy "Users can read profiles"
     on public.profiles for select
     to authenticated
-    using (true);
+    using (
+        id = auth.uid()
+        or
+        exists (
+            select 1 from public.profiles
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
+        )
+    );
 
 create policy "Managers can update profiles"
     on public.profiles for update
@@ -51,10 +59,16 @@ alter table public.product_templates add column if not exists requires_incubatio
 alter table public.product_templates enable row level security;
 
 -- Policies for templates
+drop policy if exists "Authenticated users can read templates" on public.product_templates;
 create policy "Authenticated users can read templates"
     on public.product_templates for select
     to authenticated
-    using (true);
+    using (
+        exists (
+            select 1 from public.profiles
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
+        )
+    );
 
 create policy "Managers can manage templates"
     on public.product_templates for all
@@ -88,10 +102,16 @@ create table if not exists public.shipments (
 alter table public.shipments enable row level security;
 
 -- Policies for shipments
+drop policy if exists "Authenticated users can read shipments" on public.shipments;
 create policy "Authenticated users can read shipments"
     on public.shipments for select
     to authenticated
-    using (true);
+    using (
+        exists (
+            select 1 from public.profiles
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
+        )
+    );
 
 drop policy if exists "Managers can manage shipments" on public.shipments;
 drop policy if exists "Technicians can update shipments (e.g. exit early if needed or set dates)" on public.shipments;
@@ -136,10 +156,16 @@ alter table public.batches add column if not exists incubation_early_acknowledge
 alter table public.batches enable row level security;
 
 -- Policies for batches
+drop policy if exists "Authenticated users can read batches" on public.batches;
 create policy "Authenticated users can read batches"
     on public.batches for select
     to authenticated
-    using (true);
+    using (
+        exists (
+            select 1 from public.profiles
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
+        )
+    );
 
 drop policy if exists "Managers can manage batches" on public.batches;
 
@@ -152,6 +178,27 @@ create policy "Managers and technicians can manage batches"
             where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
         )
     );
+
+-- Trigger to verify only managers can modify approval status of a batch
+create or replace function public.check_batch_approval_auth()
+returns trigger as $$
+begin
+  if (new.approved_at is distinct from old.approved_at) then
+    if not exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'manager'
+    ) then
+      raise exception 'Only managers are authorized to approve or modify batch approval status.';
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_batch_approval_check on public.batches;
+create trigger on_batch_approval_check
+  before update on public.batches
+  for each row execute procedure public.check_batch_approval_auth();
 
 -- 5. TEST RESULTS TABLE
 create table if not exists public.test_results (
@@ -167,15 +214,27 @@ create table if not exists public.test_results (
 alter table public.test_results enable row level security;
 
 -- Policies for test results
+drop policy if exists "Authenticated users can read test results" on public.test_results;
 create policy "Authenticated users can read test results"
     on public.test_results for select
     to authenticated
-    using (true);
+    using (
+        exists (
+            select 1 from public.profiles
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
+        )
+    );
 
+drop policy if exists "Authenticated users can modify test results" on public.test_results;
 create policy "Authenticated users can modify test results"
     on public.test_results for all
     to authenticated
-    using (true);
+    using (
+        exists (
+            select 1 from public.profiles
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
+        )
+    );
 
 -- 6. AUTH TRIGGERS FOR USER PROFILES
 create or replace function public.handle_new_user()
@@ -317,16 +376,28 @@ create table if not exists public.tare_registry (
 -- Enable RLS
 alter table public.tare_registry enable row level security;
 
--- Policies (allow read & write for authenticated users)
+-- Policies (allow read & write for managers and technicians)
+drop policy if exists "Authenticated users can read tare registry" on public.tare_registry;
 create policy "Authenticated users can read tare registry"
     on public.tare_registry for select
     to authenticated
-    using (true);
+    using (
+        exists (
+            select 1 from public.profiles
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
+        )
+    );
 
+drop policy if exists "Managers and technicians can manage tare registry" on public.tare_registry;
 create policy "Managers and technicians can manage tare registry"
     on public.tare_registry for all
     to authenticated
-    using (true);
+    using (
+        exists (
+            select 1 from public.profiles
+            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
+        )
+    );
 
 -- Alter table to add submitted_at column for batch submissions
 alter table public.batches add column if not exists submitted_at timestamp with time zone;
