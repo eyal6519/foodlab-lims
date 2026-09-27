@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Menu, X, Bell, Settings, LogOut, Beaker } from 'lucide-react'
 import LanguageToggle from './LanguageToggle'
 import ThemeToggle from './ThemeToggle'

@@ -2,21 +2,18 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
-import { TESTS, testMap, calculateTest, isTestEntered, isShipmentArchived, fmt, num, avg, isTestLocked, getTestDefinition } from '../utils/calculations'
+import { calculateTest, isTestEntered, isShipmentArchived, fmt, num, avg, isTestLocked, getTestDefinition } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import BatchTestingPage from './BatchTestingPage'
-import LanguageToggle from './LanguageToggle'
 import ShipmentModal from './ShipmentModal'
 import ResponsiveShell from './ResponsiveShell'
 import {
-  LogOut,
   Clock,
   Lock,
   Unlock,
   ClipboardList,
   CheckCircle,
   AlertCircle,
-  HelpCircle,
   FileSpreadsheet,
   Settings,
   XCircle,
@@ -28,7 +25,6 @@ import {
   Printer,
   Download,
   FileText,
-  Bell,
   Calendar
 } from 'lucide-react'
 
@@ -69,7 +65,6 @@ export default function TechnicianView() {
   }
 
   const [notifiedBatchIds, setNotifiedBatchIds] = useState([])
-  const [notificationBellOpen, setNotificationBellOpen] = useState(false)
 
   // Request notification permissions on mount
   useEffect(() => {

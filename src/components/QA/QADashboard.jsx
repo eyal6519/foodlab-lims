@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { seedMockData, clearAllData, seedQAUsers } from '../../utils/mockDataGenerator'
-import { Beaker, Users, Trash2, Database, ShieldAlert, LogOut, Check, Sparkles } from 'lucide-react'
+import { Beaker, Users, Trash2, Database, ShieldAlert, LogOut, Sparkles } from 'lucide-react'
 
 export default function QADashboard() {
   const { login, logout, user, profile } = useAuth()

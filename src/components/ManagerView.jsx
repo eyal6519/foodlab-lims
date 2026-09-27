@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
-import { TESTS, testMap, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg, isTestLocked, getTestDefinition } from '../utils/calculations'
+import { TESTS, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg, isTestLocked, getTestDefinition } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import ShipmentModal from './ShipmentModal'
 import BatchTestingPage from './BatchTestingPage'
-import LanguageToggle from './LanguageToggle'
 import ResponsiveShell from './ResponsiveShell'
 import {
-  LogOut,
   LayoutDashboard,
   Calendar,
   FileSpreadsheet,
@@ -19,7 +17,6 @@ import {
   Printer,
   Download,
   ArrowLeft,
-  AlertTriangle,
   Lock,
   Unlock,
   Clock,
@@ -32,7 +29,6 @@ import {
   Search,
   X,
   Archive,
-  Bell,
   MoreVertical,
   Database
 } from 'lucide-react'
@@ -106,7 +102,6 @@ export default function ManagerView() {
   }
 
   const [notifiedBatchIds, setNotifiedBatchIds] = useState([])
-  const [notificationBellOpen, setNotificationBellOpen] = useState(false)
   const [expandedShipmentId, setExpandedShipmentId] = useState(null)
   const [expandedIntakeShipmentId, setExpandedIntakeShipmentId] = useState(null)
 
@@ -856,14 +851,6 @@ export default function ManagerView() {
     })),
     ...reviewNotifications
   ]
-
-  const freshCoasCount = shipments
-    .flatMap(s => s.batches || [])
-    .filter(b => {
-      if (!b.approved_at) return false
-      const age = Date.now() - new Date(b.approved_at).getTime()
-      return age <= 24 * 60 * 60 * 1000
-    }).length
 
   const lockedBatchesCount = shipments
     .filter(s => !isShipmentArchived(s))

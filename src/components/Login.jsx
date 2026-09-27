@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { Beaker, Lock, Mail, AlertCircle, AlertTriangle, Info } from 'lucide-react'
@@ -49,8 +49,8 @@ export default function Login() {
       const errMsg = err.message || ''
       const errStatus = err.status || 0
       
-      let title = t('login.toast.auth_failed.title')
-      let message = t('login.toast.auth_failed.body')
+      let title
+      let message
       let type = 'error'
 
       if (errMsg.includes('Invalid login credentials') || errMsg.includes('invalid_grant')) {

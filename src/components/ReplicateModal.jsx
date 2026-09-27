@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Plus, Trash2, AlertTriangle, Check } from 'lucide-react'
 import { num } from '../utils/calculations'
 import { useLanguage } from '../context/LanguageContext'

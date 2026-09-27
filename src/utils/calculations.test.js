@@ -192,6 +192,10 @@ describe('Math and Calculations Utilities', () => {
       requires_incubation: false
     }
 
+    // Dynamic dates keep these tests valid no matter when they run.
+    const today = () => new Date().toISOString().slice(0, 10)
+    const dayOffset = (days) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
     it('returns false if template does not require incubation', () => {
       const batch = { units_36: 1, units_55: 1, exit_36: '2026-07-10', exit_55: '2026-07-05' }
       expect(isTestLocked('ph_36', batch, templateNoInc)).toBe(false)
@@ -219,10 +223,9 @@ describe('Math and Calculations Utilities', () => {
     })
 
     it('locks 36°C tests if exit_36 is in the future', () => {
-      // today is 2026-06-25
       const batch = {
         units_36: 1,
-        exit_36: '2026-07-05' // future
+        exit_36: dayOffset(10) // future
       }
       expect(isTestLocked('ph_36', batch, templateWithInc)).toBe(true)
       expect(isTestLocked('vacuum_36', batch, templateWithInc)).toBe(true)
@@ -231,11 +234,11 @@ describe('Math and Calculations Utilities', () => {
     it('unlocks 36°C tests if exit_36 is in the past or today', () => {
       const batchPast = {
         units_36: 1,
-        exit_36: '2026-06-20' // past
+        exit_36: dayOffset(-10) // past
       }
       const batchToday = {
         units_36: 1,
-        exit_36: '2026-06-25' // today
+        exit_36: today() // today
       }
       expect(isTestLocked('ph_36', batchPast, templateWithInc)).toBe(false)
       expect(isTestLocked('vacuum_36', batchToday, templateWithInc)).toBe(false)
@@ -253,7 +256,7 @@ describe('Math and Calculations Utilities', () => {
     it('locks 55°C tests if exit_55 is in the future', () => {
       const batch = {
         units_55: 1,
-        exit_55: '2026-07-05'
+        exit_55: dayOffset(10)
       }
       expect(isTestLocked('ph_55', batch, templateWithInc)).toBe(true)
       expect(isTestLocked('vacuum_55', batch, templateWithInc)).toBe(true)
@@ -262,11 +265,11 @@ describe('Math and Calculations Utilities', () => {
     it('unlocks 55°C tests if exit_55 is in the past or today', () => {
       const batchPast = {
         units_55: 1,
-        exit_55: '2026-06-20'
+        exit_55: dayOffset(-10)
       }
       const batchToday = {
         units_55: 1,
-        exit_55: '2026-06-25'
+        exit_55: today()
       }
       expect(isTestLocked('ph_55', batchPast, templateWithInc)).toBe(false)
       expect(isTestLocked('vacuum_55', batchToday, templateWithInc)).toBe(false)

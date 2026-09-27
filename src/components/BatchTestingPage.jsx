@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Trash2, AlertTriangle, Check, Info, Lock, Camera, Upload, Search, X } from 'lucide-react'
-import { TESTS, testMap, calculateTest, num, isTestLocked, getTestDefinition } from '../utils/calculations'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, Plus, Trash2, AlertTriangle, Check, Lock, Camera, Search, X } from 'lucide-react'
+import { TESTS, calculateTest, num, isTestLocked } from '../utils/calculations'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
 
@@ -528,56 +528,6 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
     }))
   }
 
-  const handlePassFailChange = (testId, fieldId, value) => {
-    const test = allTests.find(t => t.id === testId)
-    if (!test) return
-
-    setIsDirty(true)
-    const newRows = [...(testData[testId] || [])]
-    const updatedRow = {
-      ...newRows[0],
-      [fieldId]: value
-    }
-    newRows[0] = updatedRow
-
-    const updatedTestData = {
-      ...testData,
-      [testId]: newRows
-    }
-    setTestData(updatedTestData)
-
-    const testWarnings = validateTestRows(test, newRows)
-    setWarnings(prev => ({
-      ...prev,
-      [testId]: testWarnings
-    }))
-  }
-
-  const handleCheckboxChange = (testId, fieldId, value) => {
-    const test = allTests.find(t => t.id === testId)
-    if (!test) return
-
-    setIsDirty(true)
-    const newRows = [...(testData[testId] || [])]
-    const updatedRow = {
-      ...newRows[0],
-      [fieldId]: value
-    }
-    newRows[0] = updatedRow
-
-    const updatedTestData = {
-      ...testData,
-      [testId]: newRows
-    }
-    setTestData(updatedTestData)
-
-    const testWarnings = validateTestRows(test, newRows)
-    setWarnings(prev => ({
-      ...prev,
-      [testId]: testWarnings
-    }))
-  }
-
   const handleSave = (isSubmit = false) => {
     const allWarnings = {}
     let hasBlockingError = false
@@ -678,26 +628,6 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
       onClose()
     }
   }
-
-  // Count progress
-  const enteredTestsCount = enabledTests.filter(testId => {
-    const rows = testData[testId] || []
-    const test = allTests.find(t => t.id === testId)
-    if (!test) return false
-
-    // Check if the rows contain actual entered data
-    const isTestEmpty = (rList, tDef) => {
-      return rList.every(row => {
-        return tDef.fields.every(f => {
-          const val = row[f.id]
-          if (f.type === 'checkbox') return !val
-          if (f.type === 'select') return true
-          return val === '' || val === null || val === undefined
-        })
-      })
-    }
-    return !isTestEmpty(rows, test)
-  }).length
 
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-32">

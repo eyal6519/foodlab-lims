@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, XCircle, Search, ChevronDown, X } from 'lucide-react'
 import { parseBatchNumber } from '../utils/batchParser'
 import { useLanguage } from '../context/LanguageContext'

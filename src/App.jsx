@@ -1,4 +1,3 @@
-import React from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { useLanguage } from './context/LanguageContext'
 import Login from './components/Login'
