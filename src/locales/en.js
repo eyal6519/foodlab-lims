@@ -322,6 +322,7 @@ const en = {
 
   // Manager View — Account Settings
   'mgr.settings.title': 'Account Settings',
+  'mgr.settings.name': 'Full Name',
   'mgr.settings.email': 'Email Address',
   'mgr.settings.password': 'New Password (leave blank to keep current)',
   'mgr.settings.cancel': 'Cancel',

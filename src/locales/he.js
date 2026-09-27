@@ -322,6 +322,7 @@ const he = {
 
   // Manager View — Account Settings
   'mgr.settings.title': 'הגדרות חשבון',
+  'mgr.settings.name': 'שם מלא',
   'mgr.settings.email': 'כתובת דואר אלקטרוני',
   'mgr.settings.password': 'סיסמה חדשה (השאר ריק לשמירת הנוכחית)',
   'mgr.settings.cancel': 'ביטול',

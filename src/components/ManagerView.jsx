@@ -330,17 +330,14 @@ export default function ManagerView() {
     }
   }
 
-  // Rename a user (managers may rename themselves and other users)
-  const handleRenameUser = async (userId, newName) => {
+  // Persist a profile name to the database (shared by the rename menu and account settings)
+  const persistProfileName = async (userId, newName) => {
     const trimmed = (newName || '').trim()
     const { error } = await supabase
       .from('profiles')
       .update({ name: trimmed || null })
       .eq('id', userId)
-    if (error) {
-      alert(`${t('mgr.alert.rename_error')} ${error.message}`)
-      throw error
-    }
+    if (error) throw error
 
     // Update local state
     setUsersList(prev => prev.map(u => u.id === userId ? { ...u, name: trimmed || null } : u))
@@ -348,8 +345,19 @@ export default function ManagerView() {
     // If the manager renamed themselves, refresh the profile so the header updates
     if (userId === user.id) await refreshProfile()
 
-    showToast(t('mgr.toast.user_renamed').replace('{name}', trimmed || t('mgr.users.no_name')), 'success')
-    setRenamingUser(null)
+    return trimmed
+  }
+
+  // Rename a user (managers may rename themselves and other users)
+  const handleRenameUser = async (userId, newName) => {
+    try {
+      const trimmed = await persistProfileName(userId, newName)
+      showToast(t('mgr.toast.user_renamed').replace('{name}', trimmed || t('mgr.users.no_name')), 'success')
+      setRenamingUser(null)
+    } catch (err) {
+      alert(`${t('mgr.alert.rename_error')} ${err.message}`)
+      throw err
+    }
   }
 
   const handleSaveAssignment = async () => {
@@ -2321,6 +2329,8 @@ export default function ManagerView() {
       {settingsModalOpen && (
         <AccountSettingsModal
           user={user}
+          initialName={profile?.name || ''}
+          onSaveName={(newName) => persistProfileName(user.id, newName)}
           onClose={() => setSettingsModalOpen(false)}
           updateAccount={updateAccount}
           showToast={showToast}
@@ -2802,8 +2812,9 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
   )
 }
 
-function AccountSettingsModal({ user, onClose, updateAccount, showToast }) {
+function AccountSettingsModal({ user, initialName, onSaveName, onClose, updateAccount, showToast }) {
   const { t } = useLanguage()
+  const [name, setName] = useState(initialName || '')
   const [email, setEmail] = useState(user?.email || '')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -2812,6 +2823,9 @@ function AccountSettingsModal({ user, onClose, updateAccount, showToast }) {
     e.preventDefault()
     setLoading(true)
     try {
+      const trimmedName = (name || '').trim()
+      const nameChanged = onSaveName && trimmedName !== (initialName || '').trim()
+      if (nameChanged) await onSaveName(trimmedName)
       await updateAccount(email, password || null)
       showToast(t('mgr.toast.account_updated'), 'success')
       onClose()
@@ -2840,6 +2854,15 @@ function AccountSettingsModal({ user, onClose, updateAccount, showToast }) {
         </div>
 
         <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.settings.name')}</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+            />
+          </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.settings.email')}</label>
             <input
