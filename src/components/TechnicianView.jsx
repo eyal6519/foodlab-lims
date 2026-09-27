@@ -1327,6 +1327,69 @@ export default function TechnicianView() {
               </label>
             </div>
 
+            {/* Quick-Access Drafts Banner */}
+            {(() => {
+              const draftBatches = shipments
+                .filter(s => {
+                  const assignedIds = Array.isArray(s.assigned_to) ? s.assigned_to : [];
+                  if (myMissionsOnly && assignedIds.length > 0 && !assignedIds.includes(user.id)) return false;
+                  return true;
+                })
+                .flatMap(s => (s.batches || []).map(b => ({ ...b, shipment: s, template_id: s.template_id })))
+                .filter(b => {
+                  if (b.approved_at || b.submitted_at) return false;
+                  const bStatus = getIncubationStatus(b, b.template_id);
+                  if (bStatus.locked) return false;
+                  return Object.keys(results).some(k => k.startsWith(b.id + ":"));
+                });
+
+              if (draftBatches.length === 0) return null;
+              
+              return (
+                <div className="bg-slate-900 border border-amber-500/20 rounded-3xl overflow-hidden shadow-xl">
+                  <div
+                    className="p-5 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{String.fromCodePoint(0x1F4DD)}</span>
+                      <h3 className="text-sm font-bold text-amber-400">
+                        {t("tech.draft.banner.title").replace("{n}", draftBatches.length)}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-full text-[10px] font-bold text-amber-400">
+                        {draftBatches.length}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-800/60 p-4 space-y-2 bg-slate-950/20">
+                      {draftBatches.map(d => {
+                        const temp = getTemplate(d.template_id);
+                        return (
+                          <div
+                            key={d.id}
+                            className="flex items-center justify-between p-3 bg-slate-900 rounded-2xl border border-slate-800/80 hover:border-teal-500/20 transition-all"
+                          >
+                            <div>
+                              <p className="text-sm font-bold text-white">{temp?.name || t("common.product")}</p>
+                              <p className="text-[10px] text-slate-400">
+                                {d.shipment.supplier} • {t("tech.batch.batch_label")} {d.number || t("common.unnamed_batch")}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setActiveBatchTesting({ batch: d, shipment: d.shipment })}
+                              className="px-4 py-2 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 text-teal-400 text-[11px] font-bold rounded-xl transition-all cursor-pointer"
+                            >
+                              {t("tech.draft.resume_btn")}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                </div>
+              );
+            })()}
+
             {filteredShipments.length === 0 ? (
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
               <FileSpreadsheet className="w-12 h-12 text-slate-600 mx-auto mb-4" />
@@ -1462,6 +1525,10 @@ export default function TechnicianView() {
                                         {bStatus.required && (
                                           <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-teal-950 text-teal-400 border border-teal-500/20">
                                             {bStatus.due ? t('tech.batch.ready') : bStatus.label}
+                                          </span>
+                                        )}{/* Draft badge */}{!batch.approved_at && !batch.submitted_at && !getIncubationStatus(batch, shipment.template_id).locked && Object.keys(results).some(k => k.startsWith(batch.id + ':')) && (
+                                          <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-amber-400 border border-amber-500/20">
+                                            {String.fromCodePoint(0x1F4DD) + ' ' + t('tech.draft.badge')}
                                           </span>
                                         )}
 

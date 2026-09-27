@@ -64,6 +64,16 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
   const [manufacturer, setManufacturer] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [savingTare, setSavingTare] = useState(false)
+  // Unsaved changes guard
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false)
+
+  // Browser tab/window close guard
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   const template = templates.find(t => t.id === shipment.template_id)
 
@@ -621,9 +631,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
   const handleBackClick = () => {
     if (isDirty) {
-      if (window.confirm(t('batch.confirm.unsaved'))) {
-        onClose()
-      }
+      setShowUnsavedModal(true)
     } else {
       onClose()
     }
@@ -793,9 +801,11 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                         <div className="flex gap-2">
                           <input
                             type="number"
+                            inputMode="decimal"
                             step="any"
                             disabled={isLocked}
                             value={batchTare}
+                            onFocus={(e) => e.target.select()}
                             onChange={(e) => handleBatchTareChange(e.target.value)}
                             placeholder={t('batch.weight.tare_placeholder')}
                             className="flex-1 px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-base focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50 min-w-0"
@@ -870,9 +880,11 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               </label>
                               <input
                                 type="number"
+                                inputMode="decimal"
                                 step="any"
                                 disabled={isLocked}
                                 value={subtractTare ? (row.gross ?? '') : (row.net ?? '')}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => handleAddFieldVal(testId, idx, subtractTare ? 'gross' : 'net', e.target.value)}
                                 placeholder={subtractTare ? t('batch.weight.gross_placeholder') : t('batch.weight.net_placeholder')}
                                 className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-base focus:outline-none focus:border-teal-500 transition-all duration-200 disabled:opacity-50"
@@ -958,10 +970,12 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                                   </label>
                                   <input
                                     type={field.type === 'number' ? 'number' : 'text'}
+                                    inputMode="decimal"
                                     step="any"
                                     disabled={isLocked}
                                     value={value}
                                     onChange={(e) => handleAddFieldVal(testId, idx, field.id, e.target.value)}
+                                    onFocus={(e) => e.target.select()}
                                     placeholder={(() => {
                                       if (field.type !== 'number') return t('batch.input.placeholder')
                                       const lower = field.label.toLowerCase()
@@ -1298,6 +1312,33 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                 className="flex-1 px-4 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 <span>{savingTare ? t('tare.save.saving') : t('tare.save.submit_btn')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Changes Warning Modal */}
+      {showUnsavedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-8 shadow-2xl text-center space-y-5">
+            <div className="mx-auto w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-amber-400" />
+            </div>
+            <h2 className="text-lg font-bold text-white">{t('batch.confirm.unsaved_title')}</h2>
+            <p className="text-sm text-slate-400">{t('batch.confirm.unsaved_body')}</p>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowUnsavedModal(false)}
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer"
+              >
+                {t('batch.confirm.stay')}
+              </button>
+              <button
+                onClick={() => { setShowUnsavedModal(false); onClose(); }}
+                className="flex-1 px-5 py-2.5 border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer"
+              >
+                {t('batch.confirm.leave')}
               </button>
             </div>
           </div>
