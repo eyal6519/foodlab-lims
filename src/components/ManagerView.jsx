@@ -49,7 +49,7 @@ function uuidv4() {
 }
 
 export default function ManagerView() {
-  const { user, profile, logout, createTechnician, updateAccount } = useAuth()
+  const { user, profile, logout, createTechnician, updateAccount, refreshProfile } = useAuth()
   const { language, t } = useLanguage()
   const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'intake' | 'templates' | 'review' | 'coa_archive' | 'users'
   const isRtl = language === 'he'
@@ -69,6 +69,7 @@ export default function ManagerView() {
   const [shipmentModal, setShipmentModal] = useState(null) // { id, template_id, ... } or 'new'
   const [templateModal, setTemplateModal] = useState(null) // { id, name, ... } or 'new'
   const [activeUserMenuId, setActiveUserMenuId] = useState(null)
+  const [renamingUser, setRenamingUser] = useState(null) // { id } of the user being renamed, or null
   const [newUserName, setNewUserName] = useState('')
   const [newUserEmail, setNewUserEmail] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
@@ -327,6 +328,28 @@ export default function ManagerView() {
     } catch (err) {
       alert(`${t('mgr.alert.user_delete_error')} ${err.message}`)
     }
+  }
+
+  // Rename a user (managers may rename themselves and other users)
+  const handleRenameUser = async (userId, newName) => {
+    const trimmed = (newName || '').trim()
+    const { error } = await supabase
+      .from('profiles')
+      .update({ name: trimmed || null })
+      .eq('id', userId)
+    if (error) {
+      alert(`${t('mgr.alert.rename_error')} ${error.message}`)
+      throw error
+    }
+
+    // Update local state
+    setUsersList(prev => prev.map(u => u.id === userId ? { ...u, name: trimmed || null } : u))
+
+    // If the manager renamed themselves, refresh the profile so the header updates
+    if (userId === user.id) await refreshProfile()
+
+    showToast(t('mgr.toast.user_renamed').replace('{name}', trimmed || t('mgr.users.no_name')), 'success')
+    setRenamingUser(null)
   }
 
   const handleSaveAssignment = async () => {
@@ -2203,53 +2226,67 @@ export default function ManagerView() {
                         }`}>
                           {u.role}
                         </span>
-                        {u.id !== user.id && (
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => setActiveUserMenuId(activeUserMenuId === u.id ? null : u.id)}
-                              className="p-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-400 hover:text-white rounded-lg transition-all"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            {activeUserMenuId === u.id && (
-                              <>
-                                <div
-                                  className="fixed inset-0 z-10"
-                                  onClick={() => setActiveUserMenuId(null)}
-                                />
-                                <div className={`absolute ${
-                                  isRtl ? 'left-0' : 'right-0'
-                                } mt-1 w-44 bg-slate-950 border border-slate-850 rounded-xl shadow-xl z-20 p-1.5 space-y-1`}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      toggleUserRole(u.id, u.role)
-                                      setActiveUserMenuId(null)
-                                    }}
-                                    className={`w-full px-3 py-2 text-[11px] font-bold rounded-lg transition-all hover:bg-slate-850 ${
-                                      isRtl ? 'text-right' : 'text-left'
-                                    }`}
-                                  >
-                                    {u.role === 'manager' ? t('mgr.users.set_technician') : t('mgr.users.set_manager')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      handleDeleteUser(u.id, u.email)
-                                      setActiveUserMenuId(null)
-                                    }}
-                                    className={`w-full px-3 py-2 text-[11px] font-bold rounded-lg text-red-400 transition-all hover:bg-red-950/20 ${
-                                      isRtl ? 'text-right' : 'text-left'
-                                    }`}
-                                  >
-                                    {t('mgr.users.delete')}
-                                  </button>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        )}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setActiveUserMenuId(activeUserMenuId === u.id ? null : u.id)}
+                            className="p-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-400 hover:text-white rounded-lg transition-all"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                          {activeUserMenuId === u.id && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-10"
+                                onClick={() => setActiveUserMenuId(null)}
+                              />
+                              <div className={`absolute ${
+                                isRtl ? 'left-0' : 'right-0'
+                              } mt-1 w-44 bg-slate-950 border border-slate-850 rounded-xl shadow-xl z-20 p-1.5 space-y-1`}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRenamingUser({ id: u.id })
+                                    setActiveUserMenuId(null)
+                                  }}
+                                  className={`w-full px-3 py-2 text-[11px] font-bold rounded-lg transition-all hover:bg-slate-850 ${
+                                    isRtl ? 'text-right' : 'text-left'
+                                  }`}
+                                >
+                                  {t('mgr.users.rename')}
+                                </button>
+                                {u.id !== user.id && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        toggleUserRole(u.id, u.role)
+                                        setActiveUserMenuId(null)
+                                      }}
+                                      className={`w-full px-3 py-2 text-[11px] font-bold rounded-lg transition-all hover:bg-slate-850 ${
+                                        isRtl ? 'text-right' : 'text-left'
+                                      }`}
+                                    >
+                                      {u.role === 'manager' ? t('mgr.users.set_technician') : t('mgr.users.set_manager')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        handleDeleteUser(u.id, u.email)
+                                        setActiveUserMenuId(null)
+                                      }}
+                                      className={`w-full px-3 py-2 text-[11px] font-bold rounded-lg text-red-400 transition-all hover:bg-red-950/20 ${
+                                        isRtl ? 'text-right' : 'text-left'
+                                      }`}
+                                    >
+                                      {t('mgr.users.delete')}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2287,6 +2324,15 @@ export default function ManagerView() {
           onClose={() => setSettingsModalOpen(false)}
           updateAccount={updateAccount}
           showToast={showToast}
+        />
+      )}
+
+      {/* RENAME USER MODAL */}
+      {renamingUser && (
+        <RenameUserModal
+          initialName={usersList.find(u => u.id === renamingUser.id)?.name || ''}
+          onSave={(newName) => handleRenameUser(renamingUser.id, newName)}
+          onClose={() => setRenamingUser(null)}
         />
       )}
 
@@ -2830,6 +2876,76 @@ function AccountSettingsModal({ user, onClose, updateAccount, showToast }) {
             className="px-5 py-2 bg-teal-500 hover:bg-teal-400 disabled:bg-teal-500/50 text-slate-950 text-xs font-bold rounded-xl transition-all"
           >
             {loading ? t('mgr.settings.saving') : t('mgr.settings.save')}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function RenameUserModal({ initialName, onSave, onClose }) {
+  const { t } = useLanguage()
+  const [name, setName] = useState(initialName || '')
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      await onSave(name)
+    } catch {
+      // Error is already surfaced by the parent handler; keep the modal open
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-slate-900 border-0 sm:border border-slate-800 rounded-none sm:rounded-3xl w-full max-w-md h-full sm:h-auto p-6 shadow-2xl space-y-4 overflow-y-auto"
+      >
+        <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Edit className="w-4 h-4 text-teal-400" />
+            <span>{t('mgr.rename.title')}</span>
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all"
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.rename.name_label')}</label>
+          <input
+            type="text"
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('mgr.rename.placeholder')}
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
+          />
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2 border-t border-slate-800">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all"
+          >
+            {t('mgr.rename.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-5 py-2 bg-teal-500 hover:bg-teal-400 disabled:bg-teal-500/50 text-slate-950 text-xs font-bold rounded-xl transition-all"
+          >
+            {saving ? t('mgr.rename.saving') : t('mgr.rename.save')}
           </button>
         </div>
       </form>
