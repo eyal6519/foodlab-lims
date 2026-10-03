@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
@@ -7,6 +7,7 @@ import { parseBatchNumber } from '../utils/batchParser'
 import ShipmentModal from './ShipmentModal'
 import BatchTestingPage from './BatchTestingPage'
 import ResponsiveShell from './ResponsiveShell'
+import AnchoredMenu from './AnchoredMenu'
 import {
   LayoutDashboard,
   Calendar,
@@ -65,6 +66,7 @@ export default function ManagerView() {
   const [shipmentModal, setShipmentModal] = useState(null) // { id, template_id, ... } or 'new'
   const [templateModal, setTemplateModal] = useState(null) // { id, name, ... } or 'new'
   const [activeUserMenuId, setActiveUserMenuId] = useState(null)
+  const userMenuAnchorRef = useRef(null) // button element the open menu is anchored to
   const [renamingUser, setRenamingUser] = useState(null) // { id } of the user being renamed, or null
   const [newUserName, setNewUserName] = useState('')
   const [newUserEmail, setNewUserEmail] = useState('')
@@ -2217,23 +2219,28 @@ export default function ManagerView() {
                         }`}>
                           {u.role}
                         </span>
-                        <div className="relative">
+                        <div>
                           <button
                             type="button"
-                            onClick={() => setActiveUserMenuId(activeUserMenuId === u.id ? null : u.id)}
+                            onClick={(e) => {
+                              if (activeUserMenuId === u.id) {
+                                setActiveUserMenuId(null)
+                                return
+                              }
+                              userMenuAnchorRef.current = e.currentTarget
+                              setActiveUserMenuId(u.id)
+                            }}
                             className="p-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-400 hover:text-white rounded-lg transition-all"
                           >
                             <MoreVertical className="w-4 h-4" />
                           </button>
-                          {activeUserMenuId === u.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setActiveUserMenuId(null)}
-                              />
-                              <div className={`absolute ${
-                                isRtl ? 'left-0' : 'right-0'
-                              } mt-1 w-44 bg-slate-950 border border-slate-850 rounded-xl shadow-xl z-20 p-1.5 space-y-1`}>
+                          <AnchoredMenu
+                            isOpen={activeUserMenuId === u.id}
+                            anchorRef={userMenuAnchorRef}
+                            onClose={() => setActiveUserMenuId(null)}
+                            isRtl={isRtl}
+                            width={176}
+                          >
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -2274,9 +2281,7 @@ export default function ManagerView() {
                                     </button>
                                   </>
                                 )}
-                              </div>
-                            </>
-                          )}
+                          </AnchoredMenu>
                         </div>
                       </div>
                     </div>
