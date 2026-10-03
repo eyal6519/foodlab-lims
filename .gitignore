@@ -23,6 +23,23 @@ dist-ssr
 *.sln
 *.sw?
 
+# AI / vibe-coding manager local state (machine-specific, not project source)
+.kilo/
+.agents/
+.claude/
+.cursor/
+.aider.conf.yml
+.aider.chat.history.md
+.aider.input.history
+.aider.model.settings.yml
+.aider.model.yamls/
+.aider.llm.history/
+.codeium/
+.continue/
+.gemini/
+.roo/
+.windsurf/
+
 .vercel
 .env
 .env.local
