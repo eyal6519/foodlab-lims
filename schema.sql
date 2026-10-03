@@ -29,7 +29,9 @@ alter table public.profiles add column if not exists name text;
 alter table public.profiles enable row level security;
 
 -- Policies for profiles
+-- Drop the legacy name and the current name so this block is safe to re-run.
 drop policy if exists "Users can read all profiles" on public.profiles;
+drop policy if exists "Users can read profiles" on public.profiles;
 create policy "Users can read profiles"
     on public.profiles for select
     to authenticated
@@ -42,6 +44,7 @@ create policy "Users can read profiles"
         )
     );
 
+drop policy if exists "Managers can update profiles" on public.profiles;
 create policy "Managers can update profiles"
     on public.profiles for update
     to authenticated
@@ -82,6 +85,7 @@ create policy "Authenticated users can read templates"
         )
     );
 
+drop policy if exists "Managers can manage templates" on public.product_templates;
 create policy "Managers can manage templates"
     on public.product_templates for all
     to authenticated
