@@ -29,4 +29,12 @@ To learn how to operate the portal under different roles, refer to the step-by-s
 - **Backend/DB**: Supabase (PostgreSQL with RLS policy guards).
 
 ### Database Initialization
-The database table structures, triggers, security functions, and RLS policies are documented in [**schema.sql**](schema.sql). When setting up a new environment, copy and execute the SQL script in your Supabase SQL Editor.
+Schema changes are managed through the Supabase CLI using versioned migrations in [`supabase/migrations/`](supabase/migrations/). To apply them to a linked project:
+
+```bash
+supabase link --project-ref <your-project-ref>
+supabase db push --dry-run   # verify the plan first
+supabase db push
+```
+
+[**schema.sql**](schema.sql) is retained as a **reference snapshot** of the full database structure — a single-file description of every table, trigger, function, and RLS policy. It documents what exists but is no longer the mechanism for shipping changes. Applying it by hand can silently skip statements, which previously caused a missing `batches.submitted_at` column and `PGRST204` API errors. Add new schema changes as migrations instead.
