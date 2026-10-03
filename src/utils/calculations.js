@@ -689,7 +689,28 @@ export function isShipmentArchived(shipment) {
   return shipment.batches.every(b => b.approved_at)
 }
 
-export function isTestLocked(testId, batch, template) {
+// Mirrors the intake save path so a derived exit date is identical to the one
+// already stored on the batch.
+export function addIncubationDays(dateStr, days) {
+  const next = new Date(`${dateStr}T00:00:00`)
+  if (Number.isNaN(next.getTime())) return null
+  next.setDate(next.getDate() + Number(days))
+  return next.toISOString().slice(0, 10)
+}
+
+// Exit date for a chamber ('36' or '55'). Falls back to intake_date + the
+// template's incubation days when the batch has no stored exit date, so a batch
+// can never be locked forever by missing data (units were never registered, or
+// the template gained an incubation stage after intake).
+export function getEffectiveExitDate(batch, template, intakeDate, chamber) {
+  const stored = chamber === '36' ? batch?.exit_36 : batch?.exit_55
+  if (stored) return stored
+  const days = Number(chamber === '36' ? template?.incubation_36 : template?.incubation_55) || 0
+  if (!intakeDate || days <= 0) return null
+  return addIncubationDays(intakeDate, days)
+}
+
+export function isTestLocked(testId, batch, template, intakeDate) {
   if (!batch || !template) return false
   if (template.requires_incubation === false) return false
   if (batch.is_manually_unlocked) return false
@@ -699,18 +720,16 @@ export function isTestLocked(testId, batch, template) {
 
   // 36°C tests: ph_36, vacuum_36
   if (testId === 'ph_36' || testId === 'vacuum_36') {
-    const needs36 = (batch.units_36 || 0) > 0 && (template.incubation_36 || 0) > 0
-    if (!needs36) return true // If not incubated at 36, then locked
-    const due36 = batch.exit_36 && batch.exit_36 <= today
-    return !due36
+    if ((template.incubation_36 || 0) <= 0) return false // Template requires no 36°C incubation
+    const exit36 = getEffectiveExitDate(batch, template, intakeDate, '36')
+    return !(exit36 && exit36 <= today)
   }
 
   // 55°C tests: ph_55, vacuum_55
   if (testId === 'ph_55' || testId === 'vacuum_55') {
-    const needs55 = (batch.units_55 || 0) > 0 && (template.incubation_55 || 0) > 0
-    if (!needs55) return true // If not incubated at 55, then locked
-    const due55 = batch.exit_55 && batch.exit_55 <= today
-    return !due55
+    if ((template.incubation_55 || 0) <= 0) return false // Template requires no 55°C incubation
+    const exit55 = getEffectiveExitDate(batch, template, intakeDate, '55')
+    return !(exit55 && exit55 <= today)
   }
 
   // Before incubation tests and other tests are never locked

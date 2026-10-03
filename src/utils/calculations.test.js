@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { num, fmt, avg, avgLogPh, calculateTest, isShipmentArchived, isTestLocked } from './calculations'
+import { num, fmt, avg, avgLogPh, calculateTest, isShipmentArchived, isTestLocked, addIncubationDays, getEffectiveExitDate } from './calculations'
 
 describe('Math and Calculations Utilities', () => {
   describe('num()', () => {
@@ -251,6 +251,82 @@ describe('Math and Calculations Utilities', () => {
         exit_55: '2026-06-20'
       }
       expect(isTestLocked('ph_36', batch, templateWithInc)).toBe(true)
+    })
+
+    it('locks 55°C tests if batch has no units in 55°C chamber', () => {
+      const batch = {
+        units_36: 1,
+        units_55: 0,
+        exit_36: dayOffset(-10)
+      }
+      expect(isTestLocked('ph_55', batch, templateWithInc)).toBe(true)
+    })
+
+    it('unlocks 36°C tests when the template requires no 36°C incubation', () => {
+      const templateNoInc36 = { requires_incubation: true, incubation_36: 0, incubation_55: 5 }
+      const batch = {
+        units_36: 0,
+        units_55: 1,
+        exit_55: dayOffset(-10)
+      }
+      expect(isTestLocked('ph_36', batch, templateNoInc36)).toBe(false)
+      expect(isTestLocked('vacuum_36', batch, templateNoInc36)).toBe(false)
+
+      // Legacy rows may carry units without a matching exit date; still unlocked.
+      const batchWithStrayUnits = { units_36: 1, exit_36: null }
+      expect(isTestLocked('ph_36', batchWithStrayUnits, templateNoInc36)).toBe(false)
+      expect(isTestLocked('vacuum_36', batchWithStrayUnits, templateNoInc36)).toBe(false)
+    })
+
+    it('unlocks 55°C tests when the template requires no 55°C incubation', () => {
+      const templateNoInc55 = { requires_incubation: true, incubation_36: 5, incubation_55: 0 }
+      const batch = {
+        units_36: 1,
+        units_55: 0,
+        exit_36: dayOffset(-10)
+      }
+      expect(isTestLocked('ph_55', batch, templateNoInc55)).toBe(false)
+      expect(isTestLocked('vacuum_55', batch, templateNoInc55)).toBe(false)
+
+      const batchWithStrayUnits = { units_55: 1, exit_55: null }
+      expect(isTestLocked('ph_55', batchWithStrayUnits, templateNoInc55)).toBe(false)
+      expect(isTestLocked('vacuum_55', batchWithStrayUnits, templateNoInc55)).toBe(false)
+    })
+
+    it('derives a missing 36°C exit date from intake_date so the batch cannot lock forever', () => {
+      const batchNoExit = { units_36: 0, units_55: 0, exit_36: null, exit_55: null }
+      const intakePast = dayOffset(-20)
+
+      // Incubation window elapsed since intake -> unlocked despite the missing field.
+      expect(isTestLocked('ph_36', batchNoExit, templateWithInc, intakePast)).toBe(false)
+      expect(isTestLocked('vacuum_36', batchNoExit, templateWithInc, intakePast)).toBe(false)
+      expect(isTestLocked('ph_55', batchNoExit, templateWithInc, intakePast)).toBe(false)
+      expect(isTestLocked('vacuum_55', batchNoExit, templateWithInc, intakePast)).toBe(false)
+
+      // Still inside the incubation window -> locked.
+      expect(isTestLocked('ph_36', batchNoExit, templateWithInc, dayOffset(-2))).toBe(true)
+      expect(isTestLocked('vacuum_55', batchNoExit, templateWithInc, dayOffset(-2))).toBe(true)
+
+      // No intake date to derive from -> locked, as before.
+      expect(isTestLocked('ph_36', batchNoExit, templateWithInc)).toBe(true)
+      expect(isTestLocked('vacuum_55', batchNoExit, templateWithInc)).toBe(true)
+    })
+
+    it('getEffectiveExitDate prefers the stored date and falls back to intake_date', () => {
+      const stored = { exit_36: '2026-01-01', exit_55: '2026-01-02' }
+      expect(getEffectiveExitDate(stored, templateWithInc, '2026-05-01', '36')).toBe('2026-01-01')
+      expect(getEffectiveExitDate(stored, templateWithInc, '2026-05-01', '55')).toBe('2026-01-02')
+
+      const missing = { units_36: 0, exit_36: null, exit_55: null }
+      expect(getEffectiveExitDate(missing, templateWithInc, '2026-05-01', '36'))
+        .toBe(addIncubationDays('2026-05-01', 10))
+      expect(getEffectiveExitDate(missing, templateWithInc, '2026-05-01', '55'))
+        .toBe(addIncubationDays('2026-05-01', 5))
+
+      // Nothing to derive from.
+      expect(getEffectiveExitDate(missing, templateWithInc, null, '36')).toBeNull()
+      expect(getEffectiveExitDate(missing, { incubation_36: 0 }, '2026-05-01', '36')).toBeNull()
+      expect(getEffectiveExitDate(missing, templateWithInc, 'not-a-date', '36')).toBeNull()
     })
 
     it('locks 55°C tests if exit_55 is in the future', () => {

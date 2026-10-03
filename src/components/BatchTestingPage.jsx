@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Trash2, AlertTriangle, Check, Lock, Camera, Search, X } from 'lucide-react'
-import { TESTS, calculateTest, num, isTestLocked } from '../utils/calculations'
+import { TESTS, calculateTest, num, isTestLocked, getEffectiveExitDate } from '../utils/calculations'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
 
@@ -706,7 +706,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
             const test = allTests.find(t => t.id === testId)
             if (!test) return null
 
-            const isLocked = isTestLocked(testId, batch, template) || !!batch.approved_at || !!batch.submitted_at
+            const isLocked = isTestLocked(testId, batch, template, shipment?.intake_date) || !!batch.approved_at || !!batch.submitted_at
             const rows = testData[testId] || []
             const testWarnings = warnings[testId] || []
             const isAddDisabled = isLocked || test.single || (test.max && rows.length >= test.max)
@@ -714,7 +714,9 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
             // Calculate days remaining and target date for lock notice
             let daysRemaining = 0
             const today = new Date().toISOString().slice(0, 10)
-            const exitDate = testId.includes('36') ? batch.exit_36 : (testId.includes('55') ? batch.exit_55 : null)
+            const exitDate = testId.includes('36')
+              ? getEffectiveExitDate(batch, template, shipment?.intake_date, '36')
+              : (testId.includes('55') ? getEffectiveExitDate(batch, template, shipment?.intake_date, '55') : null)
             if (exitDate) {
               const diffTime = new Date(exitDate).getTime() - new Date(today).getTime()
               daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
@@ -757,10 +759,12 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                       )}
                       {isLocked && (
                         <span className="text-xs text-amber-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                          {t('batch.test.locked')
-                            .replace('{temp}', testId.includes('36') ? '36°C' : '55°C')
-                            .replace('{date}', exitDate || '')
-                            .replace('{days}', String(daysRemaining))}
+                          {exitDate
+                            ? t('batch.test.locked')
+                                .replace('{temp}', testId.includes('36') ? '36°C' : '55°C')
+                                .replace('{date}', exitDate)
+                                .replace('{days}', String(daysRemaining))
+                            : t('batch.test.locked_no_units').replace('{temp}', testId.includes('36') ? '36°C' : '55°C')}
                         </span>
                       )}
                     </div>

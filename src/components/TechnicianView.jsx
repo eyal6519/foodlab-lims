@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
-import { calculateTest, isTestEntered, isShipmentArchived, fmt, num, avg, isTestLocked, getTestDefinition } from '../utils/calculations'
+import { calculateTest, isTestEntered, isShipmentArchived, fmt, num, avg, isTestLocked, getTestDefinition, addIncubationDays } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import BatchTestingPage from './BatchTestingPage'
 import ShipmentModal from './ShipmentModal'
@@ -242,11 +242,7 @@ export default function TechnicianView() {
     const template = templates.find(t => t.id === data.template_id)
     const intakeDate = data.intake_date
 
-    const addDays = (dateStr, days) => {
-      const next = new Date(dateStr + 'T00:00:00')
-      next.setDate(next.getDate() + Number(days))
-      return next.toISOString().slice(0, 10)
-    }
+    const addDays = addIncubationDays
 
     try {
       let shipmentId = isNew ? null : shipmentModal.id

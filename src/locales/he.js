@@ -122,6 +122,7 @@ const he = {
   'batch.alert.fill_all_tests': 'נא למלא את כל הבדיקות לפני שליחה לאישור. חסר: {list}',
   'batch.btn.cancel': 'ביטול',
   'batch.test.locked': 'נעול - באינקובציה ({temp} יוצא ב-{date} / בעוד {days} ימים)',
+  'batch.test.locked_no_units': 'נעול - לא נרשמו יחידות באינקובציה {temp}. יש לערוך את פרטי המשלוח ולהוסיף יחידות לפני ביצוע הבדיקה.',
   'batch.test.formula_label': 'נוסחה:',
   'batch.validation.oven_moisture': 'רפליקט {n}: המשקל בסיום ({end} גרם) לא יכול להיות גדול ממשקל כורית + דוגמה ({start} גרם).',
   'batch.validation.sieving_size': 'רפליקט {n}: המשקל שעבר ({passed} גרם) לא יכול להיות גדול ממשקל הדוגמה הכולל ({sample} גרם).',

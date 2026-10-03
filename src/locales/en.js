@@ -122,6 +122,7 @@ const en = {
   'batch.alert.fill_all_tests': 'Please fill in all tests before submitting. Missing: {list}',
   'batch.btn.cancel': 'Cancel',
   'batch.test.locked': 'Locked - Incubating ({temp} exits on {date} / in {days} days)',
+  'batch.test.locked_no_units': 'Locked - No units registered for {temp} incubation. Edit the shipment details to add units before running this test.',
   'batch.test.formula_label': 'Formula:',
   'batch.validation.oven_moisture': 'Replicate {n}: End mass ({end}g) cannot be greater than Crucible + Sample mass ({start}g).',
   'batch.validation.sieving_size': 'Replicate {n}: Passed mass ({passed}g) cannot be greater than total Sample mass ({sample}g).',
