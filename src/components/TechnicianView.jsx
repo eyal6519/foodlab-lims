@@ -25,7 +25,8 @@ import {
   Printer,
   Download,
   FileText,
-  Calendar
+  Calendar,
+  ChevronDown
 } from 'lucide-react'
 
 export default function TechnicianView() {
@@ -47,6 +48,7 @@ export default function TechnicianView() {
   const [coaFilterDateType, setCoaFilterDateType] = useState('all') // 'all' | 'approved_at' | 'intake_date' | 'production_date'
   const [coaStartDate, setCoaStartDate] = useState('')
   const [coaEndDate, setCoaEndDate] = useState('')
+  const [coaAdvancedOpen, setCoaAdvancedOpen] = useState(false)
 
   // Modal State
   const [activeBatchTesting, setActiveBatchTesting] = useState(null) // { batch, shipment }
@@ -953,7 +955,7 @@ export default function TechnicianView() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   {/* Search box */}
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('common.filter.search_label')}</label>
                     <div className="relative">
                       <input
@@ -974,6 +976,21 @@ export default function TechnicianView() {
                     </div>
                   </div>
 
+                  {/* Advanced search toggle */}
+                  <div className="flex items-end">
+                    <button
+                      onClick={() => setCoaAdvancedOpen((v) => !v)}
+                      aria-expanded={coaAdvancedOpen}
+                      className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-teal-500 text-slate-300 hover:text-teal-400 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                    >
+                      {coaAdvancedOpen ? t('common.filter.basic_search') : t('common.filter.advanced_search')}
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${coaAdvancedOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {coaAdvancedOpen && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {/* Date type filter */}
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('common.filter.date_label')}</label>
@@ -1019,6 +1036,7 @@ export default function TechnicianView() {
                     />
                   </div>
                 </div>
+                )}
 
                 {/* Active selectors list / quick clear */}
                 {(coaSearch || coaFilterDateType !== 'all' || coaStartDate || coaEndDate) && (

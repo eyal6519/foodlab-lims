@@ -267,6 +267,8 @@ const en = {
   'mgr.filter.from': 'From Date',
   'mgr.filter.to': 'To Date',
   'mgr.filter.clear_btn': 'Clear Filters [×]',
+  'mgr.filter.advanced_search': 'Advanced Search',
+  'mgr.filter.basic_search': 'Basic Search',
   'mgr.coa.print_btn': 'Print Document',
   'mgr.coa.download_btn': 'Download PDF',
   'mgr.coa.empty_recent': 'No recent COAs found approved in the last 24 hours.',
@@ -544,6 +546,8 @@ const en = {
   'common.filter.from': 'From Date',
   'common.filter.to': 'To Date',
   'common.filter.clear_btn': 'Clear Filters [×]',
+  'common.filter.advanced_search': 'Advanced Search',
+  'common.filter.basic_search': 'Basic Search',
   'common.print_btn': 'Print Document',
   'common.download_btn': 'Download PDF',
 

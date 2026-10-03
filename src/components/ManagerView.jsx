@@ -30,7 +30,8 @@ import {
   X,
   Archive,
   MoreVertical,
-  Database
+  Database,
+  ChevronDown
 } from 'lucide-react'
 import html2pdf from 'html2pdf.js'
 
@@ -78,6 +79,7 @@ export default function ManagerView() {
   const [coaFilterDateType, setCoaFilterDateType] = useState('all') // 'all' | 'approved_at' | 'intake_date' | 'production_date'
   const [coaStartDate, setCoaStartDate] = useState('')
   const [coaEndDate, setCoaEndDate] = useState('')
+  const [coaAdvancedOpen, setCoaAdvancedOpen] = useState(false)
   const [templateSearch, setTemplateSearch] = useState('')
   const [templateFilter, setTemplateFilter] = useState('all') // 'all' | 'incubation' | 'bypass'
 
@@ -1770,7 +1772,7 @@ export default function ManagerView() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     {/* Search box */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.filter.search_label')}</label>
                       <div className="relative">
                         <input
@@ -1784,6 +1786,21 @@ export default function ManagerView() {
                       </div>
                     </div>
 
+                    {/* Advanced search toggle */}
+                    <div className="flex items-end">
+                      <button
+                        onClick={() => setCoaAdvancedOpen((v) => !v)}
+                        aria-expanded={coaAdvancedOpen}
+                        className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-teal-500 text-slate-300 hover:text-teal-400 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                      >
+                        {coaAdvancedOpen ? t('mgr.filter.basic_search') : t('mgr.filter.advanced_search')}
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${coaAdvancedOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {coaAdvancedOpen && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {/* Date filter dropdown */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.filter.date_label')}</label>
@@ -1829,6 +1846,7 @@ export default function ManagerView() {
                       />
                     </div>
                   </div>
+                  )}
 
                   {/* Clear filter button */}
                   {(coaSearch || coaFilterDateType !== 'all' || coaStartDate || coaEndDate) && (
