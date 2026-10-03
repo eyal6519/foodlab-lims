@@ -132,6 +132,7 @@ create policy "Authenticated users can read shipments"
 drop policy if exists "Managers can manage shipments" on public.shipments;
 drop policy if exists "Technicians can update shipments (e.g. exit early if needed or set dates)" on public.shipments;
 
+drop policy if exists "Managers and technicians can manage shipments" on public.shipments;
 create policy "Managers and technicians can manage shipments"
     on public.shipments for all
     to authenticated
@@ -186,6 +187,7 @@ create policy "Authenticated users can read batches"
 
 drop policy if exists "Managers can manage batches" on public.batches;
 
+drop policy if exists "Managers and technicians can manage batches" on public.batches;
 create policy "Managers and technicians can manage batches"
     on public.batches for all
     to authenticated
@@ -210,7 +212,7 @@ begin
   end if;
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public, extensions;
 
 drop trigger if exists on_batch_approval_check on public.batches;
 create trigger on_batch_approval_check
@@ -266,7 +268,7 @@ begin
   );
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public, extensions;
 
 -- Recreate trigger
 drop trigger if exists on_auth_user_created on auth.users;
@@ -288,8 +290,12 @@ returns uuid security definer as $$
     query_cols text := 'id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token';
     query_vals text := '$1, ''00000000-0000-0000-0000-000000000000'', ''authenticated'', ''authenticated'', $2, crypt($3, gen_salt(''bf'')), now(), $4, $5, now(), now(), '''', ''''';
   begin
-    -- Access control check: Only allow manager to create accounts, unless database has no users yet (seeding)
-    if exists (select 1 from public.profiles) then
+    -- Access control check: only a signed-in manager may create accounts.
+    -- The service role (server-side seeding via the service_role key) is exempt,
+    -- because the bootstrap user does not exist yet at that point. An empty
+    -- profiles table is NOT sufficient on its own: otherwise an anonymous caller
+    -- could create itself a manager account.
+    if auth.role() <> 'service_role' then
       if not exists (
         select 1 from public.profiles 
         where id = auth.uid() and role = 'manager'
@@ -350,7 +356,7 @@ returns uuid security definer as $$
 
   return new_user_id;
 end;
-$$ language plpgsql;
+$$ language plpgsql set search_path = public, extensions;
 
 -- 8. MANAGER-ONLY SECURE FUNCTION TO DELETE USER ACCOUNTS
 create or replace function public.admin_delete_user(target_user_id uuid)
@@ -375,7 +381,7 @@ begin
   -- Delete from auth.users (which cascades to public.profiles)
   delete from auth.users where id = target_user_id;
 end;
-$$ language plpgsql;
+$$ language plpgsql set search_path = public, extensions;
 
 -- 9. TARE REGISTRY TABLE
 create table if not exists public.tare_registry (
@@ -415,5 +421,82 @@ create policy "Managers and technicians can manage tare registry"
             where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
         )
     );
+
+-- 10. UTILITY FUNCTIONS
+-- These exist in the deployed database but were missing from this script. They
+-- are created only when absent so that re-running this file against a live
+-- database never rewrites an existing definition.
+
+do $$
+begin
+  if to_regprocedure('public.is_manager()') is null then
+    execute $fn$
+      create function public.is_manager()
+      returns boolean
+      language sql
+      security definer
+      set search_path = public, extensions
+      as $body$
+        select exists (
+          select 1 from public.profiles
+          where id = auth.uid() and role = 'manager'
+        )
+      $body$;
+    $fn$;
+  end if;
+end;
+$$;
+
+do $$
+begin
+  if to_regprocedure('public.get_db_size_bytes()') is null then
+    execute $fn$
+      create function public.get_db_size_bytes()
+      returns bigint
+      language sql
+      security definer
+      set search_path = public, extensions
+      as $body$
+        select pg_database_size(current_database())
+      $body$;
+    $fn$;
+  end if;
+end;
+$$;
+
+-- 11. FUNCTION EXECUTION GRANTS
+-- Supabase grants EXECUTE on new functions to anon and authenticated by
+-- default. Every function above is SECURITY DEFINER, so that default leaves
+-- privileged code callable by unauthenticated visitors. Revoke from anon,
+-- authenticated, and PUBLIC (both roles inherit EXECUTE from the PUBLIC
+-- pseudo-role), then re-grant only what the app actually calls.
+
+revoke execute on function public.handle_new_user() from anon, authenticated, public;
+revoke execute on function public.check_batch_approval_auth() from anon, authenticated, public;
+revoke execute on function public.admin_create_user(text, text, text, text) from anon, public;
+revoke execute on function public.admin_delete_user(uuid) from anon, public;
+revoke execute on function public.get_db_size_bytes() from anon, public;
+revoke execute on function public.is_manager() from anon, public;
+
+-- Trigger functions are invoked by the trigger, never over the API. No role
+-- needs EXECUTE on them.
+revoke execute on function public.handle_new_user() from authenticated;
+revoke execute on function public.check_batch_approval_auth() from authenticated;
+
+grant execute on function public.admin_create_user(text, text, text, text) to authenticated;
+grant execute on function public.admin_delete_user(uuid) to authenticated;
+grant execute on function public.get_db_size_bytes() to authenticated;
+grant execute on function public.is_manager() to authenticated;
+
+-- service_role is exempt: the QA seeding panel (mockDataGenerator.js) uses the
+-- service-role key to bootstrap users on an empty database.
+grant execute on function public.admin_create_user(text, text, text, text) to service_role;
+grant execute on function public.admin_delete_user(uuid) to service_role;
+
+-- 12. REMOVE STALE OVERLOAD
+-- The deployed database carries an older 3-argument admin_create_user that has
+-- no user_name parameter. It is unreachable from the app and is extra anonymous
+-- attack surface. The 4-argument version is the one the app calls.
+drop function if exists public.admin_create_user(text, text, text);
 
 
