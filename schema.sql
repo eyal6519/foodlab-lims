@@ -1,3 +1,15 @@
+-- =============================================================================
+-- REFERENCE SNAPSHOT — NOT THE MECHANISM FOR SHIPPING CHANGES
+-- =============================================================================
+-- This file documents the complete database structure: tables, columns,
+-- triggers, security functions, and RLS policies.
+--
+-- Schema changes ship through versioned migrations in supabase/migrations/
+-- and are applied with `supabase db push`. Do not apply this file by hand to
+-- make a change — statements here can be silently skipped, which previously
+-- left `batches.submitted_at` missing and caused PGRST204 API errors.
+-- =============================================================================
+
 -- Enable pgcrypto extension if not already enabled
 create extension if not exists pgcrypto;
 
@@ -152,6 +164,7 @@ alter table public.batches add column if not exists is_manually_unlocked boolean
 alter table public.batches add column if not exists incubation_exited_at timestamp with time zone;
 alter table public.batches add column if not exists incubation_removed_early_at timestamp with time zone;
 alter table public.batches add column if not exists incubation_early_acknowledged_at timestamp with time zone;
+alter table public.batches add column if not exists submitted_at timestamp with time zone;
 
 alter table public.batches enable row level security;
 
@@ -399,5 +412,4 @@ create policy "Managers and technicians can manage tare registry"
         )
     );
 
--- Alter table to add submitted_at column for batch submissions
-alter table public.batches add column if not exists submitted_at timestamp with time zone;
+
