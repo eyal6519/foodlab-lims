@@ -5,6 +5,10 @@ const he = {
   'app.access_pending.title': 'ממתין לגישה',
   'app.access_pending.body': 'החשבון שלך אומת בהצלחה, אך מפקד.ת המעבדה טרם הקצה לך תפקיד.',
   'app.access_pending.contact': 'אנא פנה למפקד.ת המעבדה שלך.',
+  'app.profile_error.title': 'פרופיל לא זמין',
+  'app.profile_error.body': 'התחברת בהצלחה כ-{email}, אך מסד הנתונים דחה את קריאת הפרופיל. זו תקלה בשרת ולא חשבון חסר.',
+  'app.profile_error.detail': 'הודעת מסד הנתונים: {message}',
+  'app.profile_error.retry': 'נסה שוב',
 
   // Login
   'login.subtitle': 'בקרת איכות המזון',

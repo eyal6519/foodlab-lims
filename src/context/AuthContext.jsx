@@ -6,6 +6,7 @@ const AuthContext = createContext()
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [profileError, setProfileError] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export function AuthProvider({ children }) {
         } else {
           setUser(null)
           setProfile(null)
+          setProfileError(null)
           setLoading(false)
         }
       }
@@ -36,6 +38,9 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Distinguishes "the database refused the read" from "the row is absent".
+  // Without this the app showed Access Pending for both, hiding a broken
+  // profile policy behind a message that reads as a missing account.
   async function fetchProfile(userId) {
     try {
       const { data, error } = await supabase
@@ -46,14 +51,18 @@ export function AuthProvider({ children }) {
 
       if (error) throw error
       setProfile(data)
+      setProfileError(null)
     } catch (err) {
       console.error('Error fetching profile:', err)
+      setProfile(null)
+      setProfileError(err.message || String(err))
     } finally {
       setLoading(false)
     }
   }
 
   async function login(email, password) {
+    setProfileError(null)
     setLoading(true)
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
@@ -67,6 +76,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    setProfileError(null)
     setLoading(true)
     const { error } = await supabase.auth.signOut()
     if (error) {
@@ -105,6 +115,7 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     profile,
+    profileError,
     loading,
     login,
     logout,

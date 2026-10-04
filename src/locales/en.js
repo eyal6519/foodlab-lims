@@ -5,6 +5,10 @@ const en = {
   'app.access_pending.title': 'Access Pending',
   'app.access_pending.body': 'Your account ({email}) has been authenticated successfully, but a Lab Manager has not yet assigned you a role.',
   'app.access_pending.contact': 'Please contact your Laboratory Administrator.',
+  'app.profile_error.title': 'Profile Unavailable',
+  'app.profile_error.body': 'Signed in as {email}, but the database refused to read your profile. This is a server-side problem, not a missing account.',
+  'app.profile_error.detail': 'Database message: {message}',
+  'app.profile_error.retry': 'Try Again',
 
   // Login
   'login.subtitle': 'Food Quality Control',

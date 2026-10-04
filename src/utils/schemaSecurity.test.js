@@ -30,6 +30,7 @@ const definerFunctions = [
   'public\\.admin_create_user',
   'public\\.admin_delete_user',
   'public\\.is_manager',
+  'public\\.has_app_role',
   'public\\.get_db_size_bytes',
 ]
 
@@ -81,6 +82,7 @@ describe('Schema security hardening', () => {
       'public\\.admin_delete_user\\(uuid\\)',
       'public\\.get_db_size_bytes\\(\\)',
       'public\\.is_manager\\(\\)',
+      'public\\.has_app_role\\(\\)',
     ]
 
     it.each(anonRevoked)('anon cannot EXECUTE %s', (signature) => {
@@ -102,6 +104,7 @@ describe('Schema security hardening', () => {
       'public\\.admin_delete_user\\(uuid\\)',
       'public\\.get_db_size_bytes\\(\\)',
       'public\\.is_manager\\(\\)',
+      'public\\.has_app_role\\(\\)',
     ]
 
     it.each(granted)('authenticated retains EXECUTE on %s', (signature) => {
@@ -123,6 +126,61 @@ describe('Schema security hardening', () => {
 
     it('still requires a manager role for non-service-role callers', () => {
       expect(body).toMatch(/role\s*=\s*'manager'/i)
+    })
+  })
+
+  describe('profiles RLS policies do not read the table they guard', () => {
+    // Regression: both profiles policies decided whether the caller had a role
+    // with `exists (select 1 from public.profiles ...)`. Postgres rejects a
+    // policy that queries its own table with 42P17 "infinite recursion
+    // detected in policy", so every profile read failed and the app reported
+    // "Access Pending" for accounts that existed and held a role.
+    function policyBody(name) {
+      const match = withoutComments.match(
+        new RegExp(`create\\s+policy\\s+"${name}"[\\s\\S]*?;`, 'i')
+      )
+      return match ? match[0] : null
+    }
+
+    const profilePolicies = [
+      'Users can read profiles',
+      'Managers can update profiles',
+    ]
+
+    it('finds the profiles policies', () => {
+      for (const name of profilePolicies) {
+        expect(policyBody(name), `policy ${name} not found`).not.toBeNull()
+      }
+    })
+
+    it.each(profilePolicies)('"%s" contains no self-referencing subquery', (name) => {
+      const body = policyBody(name)
+      expect(body).not.toMatch(/select[\s\S]*?from\s+public\.profiles/i)
+    })
+
+    it.each(profilePolicies)('"%s" delegates the role check to a helper', (name) => {
+      expect(policyBody(name)).toMatch(/public\.(has_app_role|is_manager)\(\)/i)
+    })
+
+    it('the helpers are declared before the policies that call them', () => {
+      const helperIndex = withoutComments.search(/create\s+or\s+replace\s+function\s+public\.has_app_role\s*\(/i)
+      const policyIndex = withoutComments.search(/create\s+policy\s+"Users can read profiles"/i)
+      expect(helperIndex).toBeGreaterThan(-1)
+      expect(policyIndex).toBeGreaterThan(-1)
+      expect(helperIndex).toBeLessThan(policyIndex)
+    })
+
+    it('the baseline migration carries the same policy definitions', () => {
+      const baseline = readFileSync(
+        join(root, 'supabase', 'migrations', '20261003000000_baseline_schema.sql'),
+        'utf8'
+      )
+      for (const name of profilePolicies) {
+        const body = baseline.match(new RegExp(`create\\s+policy\\s+"${name}"[\\s\\S]*?;`, 'i'))
+        expect(body, `policy ${name} not found in baseline migration`).not.toBeNull()
+        expect(body[0]).not.toMatch(/select[\s\S]*?from\s+public\.profiles/i)
+        expect(body[0]).toMatch(/public\.(has_app_role|is_manager)\(\)/i)
+      }
     })
   })
 
@@ -161,7 +219,8 @@ describe('Schema security hardening', () => {
         'public.admin_create_user(text, text, text, text)',
         'public.admin_delete_user(uuid)',
         'public.get_db_size_bytes()',
-        'public.is_manager()'
+        'public.is_manager()',
+        'public.has_app_role()'
       ]) {
         expect(fixSql).toMatch(new RegExp(def.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
       }
@@ -172,7 +231,8 @@ describe('Schema security hardening', () => {
         'public.admin_create_user(text, text, text, text)',
         'public.admin_delete_user(uuid)',
         'public.get_db_size_bytes()',
-        'public.is_manager()'
+        'public.is_manager()',
+        'public.has_app_role()'
       ]) {
         const pattern = new RegExp(
           `revoke\\s+execute\\s+on\\s+function\\s+${sig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+from\\s+anon`,
@@ -192,7 +252,8 @@ describe('Schema security hardening', () => {
         'public.admin_create_user(text, text, text, text)',
         'public.admin_delete_user(uuid)',
         'public.get_db_size_bytes()',
-        'public.is_manager()'
+        'public.is_manager()',
+        'public.has_app_role()'
       ]) {
         const pattern = new RegExp(
           `revoke\\s+execute\\s+on\\s+function\\s+${sig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+from\\s+public`,

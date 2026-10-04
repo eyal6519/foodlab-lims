@@ -38,3 +38,5 @@ supabase db push
 ```
 
 [**schema.sql**](schema.sql) is retained as a **reference snapshot** of the full database structure — a single-file description of every table, trigger, function, and RLS policy. It documents what exists but is no longer the mechanism for shipping changes. Applying it by hand can silently skip statements, which previously caused a missing `batches.submitted_at` column and `PGRST204` API errors. Add new schema changes as migrations instead. Keep `schema.sql` and `supabase/migrations/20261003000000_baseline_schema.sql` in sync: the CI contract test asserts the batch columns against `schema.sql`, and `supabase db push` on a fresh database builds from the baseline migration. To roll the schema to a new environment: `supabase db push` (verify with `--dry-run` first).
+
+Two ready-to-run scripts exist for the SQL Editor when a CLI push is not practical: [`supabase-security-fix.sql`](supabase-security-fix.sql) (Database Advisor hardening) and [`supabase-fix-profiles-login.sql`](supabase-fix-profiles-login.sql) (repairs the `profiles` access rules that made every signed-in user appear to have no account).

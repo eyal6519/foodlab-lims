@@ -11,6 +11,12 @@
 --   0028 anon_security_definer_function_executable
 --   0029 authenticated_security_definer_function_executable
 --
+-- Step 6 recreates the two public.profiles policies, which could not read the
+-- table they guard and so failed every profile read with 42P17.
+--
+-- supabase-fix-profiles-login.sql contains only that repair, for pasting into
+-- the SQL Editor when the Advisor warnings are already clear.
+--
 -- The same GRANT/REVOKE statements now sit at the end of schema.sql;
 -- keeping both in sync matters only for new environments.
 -- ============================================================================
@@ -19,6 +25,19 @@
 -- Step 1: Pin search_path on every SECURITY DEFINER function that exists.
 -- ALTER FUNCTION ... SET search_path works without rewriting the body.
 -- ----------------------------------------------------------------------------
+
+create or replace function public.has_app_role()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, extensions
+as $body$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role in ('manager', 'technician')
+  )
+$body$;
 
 do $$
 declare
@@ -29,7 +48,8 @@ declare
     'public.admin_create_user(text, text, text, text)',
     'public.admin_delete_user(uuid)',
     'public.get_db_size_bytes()',
-    'public.is_manager()'
+    'public.is_manager()',
+    'public.has_app_role()'
   ];
 begin
   foreach def in array defs
@@ -118,6 +138,15 @@ begin
     revoke execute on function public.is_manager() from anon;
     revoke execute on function public.is_manager() from public;
   end if;
+
+  if exists (
+    select 1 from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'has_app_role'
+  ) then
+    revoke execute on function public.has_app_role() from anon;
+    revoke execute on function public.has_app_role() from public;
+  end if;
 end;
 $$;
 
@@ -162,6 +191,11 @@ begin
     grant execute on function public.is_manager() to authenticated;
     grant execute on function public.is_manager() to service_role;
   end if;
+
+  -- Used by the profiles RLS policies, whose expressions are evaluated as the
+  -- querying role.
+  grant execute on function public.has_app_role() to authenticated;
+  grant execute on function public.has_app_role() to service_role;
 end;
 $$;
 
@@ -172,3 +206,38 @@ $$;
 -- ----------------------------------------------------------------------------
 
 drop function if exists public.admin_create_user(text, text, text);
+
+-- ----------------------------------------------------------------------------
+-- Step 6: Recreate the two public.profiles policies without a self-reference.
+--
+-- Both decided "does the caller have a role?" by querying public.profiles, the
+-- table they guard. Postgres rejects a policy that reads its own table with
+-- 42P17 "infinite recursion detected in policy", so every read of profiles
+-- failed. A signed-in user then had no role in the app and was shown
+-- "Access Pending" despite holding a valid account.
+--
+-- SECURITY DEFINER helpers answer the role question as the table owner, which
+-- bypasses the profiles policies, so the guard is never re-entered.
+-- ----------------------------------------------------------------------------
+
+drop policy if exists "Users can read all profiles" on public.profiles;
+drop policy if exists "Users can read profiles" on public.profiles;
+create policy "Users can read profiles"
+    on public.profiles for select
+    to authenticated
+    using (
+        id = auth.uid()
+        or
+        public.has_app_role()
+    );
+
+drop policy if exists "Managers can update profiles" on public.profiles;
+create policy "Managers can update profiles"
+    on public.profiles for update
+    to authenticated
+    using (
+        public.is_manager()
+    )
+    with check (
+        public.is_manager()
+    );
