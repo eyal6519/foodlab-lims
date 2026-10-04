@@ -689,6 +689,23 @@ export function isShipmentArchived(shipment) {
   return shipment.batches.every(b => b.approved_at)
 }
 
+// Single source of truth for "awaiting review": results were submitted by the
+// lab, and the manager has neither approved them nor sent them back for retest.
+export function isPendingReviewBatch(batch) {
+  if (!batch) return false
+  return !!batch.submitted_at && !batch.approved_at && !batch.retest_requested_at
+}
+
+// Every batch awaiting manager approval, each carrying its parent shipment.
+// The dashboard metric, the bell notifications and the review tab all read this
+// so their counts can never disagree.
+export function getPendingReviewBatches(shipments) {
+  if (!Array.isArray(shipments)) return []
+  return shipments
+    .filter(s => !isShipmentArchived(s))
+    .flatMap(s => (s?.batches || []).filter(isPendingReviewBatch).map(b => ({ ...b, shipment: s })))
+}
+
 // Mirrors the intake save path so a derived exit date is identical to the one
 // already stored on the batch.
 export function addIncubationDays(dateStr, days) {
