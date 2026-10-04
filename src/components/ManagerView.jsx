@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
-import { TESTS, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg, isTestLocked, getTestDefinition, addIncubationDays } from '../utils/calculations'
+import { TESTS, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg, isTestLocked, getTestDefinition, addIncubationDays, getPendingReviewBatches } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import ShipmentModal from './ShipmentModal'
 import BatchTestingPage from './BatchTestingPage'
@@ -817,26 +817,18 @@ export default function ManagerView() {
     .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
     .filter(b => getIncubationStatus(b, b.template_id).due)
 
-  const reviewNotifications = shipments
-    .filter(s => !isShipmentArchived(s))
-    .flatMap(s => {
-      const temp = getTemplate(s.template_id)
-      return (s.batches || []).map(b => ({ ...b, shipment: s, temp }))
-    })
-    .filter(item => {
-      if (item.approved_at || !item.submitted_at) return false
-      return true
-    })
-    .map(item => ({
-      id: `review:${item.id}`,
-      type: 'review',
-      title: `${t('mgr.bell.review_title') || 'Ready for Review'}: ${item.temp?.name || t('common.product')}`,
-      subtitle: `${t('mgr.archive.batch_label').replace('{n}', item.number || t('common.unnamed_batch'))} • ${t('mgr.archive.supplier')} ${item.shipment.supplier}`,
-      badgeText: t('mgr.bell.review_badge') || 'To Review',
-      badgeColor: 'text-teal-400 bg-teal-950/20 border border-teal-900/30',
-      ping: false,
-      actionData: { tab: 'review', batchId: item.id }
-    }))
+  const pendingReviewBatches = getPendingReviewBatches(shipments)
+
+  const reviewNotifications = pendingReviewBatches.map(item => ({
+    id: `review:${item.id}`,
+    type: 'review',
+    title: `${t('mgr.bell.review_title') || 'Ready for Review'}: ${getTemplate(item.shipment.template_id)?.name || t('common.product')}`,
+    subtitle: `${t('mgr.archive.batch_label').replace('{n}', item.number || t('common.unnamed_batch'))} • ${t('mgr.archive.supplier')} ${item.shipment.supplier}`,
+    badgeText: t('mgr.bell.review_badge') || 'To Review',
+    badgeColor: 'text-teal-400 bg-teal-950/20 border border-teal-900/30',
+    ping: false,
+    actionData: { tab: 'review', batchId: item.id }
+  }))
 
   const notifications = [
     ...dueBatches.map(b => ({
@@ -856,24 +848,6 @@ export default function ManagerView() {
     .filter(s => !isShipmentArchived(s))
     .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id })))
     .filter(b => getIncubationStatus(b, b.template_id).locked)
-    .length
-
-  const awaitingTestingCount = shipments
-    .filter(s => !isShipmentArchived(s))
-    .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id })))
-    .filter(b => {
-      if (b.approved_at) return false
-      const temp = getTemplate(b.template_id)
-      if (getIncubationStatus(b, b.template_id).locked) return false
-      
-      const pendingTests = (temp?.tests || []).filter(testId => {
-        const test = getTestDefinition(testId, temp)
-        if (!test || test.isCalculated) return false
-        if (isTestLocked(testId, b, temp)) return false
-        return !isTestEntered(testId, b.id, results, temp)
-      })
-      return pendingTests.length > 0
-    })
     .length
 
   const managerTabs = [
@@ -930,7 +904,7 @@ export default function ManagerView() {
                       {t('mgr.overview.awaiting')}
                     </span>
                     <span className="text-xl sm:text-3xl font-black text-white block">
-                      {awaitingTestingCount}
+                      {pendingReviewBatches.length}
                     </span>
                   </div>
                   <div className="p-1.5 sm:p-2 bg-amber-500/10 rounded-xl text-amber-500 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all shrink-0 ml-2">
@@ -1486,12 +1460,10 @@ export default function ManagerView() {
           {activeTab === 'review' && (() => {
             const reviewShipments = shipments
               .filter(s => !isShipmentArchived(s))
-              .map(s => {
-                const pendingBatches = (s.batches || []).filter(b => {
-                  return !!b.submitted_at && !b.approved_at && !b.retest_requested_at
-                })
-                return { ...s, pendingBatches }
-              })
+              .map(s => ({
+                ...s,
+                pendingBatches: pendingReviewBatches.filter(item => item.shipment.id === s.id)
+              }))
               .filter(s => s.pendingBatches.length > 0)
 
             return (
