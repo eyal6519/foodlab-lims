@@ -340,14 +340,6 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
       }
     })
 
-    // Replicate count validations
-    if (test.min && rows.length < test.min) {
-      list.push(t('batch.validation.min_reps').replace('{n}', test.min).replace('{c}', rows.length))
-    }
-    if (test.max && rows.length > test.max) {
-      list.push(t('batch.validation.max_reps').replace('{n}', test.max).replace('{c}', rows.length))
-    }
-
     return list
   }
 
@@ -492,7 +484,6 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
     const currentRows = testData[testId] || []
     if (test.single && currentRows.length >= 1) return
-    if (test.max && currentRows.length >= test.max) return
 
     setIsDirty(true)
     const updatedRows = [...currentRows, createEmptyRow(test)]
@@ -716,7 +707,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
             const isLocked = isTestLocked(testId, batch, template, shipment?.intake_date) || !!batch.approved_at || !!batch.submitted_at
             const rows = testData[testId] || []
             const testWarnings = warnings[testId] || []
-            const isAddDisabled = isLocked || test.single || (test.max && rows.length >= test.max)
+            const isAddDisabled = isLocked || test.single
 
             // Calculate days remaining and target date for lock notice
             let daysRemaining = 0
@@ -756,8 +747,6 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                     <div className="flex flex-col gap-1 mt-1">
                       <span className="text-sm sm:text-base text-slate-200 font-bold uppercase tracking-wider">
                         {t('batch.test.replicates_label')} {rows.length}
-                        {test.min && ` ${t('batch.test.min').replace('{n}', test.min)}`}
-                        {test.max && ` ${t('batch.test.max').replace('{n}', test.max)}`}
                       </span>
                       {(TEST_FORMULAS[testId] || test.customFormula) && (
                         <span className="text-sm sm:text-base text-slate-300 font-semibold tracking-wide mt-0.5">
@@ -1038,8 +1027,6 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
                   <div className="text-xs text-slate-400 font-medium italic">
                     {test.single && t('batch.hint.single')}
-                    {test.min && !isLocked && t('batch.hint.min').replace('{n}', test.min)}
-                    {test.max && !isLocked && t('batch.hint.max').replace('{n}', test.max)}
                   </div>
                 </div>
               </section>

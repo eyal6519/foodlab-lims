@@ -365,8 +365,6 @@ export const TESTS = [
     id: 'paprika_asta',
     name: 'צבע בפפריקה (ASTA)',
     unit: 'ASTA',
-    min: 2,
-    max: 2,
     standardsType: 'min',
     fields: [
       { id: 'mass', label: 'Sample mass (mg)', type: 'number' },
@@ -383,8 +381,6 @@ export const TESTS = [
     id: 'fat_separation',
     name: 'הפרדת שומן',
     unit: '%',
-    min: 2,
-    max: 2,
     standardsType: 'max',
     fields: [
       { id: 'fat', label: 'Mass of fat (g)', type: 'number' },
@@ -410,7 +406,6 @@ export const TESTS = [
     id: 'filling_coating',
     name: 'מילוי וציפוי',
     kind: 'multiResult',
-    max: 10,
     standardsType: 'range',
     fields: [
       { id: 'external', label: 'External mass (g)', type: 'number' },
@@ -449,7 +444,6 @@ export const TESTS = [
     id: 'tuna_chunk',
     name: 'אחוז נתחים בטונה',
     unit: '%',
-    min: 5,
     standardsType: 'min',
     fields: [
       { id: 'chunk', label: 'Chunk mass (g)', type: 'number' },
@@ -641,7 +635,7 @@ export function calculateTest(testId, rows = [], batchResults = {}, testDef = nu
       })
 
     const valueCount = Object.values(buckets)[0]?.filter(Number.isFinite).length || 0
-    const required = test.min || 1
+    const required = 1
     const overallAvg = avg(Object.values(buckets).map(vList => avg(vList.filter(Number.isFinite))))
 
     return {
@@ -654,7 +648,7 @@ export function calculateTest(testId, rows = [], batchResults = {}, testDef = nu
 
   // 5. General Single-Value Calculations
   const values = rows.map(r => test.calc(r)).filter(Number.isFinite)
-  const requiredRows = test.min || 1
+  const requiredRows = 1
 
   return {
     label: values.length ? `${fmt(avg(values))}${test.unit ? ' ' + test.unit : ''}` : '-',

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { num, fmt, avg, avgLogPh, calculateTest, isShipmentArchived, isTestLocked, isPendingReviewBatch, getPendingReviewBatches, addIncubationDays, getEffectiveExitDate } from './calculations'
+import { num, fmt, avg, avgLogPh, calculateTest, isShipmentArchived, isTestLocked, isPendingReviewBatch, getPendingReviewBatches, addIncubationDays, getEffectiveExitDate, TESTS } from './calculations'
 
 describe('Math and Calculations Utilities', () => {
   describe('num()', () => {
@@ -457,6 +457,32 @@ describe('Math and Calculations Utilities', () => {
         { id: 's2', batches: [approved, { id: 'b5', submitted_at: '2026-06-20T10:00:00Z' }] }
       ]
       expect(getPendingReviewBatches(shipments)).toHaveLength(2)
+    })
+  })
+
+  describe('replicate limits are not configured on any test', () => {
+    it('has no min or max replicate limits defined', () => {
+      const limited = TESTS.filter(t => 'min' in t || 'max' in t).map(t => t.id)
+      expect(limited).toEqual([])
+    })
+
+    it('marks a test complete from a single entered replicate', () => {
+      expect(calculateTest('moisture_oven', [{ sample: '10', crucible: '5', end: '13.5' }]).complete).toBe(true)
+      expect(calculateTest('salt', [{ silver: '10', mass: '20' }]).complete).toBe(true)
+      expect(calculateTest('paprika_asta', [{ mass: '100', absorption: '50' }]).complete).toBe(true)
+      expect(calculateTest('fat_separation', [{ fat: '1', total: '10' }]).complete).toBe(true)
+      expect(calculateTest('tuna_chunk', [{ chunk: '20', total: '100' }]).complete).toBe(true)
+    })
+
+    it('averages any number of replicates', () => {
+      const res = calculateTest('salt', [
+        { silver: '10', mass: '20' },
+        { silver: '20', mass: '20' },
+        { silver: '30', mass: '20' }
+      ])
+      expect(res.complete).toBe(true)
+      expect(res.values).toHaveLength(3)
+      expect(res.average).toBeCloseTo(0.585, 5)
     })
   })
 })
