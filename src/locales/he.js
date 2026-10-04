@@ -278,6 +278,11 @@ const he = {
   'mgr.archive.batch_label': 'אצווה: {n}',
   'mgr.archive.supplier': 'ספק:',
   'mgr.archive.arrived': 'הגיע:',
+  'mgr.archive.loading': 'טוען תעודות מהארכיון…',
+  'mgr.archive.showing': 'מציג {from}–{to} מתוך {total}',
+  'mgr.archive.page_of': 'עמוד {page} מתוך {total}',
+  'mgr.archive.prev': 'הקודם',
+  'mgr.archive.next': 'הבא',
 
   // Manager View — Users
   'mgr.users.title': 'ניהול משתמשים',
@@ -574,9 +579,6 @@ const he = {
   'tech.dashboard.unassigned': 'ללא שיוך',
 
   // Storage Monitor
-  'mgr.storage.title': 'אחסון מסד נתונים',
-  'mgr.storage.usage': '{used} MB / {total} MB ({pct}%)',
-  'mgr.storage.warning_bell': 'האחסון עומד על {pct}% — תעודות אנליזה ישנות יימחקו אוטומטית כשיגיע ל-90%.',
   'mgr.storage.cleanup_toast': '{n} תעודות אנליזה ישנות נמחקו אוטומטית לפינוי שטח אחסון.',
   'mgr.storage.delete_btn': 'מחק COA',
   'mgr.storage.purged': 'נמחק',

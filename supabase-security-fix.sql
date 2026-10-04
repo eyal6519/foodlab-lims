@@ -49,7 +49,10 @@ declare
     'public.admin_delete_user(uuid)',
     'public.get_db_size_bytes()',
     'public.is_manager()',
-    'public.has_app_role()'
+    'public.has_app_role()',
+    'public.get_active_shipments()',
+    'public.search_coa_archive(text, text, date, date, integer, integer, boolean)',
+    'public.get_archived_shipments_for_cleanup()'
   ];
 begin
   foreach def in array defs
@@ -147,6 +150,36 @@ begin
     revoke execute on function public.has_app_role() from anon;
     revoke execute on function public.has_app_role() from public;
   end if;
+
+  -- Read-only query helpers. These are SECURITY INVOKER, so they are not the
+  -- advisor's anon_security_definer target, but Postgres still grants EXECUTE to
+  -- PUBLIC by default and anonymous visitors inherit it.
+  if exists (
+    select 1 from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_active_shipments'
+  ) then
+    revoke execute on function public.get_active_shipments() from anon;
+    revoke execute on function public.get_active_shipments() from public;
+  end if;
+
+  if exists (
+    select 1 from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'search_coa_archive'
+  ) then
+    revoke execute on function public.search_coa_archive(text, text, date, date, integer, integer, boolean) from anon;
+    revoke execute on function public.search_coa_archive(text, text, date, date, integer, integer, boolean) from public;
+  end if;
+
+  if exists (
+    select 1 from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_archived_shipments_for_cleanup'
+  ) then
+    revoke execute on function public.get_archived_shipments_for_cleanup() from anon;
+    revoke execute on function public.get_archived_shipments_for_cleanup() from public;
+  end if;
 end;
 $$;
 
@@ -196,6 +229,33 @@ begin
   -- querying role.
   grant execute on function public.has_app_role() to authenticated;
   grant execute on function public.has_app_role() to service_role;
+
+  if exists (
+    select 1 from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_active_shipments'
+  ) then
+    grant execute on function public.get_active_shipments() to authenticated;
+    grant execute on function public.get_active_shipments() to service_role;
+  end if;
+
+  if exists (
+    select 1 from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'search_coa_archive'
+  ) then
+    grant execute on function public.search_coa_archive(text, text, date, date, integer, integer, boolean) to authenticated;
+    grant execute on function public.search_coa_archive(text, text, date, date, integer, integer, boolean) to service_role;
+  end if;
+
+  if exists (
+    select 1 from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_archived_shipments_for_cleanup'
+  ) then
+    grant execute on function public.get_archived_shipments_for_cleanup() to authenticated;
+    grant execute on function public.get_archived_shipments_for_cleanup() to service_role;
+  end if;
 end;
 $$;
 

@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { TESTS, calculateTest, isTestEntered, isShipmentArchived, isTestLocked, getTestDefinition, getPendingReviewBatches } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
 import { buildBatchRowsFromForm, persistShipmentBatches } from '../utils/shipmentPersistence'
+import { mergeResults, collectBatchIds, groupArchiveRows, pageWindow, findBatch } from '../utils/archiveQuery'
 import ShipmentModal from './ShipmentModal'
 import BatchTestingPage from './BatchTestingPage'
 import ResponsiveShell from './ResponsiveShell'
@@ -32,7 +33,6 @@ import {
   X,
   Archive,
   MoreVertical,
-  Database,
   ChevronDown
 } from 'lucide-react'
 import { downloadCoaPdf as downloadCoaPdfShared } from '../utils/coaPdf'
@@ -76,6 +76,13 @@ export default function ManagerView() {
   const [coaStartDate, setCoaStartDate] = useState('')
   const [coaEndDate, setCoaEndDate] = useState('')
   const [coaAdvancedOpen, setCoaAdvancedOpen] = useState(false)
+
+  // Archive paging. The approved history is unbounded, so it is fetched one page
+  // at a time and searched in the database rather than in the browser.
+  const [archiveShipments, setArchiveShipments] = useState([])
+  const [archiveTotal, setArchiveTotal] = useState(0)
+  const [archivePage, setArchivePage] = useState(1)
+  const [archiveLoading, setArchiveLoading] = useState(false)
   const [templateSearch, setTemplateSearch] = useState('')
   const [templateFilter, setTemplateFilter] = useState('all') // 'all' | 'incubation' | 'bypass'
 
@@ -104,8 +111,11 @@ export default function ManagerView() {
   const [expandedIntakeShipmentId, setExpandedIntakeShipmentId] = useState(null)
 
   // Storage Monitor state
-  const [dbSizeBytes, setDbSizeBytes] = useState(null)
   const DB_LIMIT_BYTES = 500 * 1024 * 1024 // 500 MB
+
+  // Approved COAs per archive page. The archive is unbounded, so it is never
+  // fetched whole.
+  const ARCHIVE_PAGE_SIZE = 20
 
   // Request notification permissions on mount
   useEffect(() => {
@@ -163,6 +173,23 @@ export default function ManagerView() {
     fetchData()
   }, [])
 
+  // Archive search and date filters now run in the database, so a keystroke
+  // becomes a query. Debounced so typing does not fire one per character.
+  useEffect(() => {
+    if (activeTab !== 'archive' && activeTab !== 'fresh_coas') return
+    const timer = setTimeout(() => {
+      loadArchive(1, { search: coaSearch, dateType: coaFilterDateType, start: coaStartDate, end: coaEndDate })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [coaSearch, coaFilterDateType, coaStartDate, coaEndDate, activeTab])
+
+  // The COA report and the raw batch view both read replicate values, which are
+  // no longer held in memory for the whole lab. Fetch them when one is opened.
+  useEffect(() => {
+    const ids = [coaSelectedBatchId, activeBatchTesting?.batch?.id].filter(Boolean)
+    if (ids.length > 0) loadResults(ids)
+  }, [coaSelectedBatchId, activeBatchTesting?.batch?.id])
+
   // Storage check + auto-cleanup on mount
   useEffect(() => {
     async function checkAndCleanStorage() {
@@ -170,42 +197,28 @@ export default function ManagerView() {
         const { data: sizeData, error } = await supabase.rpc('get_db_size_bytes')
         if (error || sizeData == null) return
         const sizeBytes = Number(sizeData)
-        setDbSizeBytes(sizeBytes)
 
         const pct = (sizeBytes / DB_LIMIT_BYTES) * 100
         if (pct < 90) return // Nothing to do
 
-        // Find all fully-approved shipments sorted by oldest approved_at
-        const { data: allShipments } = await supabase
-          .from('shipments')
-          .select('id, batches(*)')
-        if (!allShipments) return
-
-        const fullyApproved = allShipments
-          .filter(s => s.batches?.length > 0 && s.batches.every(b => b.approved_at))
-          .sort((a, b) => {
-            const aOldest = Math.min(...a.batches.map(b => new Date(b.approved_at).getTime()))
-            const bOldest = Math.min(...b.batches.map(b => new Date(b.approved_at).getTime()))
-            return aOldest - bOldest
-          })
-
-        if (fullyApproved.length === 0) return
+        // Fully-approved shipments, oldest approval first. The database returns
+        // ids only; downloading every shipment and batch on each manager login
+        // was itself a large slice of the monthly bandwidth allowance.
+        const { data: archivedRows, error: archivedError } = await supabase
+          .rpc('get_archived_shipments_for_cleanup')
+        if (archivedError || !Array.isArray(archivedRows) || archivedRows.length === 0) return
 
         // Delete oldest 30%
-        const deleteCount = Math.max(1, Math.ceil(fullyApproved.length * 0.3))
-        const toDelete = fullyApproved.slice(0, deleteCount)
-        const batchIds = toDelete.flatMap(s => s.batches.map(b => b.id))
-        const shipmentIds = toDelete.map(s => s.id)
+        const deleteCount = Math.max(1, Math.ceil(archivedRows.length * 0.3))
+        const toDelete = archivedRows.slice(0, deleteCount)
+        const batchIds = toDelete.flatMap(s => s.batch_ids || [])
+        const shipmentIds = toDelete.map(s => s.shipment_id)
 
         await supabase.from('test_results').delete().in('batch_id', batchIds)
         await supabase.from('batches').delete().in('id', batchIds)
         await supabase.from('shipments').delete().in('id', shipmentIds)
 
         showToast(t('mgr.storage.cleanup_toast').replace('{n}', toDelete.length), 'warning')
-
-        // Re-check size after cleanup
-        const { data: newSize } = await supabase.rpc('get_db_size_bytes')
-        if (newSize != null) setDbSizeBytes(Number(newSize))
 
         // Refresh data
         await fetchData()
@@ -215,6 +228,61 @@ export default function ManagerView() {
     }
     checkAndCleanStorage()
   }, [])
+
+  /**
+   * Load the test results of specific batches into the `results` map.
+   * The app used to fetch every test_results row on every load; now only the
+   * batches actually on screen are asked for.
+   */
+  async function loadResults(batchIds) {
+    const ids = [...new Set((batchIds || []).filter(Boolean))]
+    if (ids.length === 0) return
+    try {
+      const { data, error } = await supabase
+        .from('test_results')
+        .select('*')
+        .in('batch_id', ids)
+      if (error) throw error
+      setResults(prev => mergeResults(prev, data || []))
+    } catch (err) {
+      console.error('Error fetching test results:', err)
+    }
+  }
+
+  /**
+   * Fetch one page of the approved COA archive, searching in the database so the
+   * browser never holds the whole history.
+   */
+  async function loadArchive(page = 1, overrides = {}) {
+    setArchiveLoading(true)
+    try {
+      const search = overrides.search ?? coaSearch
+      const dateType = overrides.dateType ?? coaFilterDateType
+      const start = overrides.start ?? coaStartDate
+      const end = overrides.end ?? coaEndDate
+
+      const { data, error } = await supabase.rpc('search_coa_archive', {
+        p_search: search && search.trim() !== '' ? search : null,
+        p_date_type: dateType,
+        p_start: start || null,
+        p_end: end || null,
+        p_page: page,
+        p_page_size: ARCHIVE_PAGE_SIZE,
+        p_require_fully_approved: false,
+      })
+      if (error) throw error
+
+      setArchiveShipments(groupArchiveRows(data?.rows || []))
+      setArchiveTotal(Number(data?.total || 0))
+      setArchivePage(page)
+    } catch (err) {
+      console.error('Error fetching COA archive:', err)
+      setArchiveShipments([])
+      setArchiveTotal(0)
+    } finally {
+      setArchiveLoading(false)
+    }
+  }
 
   async function fetchData() {
     setLoading(true)
@@ -226,28 +294,18 @@ export default function ManagerView() {
         .order('created_at', { ascending: false })
       setTemplates(templatesData || [])
 
-      // 2. Fetch shipments
-      const { data: shipmentsData } = await supabase
-        .from('shipments')
-        .select(`
-          *,
-          batches(*)
-        `)
-        .order('created_at', { ascending: false })
-      setShipments(shipmentsData || [])
+      // 2. Fetch active shipments (anything not fully approved yet). The
+      // approved history lives in the paged archive instead.
+      const { data: shipmentsData, error: shipmentsError } = await supabase
+        .rpc('get_active_shipments')
+      if (shipmentsError) throw shipmentsError
+      const activeShipments = Array.isArray(shipmentsData) ? shipmentsData : []
+      setShipments(activeShipments)
 
-      // 3. Fetch test results
-      const { data: resultsData } = await supabase
-        .from('test_results')
-        .select('*')
-      
-      const resultsMap = {}
-      if (resultsData) {
-        resultsData.forEach(r => {
-          resultsMap[`${r.batch_id}:${r.test_id}`] = r.replicates
-        })
-      }
-      setResults(resultsMap)
+      // 3. Fetch test results for those batches only, then drop anything that
+      // belongs to a shipment which just became archived.
+      setResults({})
+      await loadResults(collectBatchIds(activeShipments))
 
       // 4. Fetch profiles (users)
       const { data: profilesData } = await supabase
@@ -568,6 +626,11 @@ export default function ManagerView() {
       if (error) throw error
       showToast(t('mgr.toast.batch_approved'), 'success')
       await fetchData()
+      // Approving can push the shipment out of the active set, so the COA we are
+      // about to open is no longer in memory. Load the first archive page and
+      // this batch's results before selecting it.
+      await loadArchive(1)
+      await loadResults([batchId])
       setActiveTab('archive')
       setCoaSelectedBatchId(batchId)
     } catch (err) {
@@ -660,7 +723,11 @@ export default function ManagerView() {
     )
   }
 
+  // Archived shipments are excluded here for the same reason the counters exclude
+  // them: a batch inside a fully-approved shipment is done, and reporting it as
+  // "ready to leave the incubator" only made the bell disagree with the tiles.
   const dueBatches = shipments
+    .filter(s => !isShipmentArchived(s))
     .flatMap(s => (s.batches || []).map(b => ({ ...b, template_id: s.template_id, supplier: s.supplier, template_name: getTemplate(s.template_id)?.name })))
     .filter(b => getIncubationStatus(b, b.template_id).due)
 
@@ -715,6 +782,7 @@ export default function ManagerView() {
       onTabChange={(tabId) => {
         setActiveTab(tabId)
         setCoaSelectedBatchId('')
+        if (tabId === 'archive' || tabId === 'fresh_coas') loadArchive(1)
       }}
       tabs={managerTabs}
       notifications={notifications}
@@ -727,13 +795,6 @@ export default function ManagerView() {
       }}
       logout={logout}
       setSettingsModalOpen={setSettingsModalOpen}
-      storageWarning={dbSizeBytes != null && (() => {
-        const pct = Math.round((dbSizeBytes / DB_LIMIT_BYTES) * 100)
-        if (pct >= 75 && pct < 90) {
-          return t('mgr.storage.warning_bell').replace('{pct}', pct)
-        }
-        return null
-      })()}
     >
       <div className="p-4 lg:p-8 w-full min-w-0">
           {/* OVERVIEW METRICS */}
@@ -776,32 +837,6 @@ export default function ManagerView() {
                   </div>
                 </button>
               </div>
-
-              {/* Storage Usage Widget */}
-              {dbSizeBytes != null && (() => {
-                const usedMB = (dbSizeBytes / (1024 * 1024)).toFixed(1)
-                const pct = Math.min(100, Math.round((dbSizeBytes / DB_LIMIT_BYTES) * 100))
-                const barColor = pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-amber-400' : 'bg-emerald-500'
-                const textColor = pct >= 90 ? 'text-red-400' : pct >= 75 ? 'text-amber-400' : 'text-emerald-400'
-                return (
-                  <div className="max-w-2xl p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-4">
-                    <div className={`p-2 rounded-xl ${pct >= 90 ? 'bg-red-500/10 text-red-400' : pct >= 75 ? 'bg-amber-400/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'} shrink-0`}>
-                      <Database className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center mb-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.storage.title')}</span>
-                        <span className={`text-xs font-bold ${textColor}`}>
-                          {t('mgr.storage.usage').replace('{used}', usedMB).replace('{total}', '500').replace('{pct}', pct)}
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
 
               {/* Pending Shipments & Assignments */}
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
@@ -1510,49 +1545,15 @@ export default function ManagerView() {
           })()}
 
           {(activeTab === 'archive') && (() => {
-            const filteredApprovedShipments = shipments.map(s => {
-              const matchingBatches = (s.batches || []).filter(b => {
-                // Must be approved
-                if (!b.approved_at) return false
+            // Filtering, searching and ordering happen in the database
+            // (search_coa_archive); this list is just the loaded page.
+            const filteredApprovedShipments = archiveShipments
+            const archiveWindow = pageWindow(archivePage, ARCHIVE_PAGE_SIZE, archiveTotal)
 
-                // Search & Date filters
-                const temp = getTemplate(s.template_id)
-                const prodName = temp?.name || ''
-                const batchNum = b.number || 'Unnamed Batch'
-
-                const matchesSearch = 
-                  prodName.toLowerCase().includes(coaSearch.toLowerCase()) ||
-                  batchNum.toLowerCase().includes(coaSearch.toLowerCase())
-
-                if (!matchesSearch) return false
-
-                if (coaFilterDateType !== 'all' && (coaStartDate || coaEndDate)) {
-                  let targetDateStr = null
-                  if (coaFilterDateType === 'approved_at') {
-                    targetDateStr = b.approved_at ? b.approved_at.slice(0, 10) : null
-                  } else if (coaFilterDateType === 'intake_date') {
-                    targetDateStr = s.intake_date
-                  } else if (coaFilterDateType === 'production_date') {
-                    targetDateStr = b.production_date
-                  }
-
-                  if (!targetDateStr) return false
-
-                  if (coaStartDate && targetDateStr < coaStartDate) return false
-                  if (coaEndDate && targetDateStr > coaEndDate) return false
-                }
-
-                return true
-              })
-
-              return { ...s, matchingBatches }
-            })
-            .filter(s => s.matchingBatches.length > 0)
-            .sort((a, b) => {
-              const aLatest = Math.max(...a.matchingBatches.map(b => new Date(b.approved_at).getTime()))
-              const bLatest = Math.max(...b.matchingBatches.map(b => new Date(b.approved_at).getTime()))
-              return bLatest - aLatest
-            })
+            // The selected COA may live in the active set or on the loaded
+            // archive page, and its results are fetched on selection.
+            const coaMatch = findBatch([shipments, archiveShipments], coaSelectedBatchId)
+            const coaBatch = coaMatch ? { ...coaMatch.batch, shipment: coaMatch.shipment } : null
 
             return (
               <div className="space-y-6">
@@ -1685,7 +1686,7 @@ export default function ManagerView() {
                     <button
                       onClick={() => {
                         try {
-                          const batchObj = shipments.flatMap(s => s.batches).find(b => b.id === coaSelectedBatchId)
+                          const batchObj = coaBatch
                           if (batchObj) {
                             downloadCoaPdf(batchObj.number)
                           } else {
@@ -1704,15 +1705,14 @@ export default function ManagerView() {
                 )}
 
                 {coaSelectedBatchId ? (() => {
-                  const batch = shipments.flatMap(s => s.batches.map(b => ({ ...b, shipment: s }))).find(b => b.id === coaSelectedBatchId)
-                  const template = getTemplate(batch?.shipment?.template_id)
+                  const template = getTemplate(coaBatch?.shipment?.template_id)
                   return (
-                    <COAReportView batch={batch} template={template} results={results} t={t} />
+                    <COAReportView batch={coaBatch} template={template} results={results} t={t} />
                   )
                 })() : (
                   filteredApprovedShipments.length === 0 ? (
                     <div className="p-12 text-center text-slate-500 border border-dashed border-slate-800 rounded-3xl">
-                      {t('mgr.archive.empty')}
+                      {archiveLoading ? t('mgr.archive.loading') : t('mgr.archive.empty')}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1781,10 +1781,8 @@ export default function ManagerView() {
                                                 await supabase.from('shipments').delete().eq('id', shipment.id)
                                               }
                                               showToast(t('mgr.storage.cleanup_toast').replace('{n}', 1))
-                                              // Refresh size
-                                              const { data: newSize } = await supabase.rpc('get_db_size_bytes')
-                                              if (newSize != null) setDbSizeBytes(Number(newSize))
                                               await fetchData()
+                                              await loadArchive(archivePage)
                                             } catch (err) {
                                               alert(`Error deleting COA: ${err.message}`)
                                             }
@@ -1805,6 +1803,40 @@ export default function ManagerView() {
                       })}
                     </div>
                   )
+                )}
+
+                {/* Paging. The archive holds every COA ever approved, so it is
+                    fetched one page at a time instead of all at once. */}
+                {coaSelectedBatchId === '' && archiveTotal > 0 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 no-print">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {t('mgr.archive.showing')
+                        .replace('{from}', archiveWindow.from)
+                        .replace('{to}', archiveWindow.to)
+                        .replace('{total}', archiveWindow.total)}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => loadArchive(archiveWindow.page - 1)}
+                        disabled={!archiveWindow.hasPrev || archiveLoading}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 disabled:opacity-40 disabled:hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        {t('mgr.archive.prev')}
+                      </button>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {t('mgr.archive.page_of')
+                          .replace('{page}', archiveWindow.page)
+                          .replace('{total}', archiveWindow.totalPages)}
+                      </span>
+                      <button
+                        onClick={() => loadArchive(archiveWindow.page + 1)}
+                        disabled={!archiveWindow.hasNext || archiveLoading}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 disabled:opacity-40 disabled:hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        {t('mgr.archive.next')}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             )

@@ -4,6 +4,7 @@ import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
 import { calculateTest, isTestEntered, isShipmentArchived, isTestLocked, getTestDefinition } from '../utils/calculations'
 import { buildBatchRowsFromForm, persistShipmentBatches } from '../utils/shipmentPersistence'
+import { mergeResults, collectBatchIds, groupArchiveRows, pageWindow, findBatch } from '../utils/archiveQuery'
 import BatchTestingPage from './BatchTestingPage'
 import ShipmentModal from './ShipmentModal'
 import ResponsiveShell from './ResponsiveShell'
@@ -52,6 +53,16 @@ export default function TechnicianView() {
   const [coaStartDate, setCoaStartDate] = useState('')
   const [coaEndDate, setCoaEndDate] = useState('')
   const [coaAdvancedOpen, setCoaAdvancedOpen] = useState(false)
+
+  // Archive paging. The approved history is unbounded, so it is fetched one page
+  // at a time and searched in the database rather than in the browser.
+  const [archiveShipments, setArchiveShipments] = useState([])
+  const [archiveTotal, setArchiveTotal] = useState(0)
+  const [archivePage, setArchivePage] = useState(1)
+  const [archiveLoading, setArchiveLoading] = useState(false)
+
+  // Approved COAs per archive page
+  const ARCHIVE_PAGE_SIZE = 20
 
   // Modal State
   const [activeBatchTesting, setActiveBatchTesting] = useState(null) // { batch, shipment }
@@ -127,6 +138,76 @@ export default function TechnicianView() {
     fetchData()
   }, [])
 
+  // Archive search and date filters run in the database, so a keystroke becomes
+  // a query. Debounced so typing does not fire one per character.
+  useEffect(() => {
+    if (activeTab !== 'archive') return
+    const timer = setTimeout(() => {
+      loadArchive(1, { search: coaSearch, dateType: coaFilterDateType, start: coaStartDate, end: coaEndDate })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [coaSearch, coaFilterDateType, coaStartDate, coaEndDate, activeTab])
+
+  // Replicate values are no longer held in memory for the whole lab, so the
+  // batch being tested and the COA being reprinted fetch their own.
+  useEffect(() => {
+    const ids = [coaSelectedBatchId, activeBatchTesting?.batch?.id].filter(Boolean)
+    if (ids.length > 0) loadResults(ids)
+  }, [coaSelectedBatchId, activeBatchTesting?.batch?.id])
+
+  /**
+   * Load the test results of specific batches into the `results` map.
+   */
+  async function loadResults(batchIds) {
+    const ids = [...new Set((batchIds || []).filter(Boolean))]
+    if (ids.length === 0) return
+    try {
+      const { data, error } = await supabase
+        .from('test_results')
+        .select('*')
+        .in('batch_id', ids)
+      if (error) throw error
+      setResults(prev => mergeResults(prev, data || []))
+    } catch (err) {
+      console.error('Error fetching test results:', err)
+    }
+  }
+
+  /**
+   * Fetch one page of the approved COA archive. Technicians only ever see fully
+   * approved shipments, which the flag preserves.
+   */
+  async function loadArchive(page = 1, overrides = {}) {
+    setArchiveLoading(true)
+    try {
+      const search = overrides.search ?? coaSearch
+      const dateType = overrides.dateType ?? coaFilterDateType
+      const start = overrides.start ?? coaStartDate
+      const end = overrides.end ?? coaEndDate
+
+      const { data, error } = await supabase.rpc('search_coa_archive', {
+        p_search: search && search.trim() !== '' ? search : null,
+        p_date_type: dateType,
+        p_start: start || null,
+        p_end: end || null,
+        p_page: page,
+        p_page_size: ARCHIVE_PAGE_SIZE,
+        p_require_fully_approved: true,
+      })
+      if (error) throw error
+
+      setArchiveShipments(groupArchiveRows(data?.rows || []))
+      setArchiveTotal(Number(data?.total || 0))
+      setArchivePage(page)
+    } catch (err) {
+      console.error('Error fetching COA archive:', err)
+      setArchiveShipments([])
+      setArchiveTotal(0)
+    } finally {
+      setArchiveLoading(false)
+    }
+  }
+
   async function fetchData() {
     setLoading(true)
     try {
@@ -136,28 +217,18 @@ export default function TechnicianView() {
         .select('*')
       setTemplates(templatesData || [])
 
-      // 2. Fetch shipments and batches
-      const { data: shipmentsData } = await supabase
-        .from('shipments')
-        .select(`
-          *,
-          batches(*)
-        `)
-        .order('created_at', { ascending: false })
-      setShipments(shipmentsData || [])
+      // 2. Fetch active shipments (anything not fully approved yet). The
+      // approved history lives in the paged archive instead.
+      const { data: shipmentsData, error: shipmentsError } = await supabase
+        .rpc('get_active_shipments')
+      if (shipmentsError) throw shipmentsError
+      const activeShipments = Array.isArray(shipmentsData) ? shipmentsData : []
+      setShipments(activeShipments)
 
-      // 3. Fetch test results
-      const { data: resultsData } = await supabase
-        .from('test_results')
-        .select('*')
-      
-      const resultsMap = {}
-      if (resultsData) {
-        resultsData.forEach(r => {
-          resultsMap[`${r.batch_id}:${r.test_id}`] = r.replicates
-        })
-      }
-      setResults(resultsMap)
+      // 3. Fetch test results for those batches only, then drop anything that
+      // belongs to a shipment which just became archived.
+      setResults({})
+      await loadResults(collectBatchIds(activeShipments))
 
       // 4. Fetch profiles (users)
       const { data: profilesData } = await supabase
@@ -495,6 +566,7 @@ export default function TechnicianView() {
       onTabChange={(tabId) => {
         setActiveTab(tabId)
         setCoaSelectedBatchId('')
+        if (tabId === 'archive') loadArchive(1)
       }}
       tabs={technicianTabs}
       notifications={notifications}
@@ -742,40 +814,14 @@ export default function TechnicianView() {
         )}
 
         {activeTab === 'archive' && (() => {
-          const completedShipments = shipments.filter(s => s.batches.length > 0 && s.batches.every(b => b.approved_at))
-          const filteredApprovedShipments = completedShipments.map(s => {
-            const matchingBatches = s.batches.filter(b => {
-              const temp = getTemplate(s.template_id)
-              const prodName = temp?.name || ''
-              const batchNum = b.number || 'Unnamed Batch'
+          // Filtering, searching and ordering happen in the database
+          // (search_coa_archive); this list is just the loaded page.
+          const filteredApprovedShipments = archiveShipments
+          const archiveWindow = pageWindow(archivePage, ARCHIVE_PAGE_SIZE, archiveTotal)
 
-              const matchesSearch = 
-                prodName.toLowerCase().includes(coaSearch.toLowerCase()) ||
-                batchNum.toLowerCase().includes(coaSearch.toLowerCase())
-
-              if (!matchesSearch) return false
-
-              if (coaFilterDateType !== 'all' && (coaStartDate || coaEndDate)) {
-                let targetDateStr = null
-                if (coaFilterDateType === 'approved_at') {
-                  targetDateStr = b.approved_at ? b.approved_at.slice(0, 10) : null
-                } else if (coaFilterDateType === 'intake_date') {
-                  targetDateStr = s.intake_date
-                } else if (coaFilterDateType === 'production_date') {
-                  targetDateStr = b.production_date
-                }
-
-                if (!targetDateStr) return false
-
-                if (coaStartDate && targetDateStr < coaStartDate) return false
-                if (coaEndDate && targetDateStr > coaEndDate) return false
-              }
-
-              return true
-            })
-
-            return { ...s, matchingBatches }
-          }).filter(s => s.matchingBatches.length > 0)
+          // The reprinted COA may live in the active set or on the loaded page.
+          const coaMatch = findBatch([shipments, archiveShipments], coaSelectedBatchId)
+          const coaBatch = coaMatch ? { ...coaMatch.batch, shipment: coaMatch.shipment } : null
 
           return (
             <div className="space-y-6">
@@ -911,7 +957,7 @@ export default function TechnicianView() {
                   <button
                     onClick={() => {
                       try {
-                        const batchObj = shipments.flatMap(s => s.batches).find(b => b.id === coaSelectedBatchId)
+                        const batchObj = coaBatch
                         if (batchObj) {
                           downloadCoaPdf(batchObj.number)
                         } else {
@@ -930,15 +976,14 @@ export default function TechnicianView() {
               )}
 
               {coaSelectedBatchId ? (() => {
-                const batch = shipments.flatMap(s => s.batches.map(b => ({ ...b, shipment: s }))).find(b => b.id === coaSelectedBatchId)
-                const template = getTemplate(batch?.shipment?.template_id)
+                const template = getTemplate(coaBatch?.shipment?.template_id)
                 return (
-                  <COAReportView batch={batch} template={template} results={results} t={t} />
+                  <COAReportView batch={coaBatch} template={template} results={results} t={t} />
                 )
               })() : (
                 filteredApprovedShipments.length === 0 ? (
                   <div className="p-12 text-center text-slate-500 border border-dashed border-slate-800 rounded-3xl">
-                    {t('tech.archive.empty')}
+                    {archiveLoading ? t('mgr.archive.loading') : t('tech.archive.empty')}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1000,6 +1045,40 @@ export default function TechnicianView() {
                     })}
                   </div>
                 ))}
+
+                {/* Paging. The archive holds every approved COA, so it is fetched
+                    one page at a time instead of all at once. */}
+                {coaSelectedBatchId === '' && archiveTotal > 0 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 no-print">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {t('mgr.archive.showing')
+                        .replace('{from}', archiveWindow.from)
+                        .replace('{to}', archiveWindow.to)
+                        .replace('{total}', archiveWindow.total)}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => loadArchive(archiveWindow.page - 1)}
+                        disabled={!archiveWindow.hasPrev || archiveLoading}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 disabled:opacity-40 disabled:hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        {t('mgr.archive.prev')}
+                      </button>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {t('mgr.archive.page_of')
+                          .replace('{page}', archiveWindow.page)
+                          .replace('{total}', archiveWindow.totalPages)}
+                      </span>
+                      <button
+                        onClick={() => loadArchive(archiveWindow.page + 1)}
+                        disabled={!archiveWindow.hasNext || archiveLoading}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 disabled:opacity-40 disabled:hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        {t('mgr.archive.next')}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })()}

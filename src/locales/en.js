@@ -278,6 +278,11 @@ const en = {
   'mgr.archive.batch_label': 'Batch: {n}',
   'mgr.archive.supplier': 'Supplier:',
   'mgr.archive.arrived': 'Arrived:',
+  'mgr.archive.loading': 'Loading archived COAs…',
+  'mgr.archive.showing': 'Showing {from}–{to} of {total}',
+  'mgr.archive.page_of': 'Page {page} of {total}',
+  'mgr.archive.prev': 'Previous',
+  'mgr.archive.next': 'Next',
 
   // Manager View — Users
   'mgr.users.title': 'User Administration',
@@ -574,9 +579,6 @@ const en = {
   'tech.dashboard.unassigned': 'Unassigned',
 
   // Storage Monitor
-  'mgr.storage.title': 'Database Storage',
-  'mgr.storage.usage': '{used} MB / {total} MB ({pct}%)',
-  'mgr.storage.warning_bell': 'Storage is at {pct}% — old COAs will be auto-deleted when 90% is reached.',
   'mgr.storage.cleanup_toast': '{n} old COA(s) were automatically deleted to free up storage space.',
   'mgr.storage.delete_btn': 'Delete COA',
   'mgr.storage.purged': 'Purged',

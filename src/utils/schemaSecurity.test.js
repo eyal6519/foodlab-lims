@@ -34,6 +34,19 @@ const definerFunctions = [
   'public\\.get_db_size_bytes',
 ]
 
+// Read-only query helpers introduced with the egress fix. They run with the
+// caller's rights on purpose: the row level security policies on shipments,
+// batches and product_templates must keep filtering what each signed-in user
+// reads. Promoting any of them to SECURITY DEFINER would silently bypass RLS.
+const invokerFunctions = [
+  'public\\.get_active_shipments',
+  'public\\.search_coa_archive',
+  'public\\.get_archived_shipments_for_cleanup',
+]
+
+const archiveSearchSignature =
+  'public\\.search_coa_archive\\(text, text, date, date, integer, integer, boolean\\)'
+
 describe('Schema security hardening', () => {
   describe('SECURITY DEFINER functions pin their search_path', () => {
     it.each(definerFunctions)('%s is SECURITY DEFINER with an explicit search_path', (name) => {
@@ -83,6 +96,9 @@ describe('Schema security hardening', () => {
       'public\\.get_db_size_bytes\\(\\)',
       'public\\.is_manager\\(\\)',
       'public\\.has_app_role\\(\\)',
+      'public\\.get_active_shipments\\(\\)',
+      archiveSearchSignature,
+      'public\\.get_archived_shipments_for_cleanup\\(\\)',
     ]
 
     it.each(anonRevoked)('anon cannot EXECUTE %s', (signature) => {
@@ -105,11 +121,37 @@ describe('Schema security hardening', () => {
       'public\\.get_db_size_bytes\\(\\)',
       'public\\.is_manager\\(\\)',
       'public\\.has_app_role\\(\\)',
+      'public\\.get_active_shipments\\(\\)',
+      archiveSearchSignature,
+      'public\\.get_archived_shipments_for_cleanup\\(\\)',
     ]
 
     it.each(granted)('authenticated retains EXECUTE on %s', (signature) => {
       const pattern = new RegExp(`grant\\s+execute\\s+on\\s+function\\s+${signature}\\s+to\\s+authenticated`, 'i')
       expect(withoutComments).toMatch(pattern)
+    })
+  })
+
+  describe('read-only query helpers keep RLS in force', () => {
+    it.each(invokerFunctions)('%s is defined and is SECURITY INVOKER', (name) => {
+      const body = bodyOf(name)
+      expect(body, `definition for ${name} not found in schema.sql`).not.toBeNull()
+      expect(body).toMatch(/security\s+invoker/i)
+      expect(body).not.toMatch(/security\s+definer/i)
+    })
+
+    it.each(invokerFunctions)('%s pins its search_path', (name) => {
+      expect(bodyOf(name)).toMatch(/set\s+search_path\s*=\s*public/i)
+    })
+
+    // The archive search reads shipments, batches and product_templates. With
+    // RLS in force, a future policy tightening those tables keeps working; with
+    // SECURITY DEFINER it would not.
+    it('the archive search joins only tables that carry row level security', () => {
+      const body = bodyOf('public\\.search_coa_archive')
+      expect(body).toMatch(/from\s+public\.batches/i)
+      expect(body).toMatch(/join\s+public\.shipments/i)
+      expect(body).toMatch(/join\s+public\.product_templates/i)
     })
   })
 
@@ -267,6 +309,26 @@ describe('Schema security hardening', () => {
       expect(fixSql).toMatch(
         /drop\s+function\s+if\s+exists\s+public\.admin_create_user\(text,\s*text,\s*text\)/i
       )
+    })
+
+    // The read-only helpers are SECURITY INVOKER, so the advisor never flagged
+    // them, but Postgres still grants EXECUTE to PUBLIC by default and anon
+    // inherits it. Without these revokes the archive is readable without login.
+    it('revokes anon and PUBLIC EXECUTE from every read-only helper', () => {
+      const sigs = [
+        'public.get_active_shipments()',
+        'public.search_coa_archive(text, text, date, date, integer, integer, boolean)',
+        'public.get_archived_shipments_for_cleanup()',
+      ]
+      for (const sig of sigs) {
+        const escaped = sig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        expect(fixSql).toMatch(
+          new RegExp(`revoke\\s+execute\\s+on\\s+function\\s+${escaped}\\s+from\\s+anon`, 'i')
+        )
+        expect(fixSql).toMatch(
+          new RegExp(`revoke\\s+execute\\s+on\\s+function\\s+${escaped}\\s+from\\s+public`, 'i')
+        )
+      }
     })
 
     it('the apply script mirrors the grants in schema.sql', () => {

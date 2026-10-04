@@ -59,7 +59,6 @@ Upon logging in, you will access the **Manager Dashboard**. Use the sidebar navi
 Displays a live summary of the laboratory status:
 - **Pending Review** — Batches submitted by the lab awaiting manager approval. This count always matches the Review tab.
 - **In Incubation** — Number of batches currently inside incubators.
-- **Database Storage** — Progress bar indicating current storage usage out of 500 MB.
 - **Pending Shipments & Assignments** — Shipment list with option to assign technicians.
 
 #### Assigning a Mission to a Technician
@@ -160,6 +159,7 @@ Displays **COAs approved in the last 24 hours**.
 
 Displays **all** previously approved COAs (older than 24 hours).
 - Provides identical searching, filtering, and printing options.
+- Results are loaded one page at a time (**20 COAs per page**). Search and date filters look across the entire archive, not just the page on screen.
 - **Delete COA**: Click the red button to delete test data and free up database storage.
   - ⚠️ This action **cannot be undone**.
 
@@ -221,6 +221,7 @@ After logging in, you will access the **Technician Dashboard**.
 ### 4.4 Archive & Printing
 
 - Search, view, print, or download past COAs.
+- The archive is loaded **20 COAs at a time**; use the page buttons to move through it.
 
 ---
 
@@ -237,8 +238,8 @@ The bell button 🔔 is located in the main navigation bar.
 
 ## 6. Storage Management
 
-The system operates on a free-tier database with a **500 MB** limit.
-- **Auto-Cleanup**: If storage usage hits **90%**, the system automatically purges the oldest 30% of approved COAs.
+The system operates on a free-tier database with a **500 MB** limit. There is no storage meter in the interface — check usage from the Supabase dashboard.
+- **Auto-Cleanup**: On every manager login, if storage usage hits **90%**, the system automatically purges the oldest 30% of approved COAs (a toast announces it).
 - **Manual Cleanup**: Delete old records in the manager **Archive** using the red "Delete COA" button.
 
 ---
