@@ -7,7 +7,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
   useEffect(() => {
     // 1. Check active session
@@ -49,14 +48,12 @@ export function AuthProvider({ children }) {
       setProfile(data)
     } catch (err) {
       console.error('Error fetching profile:', err)
-      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
   async function login(email, password) {
-    setError(null)
     setLoading(true)
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
@@ -70,7 +67,6 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    setError(null)
     setLoading(true)
     const { error } = await supabase.auth.signOut()
     if (error) {
@@ -80,7 +76,6 @@ export function AuthProvider({ children }) {
   }
 
   async function createTechnician(name, email, password) {
-    setError(null)
     // Calls the secure SQL RPC function defined in schema.sql
     const { data, error } = await supabase.rpc('admin_create_user', {
       user_email: email.trim().toLowerCase(),
@@ -93,7 +88,6 @@ export function AuthProvider({ children }) {
   }
 
   async function updateAccount(email, password) {
-    setError(null)
     setLoading(true)
     const updates = {}
     if (email) updates.email = email.trim().toLowerCase()
@@ -112,7 +106,6 @@ export function AuthProvider({ children }) {
     user,
     profile,
     loading,
-    error,
     login,
     logout,
     createTechnician,

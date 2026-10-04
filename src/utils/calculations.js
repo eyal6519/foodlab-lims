@@ -492,7 +492,7 @@ export const TESTS = [
   }
 ]
 
-export const testMap = Object.fromEntries(TESTS.map(t => [t.id, t]))
+const testMap = Object.fromEntries(TESTS.map(t => [t.id, t]))
 
 export function getTestDefinition(testId, template = null) {
   if (!testId) return null

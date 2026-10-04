@@ -42,7 +42,7 @@ function formatLabelWithUnit(label) {
   return label
 }
 
-export default function BatchTestingPage({ batch, shipment, templates, initialResults, onSave, onClose }) {
+export default function BatchTestingPage({ batch, shipment, templates, initialResults, onSave, onClose, readOnly = false }) {
   const { t } = useLanguage()
   const [testData, setTestData] = useState({})
   const [warnings, setWarnings] = useState({})
@@ -659,12 +659,19 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
           </div>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={handleSave}
-            className="px-6 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-teal-500/10 transition-all duration-250 cursor-pointer"
-          >
-            {t('batch.page.save')}
-          </button>
+          {readOnly && (
+            <span className="self-center text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-800/60 border border-slate-700 px-3 py-1.5 rounded-xl">
+              {t('batch.page.readonly')}
+            </span>
+          )}
+          {!readOnly && (
+            <button
+              onClick={handleSave}
+              className="px-6 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-teal-500/10 transition-all duration-250 cursor-pointer"
+            >
+              {t('batch.page.save')}
+            </button>
+          )}
         </div>
       </header>
 
@@ -733,7 +740,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
               <section
                 key={testId}
                 className={`bg-slate-900 border rounded-3xl p-6 shadow-lg space-y-6 transition-all duration-300 ${
-                  isLocked ? 'border-slate-805/40 opacity-70 bg-slate-900/50' : 'border-slate-800'
+                  isLocked ? 'border-slate-800/40 opacity-70 bg-slate-900/50' : 'border-slate-800'
                 }`}
               >
                 {/* Test Card Header */}
@@ -796,7 +803,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
                 {/* Default Batch Tare & Subtraction Switch */}
                 {testId === 'weight' && (
-                  <div className="p-4 bg-slate-950/40 border border-slate-855 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
+                  <div className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-6 w-full md:w-auto">
                       <div className="flex flex-col gap-1.5 w-full sm:w-44">
                         <label className="text-sm sm:text-base font-bold text-slate-200 uppercase tracking-wider">
@@ -1043,7 +1050,7 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
 
       {/* Sticky Bottom Actions Bar */}
       <footer className="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur border-t border-slate-800 py-4 px-4 sm:px-6 flex sm:justify-end gap-3 z-20">
-        {(batch.approved_at || batch.submitted_at) ? (
+        {(readOnly || batch.approved_at || batch.submitted_at) ? (
           <button
             onClick={handleBackClick}
             className="flex-1 sm:flex-none px-8 py-2.5 bg-slate-800 hover:bg-slate-750 text-xs font-bold text-white rounded-xl transition-all duration-200 cursor-pointer"
@@ -1156,9 +1163,9 @@ export default function BatchTestingPage({ batch, shipment, templates, initialRe
                               )}
                             </div>
                             <p className="text-slate-350"><strong className="text-slate-400 font-medium">{t('tare.registry.supplier')}</strong> {item.supplier}</p>
-                            <p className="text-slate-355"><strong className="text-slate-400 font-medium">{t('tare.registry.declared_weight')}</strong> {item.declared_weight}</p>
+                            <p className="text-slate-350"><strong className="text-slate-400 font-medium">{t('tare.registry.declared_weight')}</strong> {item.declared_weight}</p>
                             {item.manufacturer && (
-                              <p className="text-slate-360"><strong className="text-slate-400 font-medium">{t('tare.registry.manufacturer')}</strong> {item.manufacturer}</p>
+                              <p className="text-slate-350"><strong className="text-slate-400 font-medium">{t('tare.registry.manufacturer')}</strong> {item.manufacturer}</p>
                             )}
                             <p className="text-slate-400 italic bg-slate-900/50 p-2 rounded-lg mt-1 border border-slate-850/50 leading-relaxed">
                               {item.short_description}

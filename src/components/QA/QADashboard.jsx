@@ -134,7 +134,7 @@ export default function QADashboard() {
           {/* Quick Info & Feedback message */}
           {message.text && (
             <div className={`p-2.5 rounded-xl text-xs mb-4 border leading-normal ${
-              message.type === 'error' ? 'bg-red-950/80 border-red-500/20 text-red-250' :
+              message.type === 'error' ? 'bg-red-950/80 border-red-500/20 text-red-300' :
               message.type === 'info' ? 'bg-indigo-950/80 border-indigo-500/20 text-indigo-250' :
               'bg-emerald-950/80 border-emerald-500/20 text-emerald-250'
             }`}>

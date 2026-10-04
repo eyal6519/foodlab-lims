@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
-import { TESTS, calculateTest, fmt, isTestEntered, isShipmentArchived, num, avg, isTestLocked, getTestDefinition, addIncubationDays } from '../utils/calculations'
+import { TESTS, calculateTest, isTestEntered, isShipmentArchived, isTestLocked, getTestDefinition } from '../utils/calculations'
 import { parseBatchNumber } from '../utils/batchParser'
+import { buildBatchRowsFromForm, persistShipmentBatches } from '../utils/shipmentPersistence'
 import ShipmentModal from './ShipmentModal'
 import BatchTestingPage from './BatchTestingPage'
 import ResponsiveShell from './ResponsiveShell'
@@ -32,17 +33,10 @@ import {
   MoreVertical,
   Database
 } from 'lucide-react'
-import html2pdf from 'html2pdf.js'
-
-function uuidv4() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
+import { downloadCoaPdf as downloadCoaPdfShared } from '../utils/coaPdf'
+import { getIncubationStatus as getIncubationStatusShared, formatExitText as formatExitTextShared } from '../utils/incubationStatus'
+import COAReportView from './COAReportView'
+import AccountSettingsModal from './AccountSettingsModal'
 
 export default function ManagerView() {
   const { user, profile, logout, createTechnician, updateAccount, refreshProfile } = useAuth()
@@ -387,8 +381,6 @@ export default function ManagerView() {
     const template = templates.find(t => t.id === data.template_id)
     const intakeDate = data.intake_date
 
-    const addDays = addIncubationDays
-
     try {
       let shipmentId = isNew ? null : shipmentModal.id
 
@@ -422,53 +414,15 @@ export default function ManagerView() {
       }
 
       // 2. Save batches
-      // Parse dynamic batch form rows
-      const batchRows = Array.from(form.querySelectorAll('.batch-form-row')).map(row => {
-        const numInput = row.querySelector('[name="batch_number"]').value
-        const parsed = parseBatchNumber(numInput)
-        const prodDate = row.querySelector('[name="production_date"]').value || (parsed.valid ? parsed.date : null)
-        const expDate = row.querySelector('[name="expiration_date"]').value || null
-
-        // Batch-level incubation details
-        const u36 = Number(row.querySelector('[name="units_36"]')?.value || 0)
-        const u55 = Number(row.querySelector('[name="units_55"]')?.value || 0)
-        const exit36 = u36 && template?.incubation_36 ? addDays(intakeDate, template.incubation_36) : null
-        const exit55 = u55 && template?.incubation_55 ? addDays(intakeDate, template.incubation_55) : null
-
-        const batchId = row.dataset.id
-        const existingBatch = isNew ? null : (shipmentModal.batches || []).find(b => b.id === batchId)
-
-        return {
-          id: batchId || uuidv4(),
-          shipment_id: shipmentId,
-          number: numInput ? numInput.trim() : null,
-          production_date: prodDate,
-          expiration_date: expDate,
-          units_36: u36,
-          units_55: u55,
-          exit_36: exit36,
-          exit_55: exit55,
-          is_manually_unlocked: existingBatch ? existingBatch.is_manually_unlocked : false,
-          incubation_exited_at: existingBatch ? existingBatch.incubation_exited_at : null,
-          incubation_removed_early_at: existingBatch ? existingBatch.incubation_removed_early_at : null,
-          incubation_early_acknowledged_at: existingBatch ? existingBatch.incubation_early_acknowledged_at : null
-        }
+      const batchRows = buildBatchRowsFromForm(form, {
+        isNew,
+        shipmentId,
+        template,
+        intakeDate,
+        existingBatches: shipmentModal.batches
       })
 
-      // Sync batches (delete removed ones, upsert active ones)
-      if (!isNew) {
-        const activeIds = batchRows.map(r => r.id).filter(Boolean)
-        await supabase
-          .from('batches')
-          .delete()
-          .eq('shipment_id', shipmentId)
-          .not('id', 'in', `(${activeIds.join(',')})`)
-      }
-
-      const { error: batchesError } = await supabase
-        .from('batches')
-        .upsert(batchRows)
-      if (batchesError) throw batchesError
+      await persistShipmentBatches(supabase, shipmentId, isNew, batchRows)
 
       setShipmentModal(null)
       fetchData()
@@ -656,128 +610,20 @@ export default function ManagerView() {
 
   // Generate PDF client-side
   const downloadCoaPdf = (batchNumber) => {
-    const element = document.getElementById('coa-report-view')
-    if (!element) {
-      alert(t('mgr.alert.coa_missing'))
-      return
-    }
-
-    const opt = {
-      margin: 0.3,
-      filename: `COA_Batch_${batchNumber || 'Unnamed'}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-    }
-
-    const runCdnHtml2Pdf = () => {
-      const html2pdfLib = window.html2pdf
-      if (!html2pdfLib) {
-        alert(t('mgr.alert.pdf_library'))
-        return
-      }
-      try {
-        html2pdfLib().set(opt).from(element).save()
-          .catch(err => alert(`${t('mgr.alert.pdf_save_error')} ${err.message}`))
-      } catch (err) {
-        alert(`${t('mgr.alert.pdf_execution_error')} ${err.message}`)
-      }
-    }
-
-    const loadCdnFallback = () => {
-      if (window.html2pdf) {
-        runCdnHtml2Pdf()
-        return
-      }
-      const script = document.createElement('script')
-      script.src = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.14.0/dist/html2pdf.bundle.min.js'
-      script.onload = runCdnHtml2Pdf
-      script.onerror = () => alert(t('mgr.alert.pdf_load_failed'))
-      document.body.appendChild(script)
-    }
-
-    // Try local bundle first
-    try {
-      const html2pdfFn = html2pdf.default || html2pdf
-      if (typeof html2pdfFn === 'function') {
-        html2pdfFn().set(opt).from(element).save()
-          .catch(err => {
-            console.warn('Local html2pdf save failed, trying CDN fallback...', err)
-            loadCdnFallback()
-          })
-      } else {
-        throw new Error(t('mgr.alert.pdf_local_unresolved'))
-      }
-    } catch (err) {
-      console.warn('Local html2pdf execution failed, attempting CDN fallback. Error:', err.message)
-      loadCdnFallback()
-    }
+    downloadCoaPdfShared(batchNumber, {
+      coa_missing: t('mgr.alert.coa_missing'),
+      pdf_library: t('mgr.alert.pdf_library'),
+      pdf_save_error: t('mgr.alert.pdf_save_error'),
+      pdf_execution_error: t('mgr.alert.pdf_execution_error'),
+      pdf_load_failed: t('mgr.alert.pdf_load_failed'),
+      pdf_local_unresolved: t('mgr.alert.pdf_local_unresolved')
+    })
   }
 
   // --- RENDER HEPLERS ---
   const getTemplate = (id) => templates.find(t => t.id === id)
 
-  const getIncubationStatus = (batch, templateId) => {
-    const template = getTemplate(templateId)
-    if (!template || !batch) return { required: false, locked: false, label: t('status.ready') }
-
-    if (template.requires_incubation === false) {
-      return { required: false, locked: false, label: t('status.ready') }
-    }
-
-    const needs36 = (batch.units_36 || 0) > 0 && (template.incubation_36 || 0) > 0
-    const needs55 = (batch.units_55 || 0) > 0 && (template.incubation_55 || 0) > 0
-    const required = needs36 || needs55
-
-    if (batch.is_manually_unlocked) {
-      return { required, locked: false, label: t('status.unlocked_override') || t('status.unlocked_admin') }
-    }
-
-    const exited = !!(batch.incubation_exited_at || batch.incubation_removed_early_at)
-    const today = new Date().toISOString().slice(0, 10)
-    const due36 = needs36 ? (batch.exit_36 && batch.exit_36 <= today) : false
-    const due55 = needs55 ? (batch.exit_55 && batch.exit_55 <= today) : false
-
-    const is36Locked = needs36 && !due36 && !exited
-    const is55Locked = needs55 && !due55 && !exited
-
-    // The batch as a whole is locked only if ALL configured chambers are still locked
-    const locked = required && !exited && (needs36 ? is36Locked : true) && (needs55 ? is55Locked : true)
-    
-    // The batch is due if any are due and not yet exited
-    const due = required && !exited && (due36 || due55)
-
-    let label = t('status.ready')
-    if (required) {
-      if (exited) {
-        label = t('status.exited')
-      } else if (is36Locked && is55Locked) {
-        label = t('status.in_incubation')
-      } else if (!is36Locked && is55Locked) {
-        label = t('status.partial_36_exited') || '36°C Exited / 55°C Incubating'
-      } else if (is36Locked && !is55Locked) {
-        label = t('status.partial_55_exited') || '55°C Exited / 36°C Incubating'
-      } else {
-        label = t('status.due')
-      }
-    }
-
-    let daysRemaining = 0
-    if (locked) {
-      const activeExits = []
-      if (is36Locked && batch.exit_36) activeExits.push(new Date(batch.exit_36))
-      if (is55Locked && batch.exit_55) activeExits.push(new Date(batch.exit_55))
-      
-      if (activeExits.length > 0) {
-        const latestExit = new Date(Math.max(...activeExits))
-        const todayDate = new Date(today)
-        const diffTime = latestExit.getTime() - todayDate.getTime()
-        daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
-      }
-    }
-
-    return { required, locked, due, exited, label, daysRemaining, is36Locked, is55Locked }
-  }
+  const getIncubationStatus = (batch, templateId) => getIncubationStatusShared(batch, getTemplate(templateId), t)
 
   const checkWithinStandard = (template, testId, calcResult) => {
     const standard = template?.standards?.[testId]
@@ -804,6 +650,7 @@ export default function ManagerView() {
         templates={templates}
         initialResults={results}
         onSave={() => {}}
+        readOnly
         onClose={() => setActiveBatchTesting(null)}
       />
     )
@@ -1049,9 +896,9 @@ export default function ManagerView() {
                                 setAssigningShipment(s)
                                 setSelectedTechs(assignedIds)
                               }}
-                              className="self-start sm:self-center px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-955 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 font-sans"
+                              className="self-start sm:self-center px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 font-sans"
                             >
-                              <UserPlus className="w-4 h-4 text-slate-955" />
+                              <UserPlus className="w-4 h-4 text-slate-950" />
                               <span>{t('mgr.dashboard.assign_mission')}</span>
                             </button>
                           </div>
@@ -1070,22 +917,7 @@ export default function ManagerView() {
               .filter(s => !isShipmentArchived(s))
               .filter(s => s.batches.some(b => getIncubationStatus(b, s.template_id).locked))
 
-            const getDaysRemainingForDate = (exitDateStr) => {
-              if (!exitDateStr) return null
-              const today = new Date().toISOString().slice(0, 10)
-              const todayDate = new Date(today)
-              const exitDate = new Date(exitDateStr)
-              const diffTime = exitDate.getTime() - todayDate.getTime()
-              return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
-            }
-
-            const formatExitText = (exitDateStr) => {
-              const days = getDaysRemainingForDate(exitDateStr)
-              if (days === null) return ''
-              if (days === 0) return t('tech.batch.exits_today')
-              if (days === 1) return t('tech.batch.exits_tomorrow')
-              return t('tech.batch.exits_in').replace('{n}', days)
-            }
+            const formatExitText = (exitDateStr) => formatExitTextShared(exitDateStr, t)
 
             return (
               <div className="space-y-6">
@@ -1174,7 +1006,7 @@ export default function ManagerView() {
                                           {/* Incubator Cycles Breakdown */}
                                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-800/40">
                                             {needs36 && (
-                                              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-855 flex flex-col gap-1.5">
+                                              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-850 flex flex-col gap-1.5">
                                                 <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('incubation.incubator_36')}</span>
                                                 <div className="flex justify-between items-center mt-1">
                                                   <span className="text-xs font-semibold text-slate-200">{t('incubation.units').replace('{n}', batch.units_36)}</span>
@@ -1184,7 +1016,7 @@ export default function ManagerView() {
                                               </div>
                                             )}
                                             {needs55 && (
-                                              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-855 flex flex-col gap-1.5">
+                                              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-850 flex flex-col gap-1.5">
                                                 <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('incubation.incubator_55')}</span>
                                                 <div className="flex justify-between items-center mt-1">
                                                   <span className="text-xs font-semibold text-slate-200">{t('incubation.units').replace('{n}', batch.units_55)}</span>
@@ -1261,7 +1093,7 @@ export default function ManagerView() {
                           </div>
                           <p className="text-[11px] text-slate-400 truncate mt-0.5">
                             {t('mgr.intake.supplier')} <span className="font-semibold text-slate-350">{s.supplier}</span> • 
-                            {t('mgr.intake.arrived')} <span className="font-semibold text-slate-355">{s.intake_date}</span>
+                            {t('mgr.intake.arrived')} <span className="font-semibold text-slate-350">{s.intake_date}</span>
                             {s.size && ` • ${t('mgr.intake.size').replace('{s}', s.size)}`}
                           </p>
                         </div>
@@ -1557,10 +1389,10 @@ export default function ManagerView() {
                                 return (
                                   <div
                                     key={batch.id}
-                                    className="bg-slate-900/60 border border-slate-855 rounded-2xl overflow-hidden"
+                                    className="bg-slate-900/60 border border-slate-850 rounded-2xl overflow-hidden"
                                   >
                                     {/* Batch Collapsible Header */}
-                                    <div className="flex flex-col sm:flex-row justify-between sm:items-center p-4 gap-4 bg-slate-900/40 border-b border-slate-855/50">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-center p-4 gap-4 bg-slate-900/40 border-b border-slate-850/50">
                                       <button
                                         onClick={() => setExpandedBatches(prev => ({ ...prev, [batch.id]: !prev[batch.id] }))}
                                         className="flex items-center justify-between flex-1 text-right focus:outline-none cursor-pointer animate-fade-in"
@@ -1586,7 +1418,7 @@ export default function ManagerView() {
                                         {allGreen && (
                                           <button
                                             onClick={() => approveBatch(batch.id)}
-                                            className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-450 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+                                            className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-500 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                                           >
                                             {t('mgr.review.quick_approve')}
                                           </button>
@@ -1611,7 +1443,7 @@ export default function ManagerView() {
 
                                     {/* Retest Input Form */}
                                     {retestInputBatchId === batch.id && (
-                                      <div className="p-4 bg-slate-950/40 border-b border-slate-855 space-y-2">
+                                      <div className="p-4 bg-slate-950/40 border-b border-slate-850 space-y-2">
                                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                                           {t('mgr.review.retest_label')}
                                         </label>
@@ -1701,7 +1533,7 @@ export default function ManagerView() {
             )
           })()}
 
-          {(activeTab === 'archive' || activeTab === 'fresh_coas') && (() => {
+          {(activeTab === 'archive') && (() => {
             const filteredApprovedShipments = shipments.map(s => {
               const matchingBatches = (s.batches || []).filter(b => {
                 // Must be approved
@@ -1825,7 +1657,7 @@ export default function ManagerView() {
                         value={coaEndDate}
                         disabled={coaFilterDateType === 'all'}
                         onChange={(e) => setCoaEndDate(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-855 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500 transition-all disabled:opacity-40"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none focus:border-teal-500 transition-all disabled:opacity-40"
                       />
                     </div>
                   </div>
@@ -1840,7 +1672,7 @@ export default function ManagerView() {
                           setCoaStartDate('')
                           setCoaEndDate('')
                         }}
-                        className="text-[10px] text-slate-455 hover:text-white font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                        className="text-[10px] text-slate-450 hover:text-white font-bold uppercase tracking-wider transition-colors cursor-pointer"
                       >
                         {t('mgr.filter.clear_btn')}
                       </button>
@@ -1879,163 +1711,13 @@ export default function ManagerView() {
                   </div>
                 )}
 
-                {coaSelectedBatchId ? (
-                  <div className="w-full overflow-x-auto no-scrollbar pb-6 no-print">
-                    <div id="coa-report-view" className="p-8 bg-white text-slate-900 border border-slate-300 rounded-3xl w-[700px] sm:w-auto max-w-3xl mx-auto shadow-xl flex flex-col justify-between min-h-[9.2in] shrink-0">
-                      {/* COA Top Header */}
-                      <div>
-                        <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
-                          <div>
-                            <h1 className="text-2xl font-black uppercase text-slate-950">{t('coa.title')}</h1>
-                            <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mt-0.5">
-                              {t('coa.lab_name')}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div className="inline-block px-3 py-1 bg-slate-900 text-white text-[10px] font-bold uppercase rounded">
-                              {t('coa.approved_badge')}
-                            </div>
-                            <p className="text-[10px] text-slate-500 mt-2 font-medium">
-                              {t('coa.release_date').replace('{d}', new Date(shipments.flatMap(s => s.batches).find(b => b.id === coaSelectedBatchId)?.approved_at).toLocaleDateString())}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Metadata Table */}
-                        {(() => {
-                          const batch = shipments.flatMap(s => s.batches.map(b => ({ ...b, shipment: s }))).find(b => b.id === coaSelectedBatchId)
-                          const temp = getTemplate(batch?.shipment?.template_id)
-                          return (
-                          <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-xs mb-8 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-455 uppercase block">{t('coa.field.product')}</span>
-                              <span className="font-extrabold text-slate-900">{temp?.name}</span>
-                            </div>
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-455 uppercase block">{t('coa.field.batch')}</span>
-                              <span className="font-extrabold text-slate-900">{batch?.number || t('coa.unnamed_batch')}</span>
-                            </div>
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-455 uppercase block">{t('coa.field.supplier')}</span>
-                              <span className="font-medium text-slate-900">{batch?.shipment?.supplier}</span>
-                            </div>
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-455 uppercase block">{t('coa.field.prod_date')}</span>
-                              <span className="font-medium text-slate-900">{batch?.production_date || '-'}</span>
-                            </div>
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-455 uppercase block">{t('coa.field.exp_date')}</span>
-                              <span className="font-medium text-slate-900">{batch?.expiration_date || '-'}</span>
-                            </div>
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-455 uppercase block">{t('coa.field.intake_date')}</span>
-                              <span className="font-medium text-slate-900">{batch?.shipment?.intake_date}</span>
-                            </div>
-                          </div>
-                        )
-                      })()}
-
-                      {/* Results Table */}
-                      <table className="w-full text-left border-collapse text-xs border border-slate-200">
-                        <thead>
-                          <tr className="bg-slate-900 text-white font-bold uppercase tracking-wider text-[10px]">
-                            <th className="p-3 w-2/5 text-white">{t('coa.table.parameter')}</th>
-                            <th className="p-3 w-2/5 text-center text-white">{t('coa.table.replicates')}</th>
-                            <th className="p-3 w-1/5 text-right text-white">{t('coa.table.result')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(() => {
-                            const batch = shipments.flatMap(s => s.batches).find(b => b.id === coaSelectedBatchId)
-                            if (!batch) return null
-                            const shipment = shipments.find(s => s.id === batch.shipment_id)
-                            const temp = getTemplate(shipment?.template_id)
-                            const batchResults = {}
-                            if (temp?.tests) {
-                              temp.tests.forEach(tid => {
-                                batchResults[tid] = results[`${batch.id}:${tid}`] || []
-                              })
-                            }
-
-                            return temp?.tests.map(tid => {
-                              const test = getTestDefinition(tid, temp)
-                              if (!test) return null
-                              const repData = results[`${batch.id}:${tid}`] || []
-                              const calc = calculateTest(tid, repData, batchResults, test)
-
-                              if (tid === 'weight') {
-                                const avgGross = avg(repData.map(r => num(r.gross)))
-                                const avgNet = avg(repData.map(r => num(r.net)))
-                                const firstTare = repData.find(r => r.tare !== undefined && r.tare !== null && r.tare !== '')?.tare
-                                const tareVal = firstTare !== undefined ? num(firstTare) : NaN
-
-                                const grossLabel = Number.isFinite(avgGross) ? `${fmt(avgGross)} g` : '-'
-                                const tareLabel = Number.isFinite(tareVal) ? `${fmt(tareVal)} g` : '-'
-                                const netLabel = Number.isFinite(avgNet) ? `${fmt(avgNet)} g` : '-'
-
-                                const grossVals = repData.map(r => num(r.gross)).filter(Number.isFinite)
-                                const netVals = repData.map(r => num(r.net)).filter(Number.isFinite)
-
-                                return (
-                                  <React.Fragment key={tid}>
-                                    <tr className="border-b border-slate-150">
-                                      <td className="p-3 font-semibold text-slate-800">{t('coa.weight.avg_gross')}</td>
-                                      <td className="p-3 text-center text-slate-800 font-semibold">
-                                        {grossVals.length > 0 ? grossVals.map(v => fmt(v)).join(', ') : '-'}
-                                      </td>
-                                      <td className="p-3 text-right font-bold text-slate-950">{grossLabel}</td>
-                                    </tr>
-                                    <tr className="border-b border-slate-150">
-                                      <td className="p-3 font-semibold text-slate-800">{t('coa.weight.tare')}</td>
-                                      <td className="p-3 text-center text-slate-800 font-semibold">-</td>
-                                      <td className="p-3 text-right font-bold text-slate-950">{tareLabel}</td>
-                                    </tr>
-                                    <tr className="border-b border-slate-150 last:border-0">
-                                      <td className="p-3 font-semibold text-slate-800">{t('coa.weight.avg_net')}</td>
-                                      <td className="p-3 text-center text-slate-800 font-semibold">
-                                        {netVals.length > 0 ? netVals.map(v => fmt(v)).join(', ') : '-'}
-                                      </td>
-                                      <td className="p-3 text-right font-bold text-slate-950">{netLabel}</td>
-                                    </tr>
-                                  </React.Fragment>
-                                )
-                              }
-
-                              const values = calc.values || []
-                              const hasReplicates = values.length > 0 && test.kind !== 'qualitative' && !test.isCalculated
-
-                              return (
-                                <tr key={tid} className="border-b border-slate-150 last:border-0">
-                                  <td className="p-3 font-semibold text-slate-800">{test.name}</td>
-                                  <td className="p-3 text-center text-slate-800 font-semibold">
-                                    {hasReplicates ? values.map(v => fmt(v)).join(', ') : '-'}
-                                  </td>
-                                  <td className="p-3 text-right font-bold text-slate-950">{calc.label}</td>
-                                </tr>
-                              )
-                            })
-                          })()}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* COA Bottom Signoff Footer */}
-                    <div className="border-t border-slate-200 pt-6 mt-auto">
-                      <div className="flex justify-between items-end">
-                        <div className="text-[10px] text-slate-500 font-medium max-w-sm">
-                          {t('coa.disclaimer')}
-                        </div>
-                        <div className="text-right">
-                          <div className="w-36 border-b border-slate-400 mb-2 h-8" />
-                          <span className="text-[9px] font-bold text-slate-440 uppercase tracking-wider block">
-                            {t('coa.signature')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                ) : (
+                {coaSelectedBatchId ? (() => {
+                  const batch = shipments.flatMap(s => s.batches.map(b => ({ ...b, shipment: s }))).find(b => b.id === coaSelectedBatchId)
+                  const template = getTemplate(batch?.shipment?.template_id)
+                  return (
+                    <COAReportView batch={batch} template={template} results={results} t={t} />
+                  )
+                })() : (
                   filteredApprovedShipments.length === 0 ? (
                     <div className="p-12 text-center text-slate-500 border border-dashed border-slate-800 rounded-3xl">
                       {t('mgr.archive.empty')}
@@ -2086,7 +1768,7 @@ export default function ManagerView() {
                                           onClick={() => setCoaSelectedBatchId(b.id)}
                                           className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-[10px] font-bold rounded-lg active:scale-[0.98] transition-all cursor-pointer font-sans"
                                         >
-                                          <FileText className="w-3.5 h-3.5 text-slate-955" />
+                                          <FileText className="w-3.5 h-3.5 text-slate-950" />
                                           <span>{t('mgr.archive.generate_coa')}</span>
                                         </button>
                                         <button
@@ -2311,6 +1993,9 @@ export default function ManagerView() {
       {/* ACCOUNT SETTINGS MODAL */}
       {settingsModalOpen && (
         <AccountSettingsModal
+          prefix="mgr.settings"
+          toastPrefix="mgr.toast"
+          alertPrefix="mgr.alert"
           user={user}
           initialName={profile?.name || ''}
           onSaveName={(newName) => persistProfileName(user.id, newName)}
@@ -2386,7 +2071,7 @@ export default function ManagerView() {
                           className="sr-only"
                         />
                         <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                          isChecked ? 'bg-teal-500 border-teal-400 text-slate-955' : 'border-slate-700 bg-slate-900'
+                          isChecked ? 'bg-teal-500 border-teal-400 text-slate-950' : 'border-slate-700 bg-slate-900'
                         }`}>
                           {isChecked && <CheckCircle className="w-3.5 h-3.5 text-white bg-teal-500 rounded-full" />}
                         </div>
@@ -2412,7 +2097,7 @@ export default function ManagerView() {
               <button
                 type="button"
                 onClick={handleSaveAssignment}
-                className="flex-1 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-955 text-xs font-bold rounded-xl transition-all cursor-pointer font-sans"
+                className="flex-1 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all cursor-pointer font-sans"
               >
                 {t('mgr.dashboard.save_assignment')}
               </button>
@@ -2788,100 +2473,6 @@ function TemplateModal({ initialTemplate, onSave, onClose }) {
             className="px-6 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl transition-all"
           >
             {t('mgr.template_modal.save')}
-          </button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
-function AccountSettingsModal({ user, initialName, onSaveName, onClose, updateAccount, showToast }) {
-  const { t } = useLanguage()
-  const [name, setName] = useState(initialName || '')
-  const [email, setEmail] = useState(user?.email || '')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    try {
-      const trimmedName = (name || '').trim()
-      const nameChanged = onSaveName && trimmedName !== (initialName || '').trim()
-      if (nameChanged) await onSaveName(trimmedName)
-      await updateAccount(email, password || null)
-      showToast(t('mgr.toast.account_updated'), 'success')
-      onClose()
-    } catch (err) {
-      alert(`${t('mgr.alert.account_update_error')} ${err.message}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-slate-900 border-0 sm:border border-slate-800 rounded-none sm:rounded-3xl w-full max-w-md h-full sm:h-auto p-6 shadow-2xl space-y-4 overflow-y-auto"
-      >
-        <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-          <h2 className="text-lg font-bold text-white">{t('mgr.settings.title')}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all"
-          >
-            <XCircle className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.settings.name')}</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.settings.email')}</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.settings.password')}</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-white text-xs focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 pt-2 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition-all"
-          >
-            {t('mgr.settings.cancel')}
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-5 py-2 bg-teal-500 hover:bg-teal-400 disabled:bg-teal-500/50 text-slate-950 text-xs font-bold rounded-xl transition-all"
-          >
-            {loading ? t('mgr.settings.saving') : t('mgr.settings.save')}
           </button>
         </div>
       </form>

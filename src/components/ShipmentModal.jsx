@@ -163,7 +163,7 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                         setSearchQuery('')
                         setIsOpen(true)
                       }}
-                      className="p-1 hover:bg-slate-800 rounded text-slate-550 hover:text-slate-300 transition-colors"
+                      className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-slate-300 transition-colors"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -172,7 +172,7 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                     type="button"
                     disabled={isSaving}
                     onClick={() => setIsOpen(!isOpen)}
-                    className="p-1 hover:bg-slate-800 rounded text-slate-550 hover:text-slate-300 transition-colors"
+                    className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-slate-300 transition-colors"
                   >
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -186,7 +186,7 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
               {isOpen && (
                 <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-slate-800 rounded-xl shadow-xl z-50 p-1 space-y-0.5 scrollbar-none">
                   {filteredTemplates.length === 0 ? (
-                    <div className="p-3 text-xs text-slate-550 italic text-center">
+                    <div className="p-3 text-xs text-slate-500 italic text-center">
                       {t('shipment.combobox.no_results') || 'No products found'}
                     </div>
                   ) : (
@@ -345,7 +345,7 @@ export default function ShipmentModal({ templates, initialShipment, onSave, onCl
                           )}
                           {hasInc55 ? (
                             <div className="space-y-1">
-                              <label className="text-[9px] font-bold text-slate-455 uppercase tracking-wider">{t('shipment.field.incubation_55')}</label>
+                              <label className="text-[9px] font-bold text-slate-450 uppercase tracking-wider">{t('shipment.field.incubation_55')}</label>
                               <input
                                 type="number"
                                 name="units_55"
