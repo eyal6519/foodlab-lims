@@ -57,7 +57,7 @@ Upon logging in, you will access the **Manager Dashboard**. Use the sidebar navi
 ### 3.1 Dashboard
 
 Displays a live summary of the laboratory status:
-- **Pending Review** — Batches awaiting manager signature or testing completion.
+- **Pending Review** — Batches submitted by the lab awaiting manager approval. This count always matches the Review tab.
 - **In Incubation** — Number of batches currently inside incubators.
 - **Database Storage** — Progress bar indicating current storage usage out of 500 MB.
 - **Pending Shipments & Assignments** — Shipment list with option to assign technicians.

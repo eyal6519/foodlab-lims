@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { num, fmt, avg, avgLogPh, calculateTest, isShipmentArchived, isTestLocked, addIncubationDays, getEffectiveExitDate } from './calculations'
+import { num, fmt, avg, avgLogPh, calculateTest, isShipmentArchived, isTestLocked, isPendingReviewBatch, getPendingReviewBatches, addIncubationDays, getEffectiveExitDate } from './calculations'
 
 describe('Math and Calculations Utilities', () => {
   describe('num()', () => {
@@ -380,6 +380,83 @@ describe('Math and Calculations Utilities', () => {
       expect(res55.complete).toBe(true)
       expect(res55.average).toBe(7.4)
       expect(res55.label).toBe('pH of 7.4')
+    })
+  })
+
+  describe('isPendingReviewBatch()', () => {
+    it('returns false for a missing batch', () => {
+      expect(isPendingReviewBatch(null)).toBe(false)
+      expect(isPendingReviewBatch(undefined)).toBe(false)
+    })
+
+    it('returns true only when submitted and neither approved nor sent for retest', () => {
+      expect(isPendingReviewBatch({ id: 'b1', submitted_at: '2026-06-19T10:00:00Z' })).toBe(true)
+      expect(isPendingReviewBatch({ id: 'b2', submitted_at: '2026-06-19T10:00:00Z', approved_at: null })).toBe(true)
+    })
+
+    it('returns false when the lab has not submitted results yet', () => {
+      expect(isPendingReviewBatch({ id: 'b1', submitted_at: null })).toBe(false)
+      expect(isPendingReviewBatch({ id: 'b2' })).toBe(false)
+    })
+
+    it('returns false once the manager approved the batch', () => {
+      expect(isPendingReviewBatch({
+        id: 'b1',
+        submitted_at: '2026-06-19T10:00:00Z',
+        approved_at: '2026-06-19T12:00:00Z'
+      })).toBe(false)
+    })
+
+    it('returns false once the manager requested a retest', () => {
+      expect(isPendingReviewBatch({
+        id: 'b1',
+        submitted_at: '2026-06-19T10:00:00Z',
+        retest_requested_at: '2026-06-19T12:00:00Z'
+      })).toBe(false)
+    })
+  })
+
+  describe('getPendingReviewBatches()', () => {
+    const submitted = { id: 'b1', submitted_at: '2026-06-19T10:00:00Z' }
+    const approved = { id: 'b2', submitted_at: '2026-06-19T10:00:00Z', approved_at: '2026-06-19T12:00:00Z' }
+    const retest = { id: 'b3', submitted_at: '2026-06-19T10:00:00Z', retest_requested_at: '2026-06-19T12:00:00Z' }
+    const draft = { id: 'b4', submitted_at: null }
+
+    it('returns an empty list for non-array or empty input', () => {
+      expect(getPendingReviewBatches(null)).toEqual([])
+      expect(getPendingReviewBatches(undefined)).toEqual([])
+      expect(getPendingReviewBatches([])).toEqual([])
+    })
+
+    it('returns only submitted, unapproved, non-retest batches', () => {
+      const shipments = [{ id: 's1', supplier: 'Acme', batches: [submitted, approved, retest, draft] }]
+      const pending = getPendingReviewBatches(shipments)
+      expect(pending).toHaveLength(1)
+      expect(pending[0].id).toBe('b1')
+    })
+
+    it('attaches the parent shipment to each returned batch', () => {
+      const shipment = { id: 's1', supplier: 'Acme', template_id: 't1', batches: [submitted] }
+      const pending = getPendingReviewBatches([shipment])
+      expect(pending[0].shipment).toBe(shipment)
+      expect(pending[0].shipment.supplier).toBe('Acme')
+    })
+
+    it('ignores shipments with no batches array', () => {
+      expect(getPendingReviewBatches([{ id: 's1' }, { id: 's2', batches: null }])).toEqual([])
+    })
+
+    it('excludes batches belonging to fully approved (archived) shipments', () => {
+      const archived = { id: 's1', batches: [approved] }
+      expect(getPendingReviewBatches([archived])).toEqual([])
+    })
+
+    it('counts batches across shipments, which is what the dashboard metric reports', () => {
+      const shipments = [
+        { id: 's1', batches: [submitted, draft] },
+        { id: 's2', batches: [approved, { id: 'b5', submitted_at: '2026-06-20T10:00:00Z' }] }
+      ]
+      expect(getPendingReviewBatches(shipments)).toHaveLength(2)
     })
   })
 })
