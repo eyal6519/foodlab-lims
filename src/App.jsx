@@ -7,7 +7,7 @@ import QADashboard from './components/QA/QADashboard'
 import { Beaker } from 'lucide-react'
 
 function AppContent() {
-  const { user, profile, loading } = useAuth()
+  const { user, profile, profileError, loading, refreshProfile } = useAuth()
   const { t } = useLanguage()
 
   if (loading) {
@@ -35,6 +35,31 @@ function AppContent() {
 
   if (profile?.role === 'technician') {
     return <TechnicianView />
+  }
+
+  // Signed in, but the database refused the profile read. Distinct from
+  // Access Pending: the account exists, the query failed.
+  if (profileError) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-6 text-center">
+        <div className="max-w-md bg-slate-900 border border-red-900/60 rounded-3xl p-8 space-y-4 shadow-xl">
+          <h2 className="text-xl font-bold text-white">{t('app.profile_error.title')}</h2>
+          <p className="text-sm text-slate-400">
+            {t('app.profile_error.body').replace('{email}', user.email)}
+          </p>
+          <p className="text-xs text-red-400 font-mono break-words text-right">
+            {t('app.profile_error.detail').replace('{message}', profileError)}
+          </p>
+          <button
+            type="button"
+            onClick={() => refreshProfile()}
+            className="px-4 py-2 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 text-xs font-bold uppercase tracking-wider hover:bg-teal-500/20 transition-colors"
+          >
+            {t('app.profile_error.retry')}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // User logged in but lacks profile role (e.g. pending setup)

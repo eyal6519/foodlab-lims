@@ -28,6 +28,44 @@ alter table public.profiles add column if not exists name text;
 -- Enable RLS on profiles
 alter table public.profiles enable row level security;
 
+-- Role helper functions.
+--
+-- A row level security policy may not read the table it guards: Postgres
+-- rejects that with 42P17 "infinite recursion detected in policy". The
+-- profiles policies therefore cannot ask "does the caller have a role?" by
+-- querying public.profiles. These SECURITY DEFINER helpers answer the question
+-- instead. They run as the table owner, which bypasses the profiles policies,
+-- so the answer comes back without re-entering the guard.
+--
+-- They must exist before the policies below reference them, so they are
+-- declared here rather than in the utility section at the end of the file.
+
+create or replace function public.has_app_role()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, extensions
+as $body$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role in ('manager', 'technician')
+  )
+$body$;
+
+create or replace function public.is_manager()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, extensions
+as $body$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'manager'
+  )
+$body$;
+
 -- Policies for profiles
 -- Drop the legacy name and the current name so this block is safe to re-run.
 drop policy if exists "Users can read all profiles" on public.profiles;
@@ -38,10 +76,7 @@ create policy "Users can read profiles"
     using (
         id = auth.uid()
         or
-        exists (
-            select 1 from public.profiles
-            where public.profiles.id = auth.uid() and public.profiles.role in ('manager', 'technician')
-        )
+        public.has_app_role()
     );
 
 drop policy if exists "Managers can update profiles" on public.profiles;
@@ -49,10 +84,10 @@ create policy "Managers can update profiles"
     on public.profiles for update
     to authenticated
     using (
-        exists (
-            select 1 from public.profiles
-            where public.profiles.id = auth.uid() and public.profiles.role = 'manager'
-        )
+        public.is_manager()
+    )
+    with check (
+        public.is_manager()
     );
 
 -- 2. PRODUCT TEMPLATES TABLE
@@ -426,26 +461,10 @@ create policy "Managers and technicians can manage tare registry"
 -- These exist in the deployed database but were missing from this script. They
 -- are created only when absent so that re-running this file against a live
 -- database never rewrites an existing definition.
-
-do $$
-begin
-  if to_regprocedure('public.is_manager()') is null then
-    execute $fn$
-      create function public.is_manager()
-      returns boolean
-      language sql
-      security definer
-      set search_path = public, extensions
-      as $body$
-        select exists (
-          select 1 from public.profiles
-          where id = auth.uid() and role = 'manager'
-        )
-      $body$;
-    $fn$;
-  end if;
-end;
-$$;
+--
+-- public.is_manager() is NOT created here. It is declared with
+-- public.has_app_role() above, before the policies that call it, because the
+-- profiles policies cannot query the table they guard.
 
 do $$
 begin
@@ -477,6 +496,7 @@ revoke execute on function public.admin_create_user(text, text, text, text) from
 revoke execute on function public.admin_delete_user(uuid) from anon, public;
 revoke execute on function public.get_db_size_bytes() from anon, public;
 revoke execute on function public.is_manager() from anon, public;
+revoke execute on function public.has_app_role() from anon, public;
 
 -- Trigger functions are invoked by the trigger, never over the API. No role
 -- needs EXECUTE on them.
@@ -487,6 +507,11 @@ grant execute on function public.admin_create_user(text, text, text, text) to au
 grant execute on function public.admin_delete_user(uuid) to authenticated;
 grant execute on function public.get_db_size_bytes() to authenticated;
 grant execute on function public.is_manager() to authenticated;
+
+-- Used by the profiles RLS policies. Policy expressions are evaluated as the
+-- querying role, so authenticated needs EXECUTE on it.
+grant execute on function public.has_app_role() to authenticated;
+grant execute on function public.has_app_role() to service_role;
 
 -- service_role is exempt: the QA seeding panel (mockDataGenerator.js) uses the
 -- service-role key to bootstrap users on an empty database.
