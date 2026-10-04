@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { supabase } from '../lib/supabase'
@@ -8,6 +8,7 @@ import { buildBatchRowsFromForm, persistShipmentBatches } from '../utils/shipmen
 import ShipmentModal from './ShipmentModal'
 import BatchTestingPage from './BatchTestingPage'
 import ResponsiveShell from './ResponsiveShell'
+import AnchoredMenu from './AnchoredMenu'
 import {
   LayoutDashboard,
   Calendar,
@@ -31,7 +32,8 @@ import {
   X,
   Archive,
   MoreVertical,
-  Database
+  Database,
+  ChevronDown
 } from 'lucide-react'
 import { downloadCoaPdf as downloadCoaPdfShared } from '../utils/coaPdf'
 import { getIncubationStatus as getIncubationStatusShared, formatExitText as formatExitTextShared } from '../utils/incubationStatus'
@@ -59,6 +61,7 @@ export default function ManagerView() {
   const [shipmentModal, setShipmentModal] = useState(null) // { id, template_id, ... } or 'new'
   const [templateModal, setTemplateModal] = useState(null) // { id, name, ... } or 'new'
   const [activeUserMenuId, setActiveUserMenuId] = useState(null)
+  const userMenuAnchorRef = useRef(null) // button element the open menu is anchored to
   const [renamingUser, setRenamingUser] = useState(null) // { id } of the user being renamed, or null
   const [newUserName, setNewUserName] = useState('')
   const [newUserEmail, setNewUserEmail] = useState('')
@@ -72,6 +75,7 @@ export default function ManagerView() {
   const [coaFilterDateType, setCoaFilterDateType] = useState('all') // 'all' | 'approved_at' | 'intake_date' | 'production_date'
   const [coaStartDate, setCoaStartDate] = useState('')
   const [coaEndDate, setCoaEndDate] = useState('')
+  const [coaAdvancedOpen, setCoaAdvancedOpen] = useState(false)
   const [templateSearch, setTemplateSearch] = useState('')
   const [templateFilter, setTemplateFilter] = useState('all') // 'all' | 'incubation' | 'bypass'
 
@@ -1602,7 +1606,7 @@ export default function ManagerView() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     {/* Search box */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.filter.search_label')}</label>
                       <div className="relative">
                         <input
@@ -1616,6 +1620,21 @@ export default function ManagerView() {
                       </div>
                     </div>
 
+                    {/* Advanced search toggle */}
+                    <div className="flex items-end">
+                      <button
+                        onClick={() => setCoaAdvancedOpen((v) => !v)}
+                        aria-expanded={coaAdvancedOpen}
+                        className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-teal-500 text-slate-300 hover:text-teal-400 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                      >
+                        {coaAdvancedOpen ? t('mgr.filter.basic_search') : t('mgr.filter.advanced_search')}
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${coaAdvancedOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {coaAdvancedOpen && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {/* Date filter dropdown */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('mgr.filter.date_label')}</label>
@@ -1661,6 +1680,7 @@ export default function ManagerView() {
                       />
                     </div>
                   </div>
+                  )}
 
                   {/* Clear filter button */}
                   {(coaSearch || coaFilterDateType !== 'all' || coaStartDate || coaEndDate) && (
@@ -1899,23 +1919,28 @@ export default function ManagerView() {
                         }`}>
                           {u.role}
                         </span>
-                        <div className="relative">
+                        <div>
                           <button
                             type="button"
-                            onClick={() => setActiveUserMenuId(activeUserMenuId === u.id ? null : u.id)}
+                            onClick={(e) => {
+                              if (activeUserMenuId === u.id) {
+                                setActiveUserMenuId(null)
+                                return
+                              }
+                              userMenuAnchorRef.current = e.currentTarget
+                              setActiveUserMenuId(u.id)
+                            }}
                             className="p-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-400 hover:text-white rounded-lg transition-all"
                           >
                             <MoreVertical className="w-4 h-4" />
                           </button>
-                          {activeUserMenuId === u.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setActiveUserMenuId(null)}
-                              />
-                              <div className={`absolute ${
-                                isRtl ? 'left-0' : 'right-0'
-                              } mt-1 w-44 bg-slate-950 border border-slate-850 rounded-xl shadow-xl z-20 p-1.5 space-y-1`}>
+                          <AnchoredMenu
+                            isOpen={activeUserMenuId === u.id}
+                            anchorRef={userMenuAnchorRef}
+                            onClose={() => setActiveUserMenuId(null)}
+                            isRtl={isRtl}
+                            width={176}
+                          >
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1956,9 +1981,7 @@ export default function ManagerView() {
                                     </button>
                                   </>
                                 )}
-                              </div>
-                            </>
-                          )}
+                          </AnchoredMenu>
                         </div>
                       </div>
                     </div>

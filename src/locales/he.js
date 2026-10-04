@@ -268,6 +268,8 @@ const he = {
   'mgr.filter.from': 'מתאריך',
   'mgr.filter.to': 'עד תאריך',
   'mgr.filter.clear_btn': 'נקה סינון [×]',
+  'mgr.filter.advanced_search': 'חיפוש מתקדם',
+  'mgr.filter.basic_search': 'חיפוש בסיסי',
   'mgr.coa.print_btn': 'הדפס מסמך',
   'mgr.coa.download_btn': 'הורד PDF',
   'mgr.coa.empty_recent': 'לא נמצאו תעודות אנליזה שאושרו ב-24 השעות האחרונות.',
@@ -545,6 +547,8 @@ const he = {
   'common.filter.from': 'מתאריך',
   'common.filter.to': 'עד תאריך',
   'common.filter.clear_btn': 'נקה סינון [×]',
+  'common.filter.advanced_search': 'חיפוש מתקדם',
+  'common.filter.basic_search': 'חיפוש בסיסי',
   'common.print_btn': 'הדפס מסמך',
   'common.download_btn': 'הורד PDF',
 
